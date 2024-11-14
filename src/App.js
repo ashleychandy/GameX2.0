@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Link, Navigate } from "react-router-dom";
 import { ethers } from "ethers";
 import "./App.css";
 import DiceABI from "./contracts/abi/Dice.json";
@@ -515,6 +515,221 @@ const Home = () => {
   );
 };
 
+const AdminPage = ({ diceContract, tokenContract, account, onError }) => {
+  const [historySize, setHistorySize] = useState("");
+  const [playerAddress, setPlayerAddress] = useState("");
+  const [callbackGasLimit, setCallbackGasLimit] = useState("");
+  const [roleAddress, setRoleAddress] = useState("");
+  const [minters, setMinters] = useState([]);
+  const [burners, setBurners] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [contractBalance, setContractBalance] = useState("0");
+
+  useEffect(() => {
+    fetchData();
+  }, [diceContract, tokenContract]);
+
+  const fetchData = async () => {
+    try {
+      if (diceContract && tokenContract) {
+        const balance = await diceContract.getContractBalance();
+        setContractBalance(ethers.formatEther(balance));
+
+        const { minters: mintersArray, burners: burnersArray } =
+          await tokenContract.getMinterBurnerAddresses();
+        setMinters(mintersArray);
+        setBurners(burnersArray);
+      }
+    } catch (err) {
+      onError(err);
+    }
+  };
+
+  const handleTransaction = async (operation) => {
+    setLoading(true);
+    try {
+      let tx;
+      switch (operation) {
+        case "pause":
+          tx = await diceContract.pause();
+          break;
+        case "unpause":
+          tx = await diceContract.unpause();
+          break;
+        case "setHistorySize":
+          tx = await diceContract.setHistorySize(historySize);
+          break;
+        case "recoverStuckGame":
+          tx = await diceContract.recoverStuckGame(playerAddress);
+          break;
+        case "forceStopGame":
+          tx = await diceContract.forceStopGame(playerAddress);
+          break;
+        case "setCallbackGasLimit":
+          tx = await diceContract.setCallbackGasLimit(callbackGasLimit);
+          break;
+        case "revokeMinterRole":
+          tx = await tokenContract.revokeRole(
+            await tokenContract.MINTER_ROLE(),
+            roleAddress
+          );
+          break;
+        case "revokeBurnerRole":
+          tx = await tokenContract.revokeRole(
+            await tokenContract.BURNER_ROLE(),
+            roleAddress
+          );
+          break;
+        default:
+          throw new Error("Invalid operation");
+      }
+      await tx.wait();
+      await fetchData();
+    } catch (err) {
+      onError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="admin-page">
+      <h1>Admin Dashboard</h1>
+
+      <section className="admin-section">
+        <h2>Contract Status</h2>
+        <div className="status-info">
+          <p>Contract Balance: {contractBalance} Tokens</p>
+        </div>
+      </section>
+
+      <section className="admin-section">
+        <h2>Game Controls</h2>
+        <div className="button-group">
+          <button onClick={() => handleTransaction("pause")} disabled={loading}>
+            Pause Game
+          </button>
+          <button
+            onClick={() => handleTransaction("unpause")}
+            disabled={loading}
+          >
+            Unpause Game
+          </button>
+        </div>
+      </section>
+
+      <section className="admin-section">
+        <h2>Game Settings</h2>
+        <div className="input-group">
+          <input
+            type="number"
+            value={historySize}
+            onChange={(e) => setHistorySize(e.target.value)}
+            placeholder="New history size"
+          />
+          <button
+            onClick={() => handleTransaction("setHistorySize")}
+            disabled={loading}
+          >
+            Set History Size
+          </button>
+        </div>
+
+        <div className="input-group">
+          <input
+            type="number"
+            value={callbackGasLimit}
+            onChange={(e) => setCallbackGasLimit(e.target.value)}
+            placeholder="Callback gas limit"
+          />
+          <button
+            onClick={() => handleTransaction("setCallbackGasLimit")}
+            disabled={loading}
+          >
+            Set Callback Gas Limit
+          </button>
+        </div>
+      </section>
+
+      <section className="admin-section">
+        <h2>Player Management</h2>
+        <div className="input-group">
+          <input
+            type="text"
+            value={playerAddress}
+            onChange={(e) => setPlayerAddress(e.target.value)}
+            placeholder="Player address"
+          />
+          <div className="button-group">
+            <button
+              onClick={() => handleTransaction("recoverStuckGame")}
+              disabled={loading}
+            >
+              Recover Stuck Game
+            </button>
+            <button
+              onClick={() => handleTransaction("forceStopGame")}
+              disabled={loading}
+            >
+              Force Stop Game
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="admin-section">
+        <h2>Role Management</h2>
+        <div className="role-lists">
+          <div className="role-group">
+            <h3>Minters</h3>
+            <ul>
+              {minters.map((address, index) => (
+                <li key={index}>{address}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="role-group">
+            <h3>Burners</h3>
+            <ul>
+              {burners.map((address, index) => (
+                <li key={index}>{address}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div className="input-group">
+          <input
+            type="text"
+            value={roleAddress}
+            onChange={(e) => setRoleAddress(e.target.value)}
+            placeholder="Address to revoke role from"
+          />
+          <div className="button-group">
+            <button
+              onClick={() => handleTransaction("revokeMinterRole")}
+              disabled={loading}
+            >
+              Revoke Minter Role
+            </button>
+            <button
+              onClick={() => handleTransaction("revokeBurnerRole")}
+              disabled={loading}
+            >
+              Revoke Burner Role
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {loading && (
+        <div className="loading-overlay">Processing transaction...</div>
+      )}
+    </div>
+  );
+};
+
+
+
 // Main App Component
 function App() {
   // State management
@@ -530,6 +745,7 @@ function App() {
     contracts: true,
     gameData: true,
   });
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(false);
 
   // Error handling utility
   const handleError = (error) => {
@@ -602,10 +818,7 @@ function App() {
       setIsAdmin(false);
     } else {
       setAccount(accounts[0]);
-      if (diceContract) {
-        const owner = await diceContract.owner();
-        setIsAdmin(owner.toLowerCase() === accounts[0].toLowerCase());
-      }
+      await checkAdminStatus(accounts[0]);
     }
   };
 
@@ -613,6 +826,33 @@ function App() {
   const handleChainChanged = () => {
     window.location.reload();
   };
+
+  // Add this new function
+  const checkAdminStatus = async (accountAddress) => {
+    if (!tokenContract || !accountAddress) {
+      setIsAdmin(false);
+      return;
+    }
+
+    setIsCheckingAdmin(true);
+    try {
+      const DEFAULT_ADMIN_ROLE = await tokenContract.DEFAULT_ADMIN_ROLE();
+      const hasAdminRole = await tokenContract.hasRole(DEFAULT_ADMIN_ROLE, accountAddress);
+      setIsAdmin(hasAdminRole);
+    } catch (err) {
+      console.error("Error checking admin status:", err);
+      setIsAdmin(false);
+    } finally {
+      setIsCheckingAdmin(false);
+    }
+  };
+
+  // Add this effect to recheck admin status when tokenContract changes
+  useEffect(() => {
+    if (account && tokenContract) {
+      checkAdminStatus(account);
+    }
+  }, [tokenContract, account]);
 
   // Initialize everything
   useEffect(() => {
@@ -690,6 +930,11 @@ function App() {
           <Link to="/dice" className="nav-link">
             Play Dice
           </Link>
+          {isAdmin && (
+            <Link to="/admin" className="nav-link">
+              Admin
+            </Link>
+          )}
           <div className="account-info">
             {account && (
               <p>
@@ -734,6 +979,25 @@ function App() {
                   />
                 )}
               </main>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              isCheckingAdmin ? (
+                <div className="loading-container">
+                  <h2>Verifying admin status...</h2>
+                </div>
+              ) : isAdmin ? (
+                <AdminPage
+                  diceContract={diceContract}
+                  tokenContract={tokenContract}
+                  account={account}
+                  onError={handleError}
+                />
+              ) : (
+                <Navigate to="/" replace />
+              )
             }
           />
         </Routes>

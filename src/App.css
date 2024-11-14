@@ -330,3 +330,111 @@ button:disabled {
 .history-table tr:hover {
   background-color: #2d3748;
 }
+
+/* Admin Page Styles */
+.admin-page {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.admin-section {
+  background-color: #2d3748;
+  padding: 2rem;
+  border-radius: 1rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.admin-section h2 {
+  color: #4299e1;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.status-info {
+  background-color: #1a202c;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.input-group {
+  margin-bottom: 1.5rem;
+}
+
+.input-group input {
+  margin-bottom: 1rem;
+}
+
+.button-group {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.button-group button {
+  flex: 1;
+  min-width: 200px;
+}
+
+.role-lists {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  margin: 1.5rem 0;
+}
+
+.role-group {
+  background-color: #1a202c;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+}
+
+.role-group h3 {
+  color: #4299e1;
+  margin-bottom: 1rem;
+}
+
+.role-group ul {
+  list-style: none;
+}
+
+.role-group li {
+  padding: 0.5rem 0;
+  word-break: break-all;
+  font-family: monospace;
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(26, 32, 44, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #4299e1;
+  font-size: 1.2rem;
+  z-index: 1000;
+}
+
+@media (max-width: 768px) {
+  .admin-section {
+    padding: 1rem;
+  }
+  
+  .button-group {
+    flex-direction: column;
+  }
+  
+  .button-group button {
+    width: 100%;
+  }
+  
+  .role-lists {
+    grid-template-columns: 1fr;
+  }
+}
