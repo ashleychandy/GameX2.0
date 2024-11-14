@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Link, Navigate } from "react-router-dom";
 import { ethers } from "ethers";
-import "./App.css";
 import DiceABI from "./contracts/abi/Dice.json";
 import TokenABI from "./contracts/abi/Token.json";
 
@@ -810,35 +809,15 @@ function App() {
     }
   };
 
-  // Account change handler
-  const handleAccountsChanged = async (accounts) => {
-    if (accounts.length === 0) {
-      setError("Please connect to MetaMask.");
-      setAccount("");
-      setIsAdmin(false);
-    } else {
-      setAccount(accounts[0]);
-      await checkAdminStatus(accounts[0]);
-    }
-  };
-
-  // Chain change handler
-  const handleChainChanged = () => {
-    window.location.reload();
-  };
-
-  // Add this new function
+  // Add missing checkAdminStatus function
   const checkAdminStatus = async (accountAddress) => {
-    if (!tokenContract || !accountAddress) {
-      setIsAdmin(false);
-      return;
-    }
-
+    if (!tokenContract || !accountAddress) return;
+    
     setIsCheckingAdmin(true);
     try {
-      const DEFAULT_ADMIN_ROLE = await tokenContract.DEFAULT_ADMIN_ROLE();
-      const hasAdminRole = await tokenContract.hasRole(DEFAULT_ADMIN_ROLE, accountAddress);
-      setIsAdmin(hasAdminRole);
+      const ADMIN_ROLE = await tokenContract.DEFAULT_ADMIN_ROLE();
+      const hasRole = await tokenContract.hasRole(ADMIN_ROLE, accountAddress);
+      setIsAdmin(hasRole);
     } catch (err) {
       console.error("Error checking admin status:", err);
       setIsAdmin(false);
@@ -847,47 +826,90 @@ function App() {
     }
   };
 
-  // Add this effect to recheck admin status when tokenContract changes
-  useEffect(() => {
-    if (account && tokenContract) {
-      checkAdminStatus(account);
-    }
-  }, [tokenContract, account]);
-
-  // Initialize everything
-  useEffect(() => {
-    const init = async () => {
+  // Update connectWallet function to handle errors better
+  const connectWallet = async () => {
+    try {
+      if (!window.ethereum) {
+        throw new Error("Please install MetaMask!");
+      }
+      
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+      
       const providerData = await initializeProvider();
-      if (!providerData) return;
+      if (!providerData) {
+        throw new Error("Failed to initialize provider");
+      }
 
       const contractsData = await initializeContracts(providerData.signer);
-      if (!contractsData) return;
+      if (!contractsData) {
+        throw new Error("Failed to initialize contracts");
+      }
 
+      await handleAccountsChanged(accounts);
+    } catch (err) {
+      handleError(err);
+    }
+  };
+
+  // Update handleAccountsChanged to be more robust
+  const handleAccountsChanged = async (accounts) => {
+    if (accounts.length === 0) {
+      setError("Please connect to MetaMask.");
+      setAccount("");
+      setIsAdmin(false);
+    } else {
+      const newAccount = accounts[0];
+      setAccount(newAccount);
+      if (tokenContract) {
+        await checkAdminStatus(newAccount);
+      }
+    }
+  };
+
+  // Chain change handler
+  const handleChainChanged = () => {
+    window.location.reload();
+  };
+
+  // Update initialization useEffect
+  useEffect(() => {
+    const init = async () => {
       try {
-        const accounts = await window.ethereum.request({
-          method: "eth_requestAccounts",
-        });
-        await handleAccountsChanged(accounts);
-        setLoadingStates((prev) => ({ ...prev, gameData: false }));
+        const providerData = await initializeProvider();
+        if (!providerData) return;
+
+        const contractsData = await initializeContracts(providerData.signer);
+        if (!contractsData) return;
+
+        if (window.ethereum) {
+          const accounts = await window.ethereum.request({
+            method: "eth_accounts"
+          });
+          if (accounts.length > 0) {
+            await handleAccountsChanged(accounts);
+          }
+        }
       } catch (err) {
         handleError(err);
-        setLoadingStates((prev) => ({ ...prev, gameData: false }));
+      } finally {
+        setLoadingStates({
+          provider: false,
+          contracts: false,
+          gameData: false
+        });
       }
     };
 
     init();
 
-    // Event listeners
     if (window.ethereum) {
       window.ethereum.on("accountsChanged", handleAccountsChanged);
       window.ethereum.on("chainChanged", handleChainChanged);
 
-      // Cleanup
       return () => {
-        window.ethereum.removeListener(
-          "accountsChanged",
-          handleAccountsChanged
-        );
+        window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
         window.ethereum.removeListener("chainChanged", handleChainChanged);
       };
     }
@@ -896,12 +918,12 @@ function App() {
   // Loading state check
   if (Object.values(loadingStates).some((state) => state)) {
     return (
-      <div className="App">
-        <div className="loading-container">
-          <h2>Loading...</h2>
-          {loadingStates.provider && <p>Connecting to Web3 provider...</p>}
-          {loadingStates.contracts && <p>Initializing contracts...</p>}
-          {loadingStates.gameData && <p>Loading game data...</p>}
+      <div className="min-h-screen bg-secondary-900 flex items-center justify-center">
+        <div className="card animate-pulse p-8 max-w-md w-full">
+          <h2 className="text-2xl font-display text-primary-400 mb-4">Loading...</h2>
+          {loadingStates.provider && <p className="text-secondary-300 mb-2">Connecting to Web3 provider...</p>}
+          {loadingStates.contracts && <p className="text-secondary-300 mb-2">Initializing contracts...</p>}
+          {loadingStates.gameData && <p className="text-secondary-300 mb-2">Loading game data...</p>}
         </div>
       </div>
     );
@@ -910,11 +932,16 @@ function App() {
   // Error state check
   if (error) {
     return (
-      <div className="App">
-        <div className="error-container">
-          <h2>Error</h2>
-          <p>{error}</p>
-          <button onClick={() => window.location.reload()}>Retry</button>
+      <div className="min-h-screen bg-secondary-900 flex items-center justify-center">
+        <div className="card border-error-500 p-8 max-w-md w-full">
+          <h2 className="text-2xl font-display text-error-500 mb-4">Error</h2>
+          <p className="text-secondary-300 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="btn-error w-full"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -922,85 +949,107 @@ function App() {
 
   return (
     <Router>
-      <div className="App">
-        <nav className="navigation">
-          <Link to="/" className="nav-link">
-            Home
-          </Link>
-          <Link to="/dice" className="nav-link">
-            Play Dice
-          </Link>
-          {isAdmin && (
-            <Link to="/admin" className="nav-link">
-              Admin
-            </Link>
-          )}
-          <div className="account-info">
-            {account && (
-              <p>
-                Connected: {account.slice(0, 6)}...{account.slice(-4)}
-              </p>
-            )}
+      <div className="min-h-screen bg-secondary-900">
+        <nav className="glass-effect sticky top-0 z-50 border-b border-secondary-700/50">
+          <div className="responsive-container">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center space-x-4">
+                <Link to="/" className="nav-link">
+                  Home
+                </Link>
+                <Link to="/dice" className="nav-link">
+                  Play Dice
+                </Link>
+                {isAdmin && (
+                  <Link to="/admin" className="nav-link">
+                    Admin
+                  </Link>
+                )}
+              </div>
+              <div className="flex items-center">
+                {account ? (
+                  <div className="glass-effect px-4 py-2 rounded-lg text-sm">
+                    <span className="text-primary-400">Connected:</span>{' '}
+                    <span className="text-secondary-300">
+                      {account.slice(0, 6)}...{account.slice(-4)}
+                    </span>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={connectWallet} 
+                    className="btn-gaming"
+                  >
+                    Connect Wallet
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </nav>
 
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route
-            path="/dice"
-            element={
-              <main>
-                <GameComponent
-                  diceContract={diceContract}
-                  tokenContract={tokenContract}
-                  account={account}
-                  onError={handleError}
-                />
-                <GameStatus
-                  diceContract={diceContract}
-                  account={account}
-                  onError={handleError}
-                />
-                <PlayerStats
-                  diceContract={diceContract}
-                  account={account}
-                  onError={handleError}
-                />
-                <GameHistory
-                  diceContract={diceContract}
-                  account={account}
-                  onError={handleError}
-                />
-                {isAdmin && (
-                  <AdminPanel
+        <main className="responsive-container py-8">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route
+              path="/dice"
+              element={
+                <div className="grid gap-8">
+                  <GameComponent
                     diceContract={diceContract}
                     tokenContract={tokenContract}
+                    account={account}
                     onError={handleError}
                   />
-                )}
-              </main>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              isCheckingAdmin ? (
-                <div className="loading-container">
-                  <h2>Verifying admin status...</h2>
+                  <GameStatus
+                    diceContract={diceContract}
+                    account={account}
+                    onError={handleError}
+                  />
+                  <div className="grid md:grid-cols-2 gap-8">
+                    <PlayerStats
+                      diceContract={diceContract}
+                      account={account}
+                      onError={handleError}
+                    />
+                    <GameHistory
+                      diceContract={diceContract}
+                      account={account}
+                      onError={handleError}
+                    />
+                  </div>
+                  {isAdmin && (
+                    <AdminPanel
+                      diceContract={diceContract}
+                      tokenContract={tokenContract}
+                      onError={handleError}
+                    />
+                  )}
                 </div>
-              ) : isAdmin ? (
-                <AdminPage
-                  diceContract={diceContract}
-                  tokenContract={tokenContract}
-                  account={account}
-                  onError={handleError}
-                />
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
-          />
-        </Routes>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                isCheckingAdmin ? (
+                  <div className="card animate-pulse p-8">
+                    <h2 className="text-2xl font-display text-primary-400">
+                      Verifying admin status...
+                    </h2>
+                  </div>
+                ) : isAdmin ? (
+                  <AdminPage
+                    diceContract={diceContract}
+                    tokenContract={tokenContract}
+                    account={account}
+                    onError={handleError}
+                  />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              }
+            />
+          </Routes>
+        </main>
       </div>
     </Router>
   );
