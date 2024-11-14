@@ -56,6 +56,8 @@ const GameComponent = ({ diceContract, tokenContract, account, onGameStart, onGa
 
     try {
       const parsedAmount = ethers.parseEther(betAmount);
+      
+      // Check allowance first
       const allowance = await tokenContract.allowance(account, diceContract.target);
       
       if (allowance < parsedAmount) {
@@ -63,9 +65,11 @@ const GameComponent = ({ diceContract, tokenContract, account, onGameStart, onGa
         await approveTx.wait();
       }
 
+      // Play the game
       const tx = await diceContract.playDice(number, parsedAmount);
       await tx.wait();
-      onGameStart();
+      
+      // Clear inputs after successful transaction
       setChosenNumber('');
       setBetAmount('');
     } catch (err) {
@@ -139,6 +143,16 @@ const GameStatus = ({ diceContract, account, onError }) => {
   const [gameStatus, setGameStatus] = useState(null);
   const [requestDetails, setRequestDetails] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(Date.now());
+
+  // Define status mapping object
+  const STATUS_MAP = {
+    0: 'PENDING',
+    1: 'STARTED',
+    2: 'COMPLETED_WIN',
+    3: 'COMPLETED_LOSS',
+    4: 'CANCELLED'
+  };
 
   const fetchGameStatus = async () => {
     if (!diceContract || !account) return;
@@ -149,9 +163,15 @@ const GameStatus = ({ diceContract, account, onError }) => {
         diceContract.getCurrentRequestDetails(account)
       ]);
 
+      console.log('Raw Game Status:', status);
+      console.log('Raw Request Details:', reqDetails);
+
+      const currentGame = await diceContract.getCurrentGame(account);
+      console.log('Current Game Details:', currentGame);
+
       setGameStatus({
         isActive: status[0],
-        status: ['PENDING', 'STARTED', 'COMPLETED_WIN', 'COMPLETED_LOSS', 'CANCELLED'][Number(status[1])],
+        status: STATUS_MAP[Number(status[1])] || 'UNKNOWN',
         chosenNumber: status[2].toString(),
         amount: status[3],
         timestamp: Number(status[4])
@@ -162,6 +182,8 @@ const GameStatus = ({ diceContract, account, onError }) => {
         requestFulfilled: reqDetails[1],
         requestActive: reqDetails[2]
       });
+
+      setLastUpdate(Date.now());
     } catch (err) {
       console.error('Error fetching game status:', err);
       onError(err);
@@ -170,7 +192,7 @@ const GameStatus = ({ diceContract, account, onError }) => {
 
   useEffect(() => {
     fetchGameStatus();
-    const interval = setInterval(fetchGameStatus, 5000);
+    const interval = setInterval(fetchGameStatus, 3000);
     return () => clearInterval(interval);
   }, [diceContract, account]);
 
@@ -192,6 +214,10 @@ const GameStatus = ({ diceContract, account, onError }) => {
 
   if (!gameStatus) return <div>Loading game status...</div>;
 
+  const canResolve = gameStatus.isActive && 
+                     requestDetails?.requestFulfilled && 
+                     !requestDetails?.requestActive;
+
   return (
     <div className="game-status">
       <h3>Current Game Status</h3>
@@ -202,7 +228,16 @@ const GameStatus = ({ diceContract, account, onError }) => {
         <p>Amount: {ethers.formatEther(gameStatus.amount)} ETH</p>
         <p>Time: {new Date(gameStatus.timestamp * 1000).toLocaleString()}</p>
         
-        {requestDetails?.requestFulfilled && !requestDetails?.requestActive && gameStatus.isActive && (
+        <div className="debug-info" style={{fontSize: '0.8em', color: '#666', textAlign: 'left', marginTop: '20px'}}>
+          <h4>Debug Information:</h4>
+          <p>Request ID: {requestDetails?.requestId || 'None'}</p>
+          <p>Request Fulfilled: {requestDetails?.requestFulfilled?.toString()}</p>
+          <p>Request Active: {requestDetails?.requestActive?.toString()}</p>
+          <p>Can Resolve: {canResolve.toString()}</p>
+          <p>Last Updated: {new Date(lastUpdate).toLocaleString()}</p>
+        </div>
+        
+        {canResolve && (
           <button 
             onClick={resolveGame}
             disabled={loading}
@@ -222,14 +257,21 @@ const PlayerStats = ({ diceContract, account, onError }) => {
   useEffect(() => {
     const fetchStats = async () => {
       if (diceContract && account) {
-        const userData = await diceContract.getUserData(account);
-        setStats({
-          totalGames: userData.totalGames.toString(),
-          totalBets: userData.totalBets.toString(),
-          totalWinnings: userData.totalWinnings.toString(),
-          totalLosses: userData.totalLosses.toString(),
-          lastPlayed: userData.lastPlayed.toString()
-        });
+        try {
+          // Match contract function return values
+          const [currentGame, totalGames, totalBets, totalWinnings, totalLosses, lastPlayed] = 
+            await diceContract.getUserData(account);
+
+          setStats({
+            totalGames: totalGames.toString(),
+            totalBets: ethers.formatEther(totalBets),
+            totalWinnings: ethers.formatEther(totalWinnings),
+            totalLosses: ethers.formatEther(totalLosses),
+            lastPlayed: lastPlayed.toString()
+          });
+        } catch (err) {
+          onError(err);
+        }
       }
     };
     fetchStats();
@@ -258,8 +300,18 @@ const GameHistory = ({ diceContract, account, onError }) => {
   useEffect(() => {
     const fetchHistory = async () => {
       if (diceContract && account) {
-        const previousBets = await diceContract.getPreviousBets(account);
-        setBets(previousBets);
+        try {
+          const previousBets = await diceContract.getPreviousBets(account);
+          const formattedBets = previousBets.map(bet => ({
+            chosenNumber: bet.chosenNumber.toString(),
+            rolledNumber: bet.rolledNumber.toString(),
+            amount: ethers.formatEther(bet.amount),
+            timestamp: Number(bet.timestamp)
+          }));
+          setBets(formattedBets);
+        } catch (err) {
+          onError(err);
+        }
       }
     };
     fetchHistory();
@@ -271,9 +323,9 @@ const GameHistory = ({ diceContract, account, onError }) => {
       <div className="history-list">
         {bets.map((bet, index) => (
           <div key={index} className="history-item">
-            <p>Chosen: {bet.chosenNumber.toString()}</p>
-            <p>Rolled: {bet.rolledNumber.toString()}</p>
-            <p>Amount: {bet.amount.toString()}</p>
+            <p>Chosen: {bet.chosenNumber}</p>
+            <p>Rolled: {bet.rolledNumber}</p>
+            <p>Amount: {ethers.formatEther(bet.amount)} ETH</p>
             <p>Time: {new Date(bet.timestamp * 1000).toLocaleString()}</p>
           </div>
         ))}
