@@ -16,38 +16,49 @@ console.log('TOKEN_CONTRACT_ADDRESS:', TOKEN_CONTRACT_ADDRESS);
 const GameComponent = ({ diceContract, tokenContract, account, onGameStart, onGameResolve, onError }) => {
   const [chosenNumber, setChosenNumber] = useState('');
   const [betAmount, setBetAmount] = useState('');
-  const [canPlay, setCanPlay] = useState(false);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [canPlay, setCanPlay] = useState(true);
 
-  useEffect(() => {
-    const checkGameState = async () => {
-      if (diceContract && account) {
-        try {
-          const canStart = await diceContract.canStartNewGame(account);
-          const hasPending = await diceContract.hasPendingRequest(account);
-          setCanPlay(canStart && !hasPending);
-        } catch (err) {
-          onError(err);
-        }
-      }
-    };
-    
-    checkGameState();
-    const interval = setInterval(checkGameState, 5000); // Poll every 5 seconds
-    
-    return () => clearInterval(interval);
-  }, [diceContract, account]);
+  // Utility functions
+  const isValidEthAmount = (value) => {
+    if (!value) return false;
+    try {
+      ethers.parseEther(value);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const isValidDiceNumber = (value) => {
+    const num = parseInt(value);
+    return !isNaN(num) && num >= 1 && num <= 6;
+  };
+
+  const handleBetAmountChange = (e) => {
+    const value = e.target.value.replace(/[^\d.]/g, '');
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      setBetAmount(value);
+      setError('');
+    }
+  };
+
+  const handleChosenNumberChange = (e) => {
+    const value = e.target.value;
+    if (value === '' || (isValidDiceNumber(value))) {
+      setChosenNumber(value);
+      setError('');
+    }
+  };
 
   const playGame = async () => {
-    if (!chosenNumber || !betAmount) {
-      setError('Please enter both number and bet amount');
+    if (!isValidDiceNumber(chosenNumber)) {
+      setError('Please choose a number between 1 and 6');
       return;
     }
-
-    const number = parseInt(chosenNumber);
-    if (number < 1 || number > 6) {
-      setError('Number must be between 1 and 6');
+    if (!isValidEthAmount(betAmount)) {
+      setError('Please enter a valid bet amount');
       return;
     }
 
@@ -55,55 +66,22 @@ const GameComponent = ({ diceContract, tokenContract, account, onGameStart, onGa
     setError('');
 
     try {
-      const parsedAmount = ethers.parseEther(betAmount);
-      
-      // Check allowance first
-      const allowance = await tokenContract.allowance(account, diceContract.target);
-      
-      if (allowance < parsedAmount) {
-        const approveTx = await tokenContract.approve(diceContract.target, parsedAmount);
-        await approveTx.wait();
-      }
-
-      // Play the game
-      const tx = await diceContract.playDice(number, parsedAmount);
+      const amountInWei = ethers.parseEther(betAmount);
+      const tx = await diceContract.placeBet(chosenNumber, { value: amountInWei });
+      onGameStart();
       await tx.wait();
       
-      // Clear inputs after successful transaction
-      setChosenNumber('');
-      setBetAmount('');
+      // Wait for game resolution
+      const result = await diceContract.getLastGameResult(account);
+      onGameResolve(result);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'An error occurred while placing the bet');
       onError(err);
     } finally {
       setLoading(false);
+      setBetAmount('');
+      setChosenNumber('');
     }
-  };
-
-  const formatBalance = (balance) => {
-    if (!balance) return '0';
-    return ethers.formatEther(balance);
-  };
-
-  const formatGameResult = (result) => {
-    if (!result) return null;
-    return {
-      chosenNumber: Number(result.chosenNumber),
-      result: Number(result.result),
-      amount: formatBalance(result.amount),
-      timestamp: new Date(Number(result.timestamp) * 1000).toLocaleString(),
-      payout: formatBalance(result.payout),
-      status: result.status
-    };
-  };
-
-  const formatBetHistory = (bet) => {
-    return {
-      chosenNumber: Number(bet.chosenNumber),
-      rolledNumber: Number(bet.rolledNumber),
-      amount: formatBalance(bet.amount),
-      timestamp: new Date(Number(bet.timestamp) * 1000).toLocaleString()
-    };
   };
 
   return (
@@ -116,20 +94,20 @@ const GameComponent = ({ diceContract, tokenContract, account, onGameStart, onGa
           min="1"
           max="6"
           value={chosenNumber}
-          onChange={(e) => setChosenNumber(e.target.value)}
+          onChange={handleChosenNumberChange}
           placeholder="Choose number (1-6)"
           disabled={!canPlay || loading}
         />
         <input
           type="text"
           value={betAmount}
-          onChange={(e) => setBetAmount(e.target.value)}
+          onChange={handleBetAmountChange}
           placeholder="Bet amount in ETH"
           disabled={!canPlay || loading}
         />
         <button 
           onClick={playGame} 
-          disabled={!canPlay || loading || !chosenNumber || !betAmount}
+          disabled={!canPlay || loading || !isValidDiceNumber(chosenNumber) || !isValidEthAmount(betAmount)}
         >
           {loading ? 'Processing...' : 'Play'}
         </button>
@@ -258,16 +236,14 @@ const PlayerStats = ({ diceContract, account, onError }) => {
     const fetchStats = async () => {
       if (diceContract && account) {
         try {
-          // Match contract function return values
-          const [currentGame, totalGames, totalBets, totalWinnings, totalLosses, lastPlayed] = 
-            await diceContract.getUserData(account);
-
+          const playerStats = await diceContract.getPlayerStats(account);
           setStats({
-            totalGames: totalGames.toString(),
-            totalBets: ethers.formatEther(totalBets),
-            totalWinnings: ethers.formatEther(totalWinnings),
-            totalLosses: ethers.formatEther(totalLosses),
-            lastPlayed: lastPlayed.toString()
+            totalBets: playerStats.totalBets.toString(),
+            totalWinnings: playerStats.totalWinnings,
+            totalLosses: playerStats.totalLosses,
+            gamesPlayed: playerStats.gamesPlayed.toString(),
+            winRate: playerStats.winRate.toString(),
+            averageBet: playerStats.averageBet
           });
         } catch (err) {
           onError(err);
@@ -275,20 +251,27 @@ const PlayerStats = ({ diceContract, account, onError }) => {
       }
     };
     fetchStats();
-  }, [diceContract, account]);
+  }, [diceContract, account, onError]);
+
+  const formatAmount = (amount) => {
+    try {
+      return `${ethers.formatEther(amount)} ETH`;
+    } catch (err) {
+      console.error('Error formatting amount:', err);
+      return '0 ETH';
+    }
+  };
+
+  if (!stats) return null;
 
   return (
     <div className="player-stats">
       <h3>Player Statistics</h3>
-      {stats && (
-        <div>
-          <p>Total Games: {stats.totalGames}</p>
-          <p>Total Bets: {stats.totalBets}</p>
-          <p>Total Winnings: {stats.totalWinnings}</p>
-          <p>Total Losses: {stats.totalLosses}</p>
-          <p>Last Played: {new Date(stats.lastPlayed * 1000).toLocaleString()}</p>
-        </div>
-      )}
+      <p>Total Games: {stats.gamesPlayed}</p>
+      <p>Win Rate: {stats.winRate}%</p>
+      <p>Total Winnings: {formatAmount(stats.totalWinnings)}</p>
+      <p>Total Losses: {formatAmount(stats.totalLosses)}</p>
+      <p>Average Bet: {formatAmount(stats.averageBet)}</p>
     </div>
   );
 };
@@ -305,7 +288,7 @@ const GameHistory = ({ diceContract, account, onError }) => {
           const formattedBets = previousBets.map(bet => ({
             chosenNumber: bet.chosenNumber.toString(),
             rolledNumber: bet.rolledNumber.toString(),
-            amount: ethers.formatEther(bet.amount),
+            amount: bet.amount, // Keep as BigNumber
             timestamp: Number(bet.timestamp)
           }));
           setBets(formattedBets);
@@ -315,7 +298,16 @@ const GameHistory = ({ diceContract, account, onError }) => {
       }
     };
     fetchHistory();
-  }, [diceContract, account]);
+  }, [diceContract, account, onError]);
+
+  const formatAmount = (amount) => {
+    try {
+      return `${ethers.formatEther(amount)} ETH`;
+    } catch (err) {
+      console.error('Error formatting amount:', err);
+      return '0 ETH';
+    }
+  };
 
   return (
     <div className="game-history">
@@ -325,7 +317,7 @@ const GameHistory = ({ diceContract, account, onError }) => {
           <div key={index} className="history-item">
             <p>Chosen: {bet.chosenNumber}</p>
             <p>Rolled: {bet.rolledNumber}</p>
-            <p>Amount: {ethers.formatEther(bet.amount)} ETH</p>
+            <p>Amount: {formatAmount(bet.amount)}</p>
             <p>Time: {new Date(bet.timestamp * 1000).toLocaleString()}</p>
           </div>
         ))}
