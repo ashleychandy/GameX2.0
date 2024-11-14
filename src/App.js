@@ -1,23 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { ethers } from 'ethers';
-import './App.css';
-import DiceABI from './contracts/abi/Dice.json';
-import TokenABI from './contracts/abi/Token.json';
+import React, { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import { ethers } from "ethers";
+import "./App.css";
+import DiceABI from "./contracts/abi/Dice.json";
+import TokenABI from "./contracts/abi/Token.json";
 
 // Environment variables
 const DICE_CONTRACT_ADDRESS = process.env.REACT_APP_DICE_GAME_ADDRESS;
 const TOKEN_CONTRACT_ADDRESS = process.env.REACT_APP_TOKEN_ADDRESS;
 
 // Add console logs for debugging
-console.log('DICE_CONTRACT_ADDRESS:', DICE_CONTRACT_ADDRESS);
-console.log('TOKEN_CONTRACT_ADDRESS:', TOKEN_CONTRACT_ADDRESS);
+console.log("DICE_CONTRACT_ADDRESS:", DICE_CONTRACT_ADDRESS);
+console.log("TOKEN_CONTRACT_ADDRESS:", TOKEN_CONTRACT_ADDRESS);
 
 // GameComponent
-const GameComponent = ({ diceContract, tokenContract, account, onGameStart, onGameResolve, onError }) => {
-  const [chosenNumber, setChosenNumber] = useState('');
-  const [betAmount, setBetAmount] = useState('');
+const GameComponent = ({
+  diceContract,
+  tokenContract,
+  account,
+  onGameStart,
+  onGameResolve,
+  onError,
+}) => {
+  const [chosenNumber, setChosenNumber] = useState("");
+  const [betAmount, setBetAmount] = useState("");
   const [canPlay, setCanPlay] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -32,46 +40,52 @@ const GameComponent = ({ diceContract, tokenContract, account, onGameStart, onGa
         }
       }
     };
-    
+
     checkGameState();
     const interval = setInterval(checkGameState, 5000); // Poll every 5 seconds
-    
+
     return () => clearInterval(interval);
   }, [diceContract, account]);
 
   const playGame = async () => {
     if (!chosenNumber || !betAmount) {
-      setError('Please enter both number and bet amount');
+      setError("Please enter both number and bet amount");
       return;
     }
 
     const number = parseInt(chosenNumber);
     if (number < 1 || number > 6) {
-      setError('Number must be between 1 and 6');
+      setError("Number must be between 1 and 6");
       return;
     }
 
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
       const parsedAmount = ethers.parseEther(betAmount);
-      
+
       // Check allowance first
-      const allowance = await tokenContract.allowance(account, diceContract.target);
-      
+      const allowance = await tokenContract.allowance(
+        account,
+        diceContract.target
+      );
+
       if (allowance < parsedAmount) {
-        const approveTx = await tokenContract.approve(diceContract.target, parsedAmount);
+        const approveTx = await tokenContract.approve(
+          diceContract.target,
+          parsedAmount
+        );
         await approveTx.wait();
       }
 
       // Play the game
       const tx = await diceContract.playDice(number, parsedAmount);
       await tx.wait();
-      
+
       // Clear inputs after successful transaction
-      setChosenNumber('');
-      setBetAmount('');
+      setChosenNumber("");
+      setBetAmount("");
     } catch (err) {
       setError(err.message);
       onError(err);
@@ -81,7 +95,7 @@ const GameComponent = ({ diceContract, tokenContract, account, onGameStart, onGa
   };
 
   const formatBalance = (balance) => {
-    if (!balance) return '0';
+    if (!balance) return "0";
     return ethers.formatEther(balance);
   };
 
@@ -93,7 +107,7 @@ const GameComponent = ({ diceContract, tokenContract, account, onGameStart, onGa
       amount: formatBalance(result.amount),
       timestamp: new Date(Number(result.timestamp) * 1000).toLocaleString(),
       payout: formatBalance(result.payout),
-      status: result.status
+      status: result.status,
     };
   };
 
@@ -102,7 +116,7 @@ const GameComponent = ({ diceContract, tokenContract, account, onGameStart, onGa
       chosenNumber: Number(bet.chosenNumber),
       rolledNumber: Number(bet.rolledNumber),
       amount: formatBalance(bet.amount),
-      timestamp: new Date(Number(bet.timestamp) * 1000).toLocaleString()
+      timestamp: new Date(Number(bet.timestamp) * 1000).toLocaleString(),
     };
   };
 
@@ -127,11 +141,11 @@ const GameComponent = ({ diceContract, tokenContract, account, onGameStart, onGa
           placeholder="Bet amount in ETH"
           disabled={!canPlay || loading}
         />
-        <button 
-          onClick={playGame} 
+        <button
+          onClick={playGame}
           disabled={!canPlay || loading || !chosenNumber || !betAmount}
         >
-          {loading ? 'Processing...' : 'Play'}
+          {loading ? "Processing..." : "Play"}
         </button>
       </div>
     </div>
@@ -147,11 +161,11 @@ const GameStatus = ({ diceContract, account, onError }) => {
 
   // Define status mapping object
   const STATUS_MAP = {
-    0: 'PENDING',
-    1: 'STARTED',
-    2: 'COMPLETED_WIN',
-    3: 'COMPLETED_LOSS',
-    4: 'CANCELLED'
+    0: "PENDING",
+    1: "STARTED",
+    2: "COMPLETED_WIN",
+    3: "COMPLETED_LOSS",
+    4: "CANCELLED",
   };
 
   const fetchGameStatus = async () => {
@@ -160,32 +174,32 @@ const GameStatus = ({ diceContract, account, onError }) => {
     try {
       const [status, reqDetails] = await Promise.all([
         diceContract.getGameStatus(account),
-        diceContract.getCurrentRequestDetails(account)
+        diceContract.getCurrentRequestDetails(account),
       ]);
 
-      console.log('Raw Game Status:', status);
-      console.log('Raw Request Details:', reqDetails);
+      console.log("Raw Game Status:", status);
+      console.log("Raw Request Details:", reqDetails);
 
       const currentGame = await diceContract.getCurrentGame(account);
-      console.log('Current Game Details:', currentGame);
+      console.log("Current Game Details:", currentGame);
 
       setGameStatus({
         isActive: status[0],
-        status: STATUS_MAP[Number(status[1])] || 'UNKNOWN',
+        status: STATUS_MAP[Number(status[1])] || "UNKNOWN",
         chosenNumber: status[2].toString(),
         amount: status[3],
-        timestamp: Number(status[4])
+        timestamp: Number(status[4]),
       });
 
       setRequestDetails({
         requestId: reqDetails[0].toString(),
         requestFulfilled: reqDetails[1],
-        requestActive: reqDetails[2]
+        requestActive: reqDetails[2],
       });
 
       setLastUpdate(Date.now());
     } catch (err) {
-      console.error('Error fetching game status:', err);
+      console.error("Error fetching game status:", err);
       onError(err);
     }
   };
@@ -205,7 +219,7 @@ const GameStatus = ({ diceContract, account, onError }) => {
       await tx.wait();
       await fetchGameStatus();
     } catch (err) {
-      console.error('Error resolving game:', err);
+      console.error("Error resolving game:", err);
       onError(err);
     } finally {
       setLoading(false);
@@ -214,9 +228,10 @@ const GameStatus = ({ diceContract, account, onError }) => {
 
   if (!gameStatus) return <div>Loading game status...</div>;
 
-  const canResolve = gameStatus.isActive && 
-                     requestDetails?.requestFulfilled && 
-                     !requestDetails?.requestActive;
+  const canResolve =
+    gameStatus.isActive &&
+    requestDetails?.requestFulfilled &&
+    !requestDetails?.requestActive;
 
   return (
     <div className="game-status">
@@ -227,22 +242,29 @@ const GameStatus = ({ diceContract, account, onError }) => {
         <p>Chosen Number: {gameStatus.chosenNumber}</p>
         <p>Amount: {ethers.formatEther(gameStatus.amount)} ETH</p>
         <p>Time: {new Date(gameStatus.timestamp * 1000).toLocaleString()}</p>
-        
-        <div className="debug-info" style={{fontSize: '0.8em', color: '#666', textAlign: 'left', marginTop: '20px'}}>
+
+        <div
+          className="debug-info"
+          style={{
+            fontSize: "0.8em",
+            color: "#666",
+            textAlign: "left",
+            marginTop: "20px",
+          }}
+        >
           <h4>Debug Information:</h4>
-          <p>Request ID: {requestDetails?.requestId || 'None'}</p>
-          <p>Request Fulfilled: {requestDetails?.requestFulfilled?.toString()}</p>
+          <p>Request ID: {requestDetails?.requestId || "None"}</p>
+          <p>
+            Request Fulfilled: {requestDetails?.requestFulfilled?.toString()}
+          </p>
           <p>Request Active: {requestDetails?.requestActive?.toString()}</p>
           <p>Can Resolve: {canResolve.toString()}</p>
           <p>Last Updated: {new Date(lastUpdate).toLocaleString()}</p>
         </div>
-        
+
         {canResolve && (
-          <button 
-            onClick={resolveGame}
-            disabled={loading}
-          >
-            {loading ? 'Resolving...' : 'Resolve Game'}
+          <button onClick={resolveGame} disabled={loading}>
+            {loading ? "Resolving..." : "Resolve Game"}
           </button>
         )}
       </div>
@@ -259,15 +281,21 @@ const PlayerStats = ({ diceContract, account, onError }) => {
       if (diceContract && account) {
         try {
           // Match contract function return values
-          const [currentGame, totalGames, totalBets, totalWinnings, totalLosses, lastPlayed] = 
-            await diceContract.getUserData(account);
+          const [
+            currentGame,
+            totalGames,
+            totalBets,
+            totalWinnings,
+            totalLosses,
+            lastPlayed,
+          ] = await diceContract.getUserData(account);
 
           setStats({
             totalGames: totalGames.toString(),
             totalBets: ethers.formatEther(totalBets),
             totalWinnings: ethers.formatEther(totalWinnings),
             totalLosses: ethers.formatEther(totalLosses),
-            lastPlayed: lastPlayed.toString()
+            lastPlayed: lastPlayed.toString(),
           });
         } catch (err) {
           onError(err);
@@ -286,7 +314,9 @@ const PlayerStats = ({ diceContract, account, onError }) => {
           <p>Total Bets: {stats.totalBets}</p>
           <p>Total Winnings: {stats.totalWinnings}</p>
           <p>Total Losses: {stats.totalLosses}</p>
-          <p>Last Played: {new Date(stats.lastPlayed * 1000).toLocaleString()}</p>
+          <p>
+            Last Played: {new Date(stats.lastPlayed * 1000).toLocaleString()}
+          </p>
         </div>
       )}
     </div>
@@ -302,11 +332,11 @@ const GameHistory = ({ diceContract, account, onError }) => {
       if (diceContract && account) {
         try {
           const previousBets = await diceContract.getPreviousBets(account);
-          const formattedBets = previousBets.map(bet => ({
+          const formattedBets = previousBets.map((bet) => ({
             chosenNumber: bet.chosenNumber.toString(),
             rolledNumber: bet.rolledNumber.toString(),
             amount: bet.amount,
-            timestamp: Number(bet.timestamp)
+            timestamp: Number(bet.timestamp),
           }));
           setBets(formattedBets);
         } catch (err) {
@@ -322,8 +352,8 @@ const GameHistory = ({ diceContract, account, onError }) => {
     try {
       return `${ethers.formatEther(amount)} ETH`;
     } catch (err) {
-      console.error('Error formatting amount:', err);
-      return '0 ETH';
+      console.error("Error formatting amount:", err);
+      return "0 ETH";
     }
   };
 
@@ -346,8 +376,8 @@ const GameHistory = ({ diceContract, account, onError }) => {
 
 // AdminPanel Component
 const AdminPanel = ({ diceContract, tokenContract, onError }) => {
-  const [historySize, setHistorySize] = useState('');
-  const [playerAddress, setPlayerAddress] = useState('');
+  const [historySize, setHistorySize] = useState("");
+  const [playerAddress, setPlayerAddress] = useState("");
 
   const handlePause = async () => {
     await diceContract.pause();
@@ -399,6 +429,92 @@ const AdminPanel = ({ diceContract, tokenContract, onError }) => {
   );
 };
 
+const Home = () => {
+  return (
+    <div className="home-container">
+      <header className="hero-section">
+        <h1>Welcome to GameToken</h1>
+        <p className="hero-subtitle">Your Gateway to Decentralized Gaming</p>
+      </header>
+
+      <section className="token-info">
+        <h2>About GameToken</h2>
+        <div className="info-grid">
+          <div className="info-card">
+            <h3>What is GameToken?</h3>
+            <p>
+              GameToken is a specialized ERC20 token designed specifically for
+              decentralized gaming platforms. It enables secure, transparent,
+              and fair gaming experiences on the blockchain.
+            </p>
+          </div>
+          <div className="info-card">
+            <h3>Features</h3>
+            <ul>
+              <li>Secure transactions</li>
+              <li>Instant settlements</li>
+              <li>Verifiable fairness</li>
+              <li>Decentralized gaming</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section className="games-showcase">
+        <h2>Available Games</h2>
+        <div className="games-grid">
+          <div className="game-card">
+            <h3>Dice Game</h3>
+            <p>
+              Test your luck with our blockchain-powered dice game! Choose a
+              number, place your bet, and win up to 6x your stake.
+            </p>
+            <ul>
+              <li>Provably fair results</li>
+              <li>Instant payouts</li>
+              <li>Multiple betting options</li>
+            </ul>
+            <Link to="/dice" className="play-button">
+              Play Now
+            </Link>
+          </div>
+          <div className="game-card coming-soon">
+            <h3>Coming Soon</h3>
+            <p>More exciting games are on the way! Stay tuned for:</p>
+            <ul>
+              <li>Coin Flip</li>
+              <li>Lottery</li>
+              <li>Card Games</li>
+              <li>And more!</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section className="how-to-start">
+        <h2>How to Get Started</h2>
+        <div className="steps-container">
+          <div className="step">
+            <div className="step-number">1</div>
+            <h3>Connect Wallet</h3>
+            <p>Connect your MetaMask or other Web3 wallet to get started</p>
+          </div>
+          <div className="step">
+            <div className="step-number">2</div>
+            <h3>Get Tokens</h3>
+            <p>Acquire GameTokens through our faucet or supported exchanges</p>
+          </div>
+          <div className="step">
+            <div className="step-number">3</div>
+            <h3>Start Playing</h3>
+            <p>Choose your favorite game and start playing!</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+};
+
 // Main App Component
 function App() {
   // State management
@@ -406,18 +522,18 @@ function App() {
   const [signer, setSigner] = useState(null);
   const [diceContract, setDiceContract] = useState(null);
   const [tokenContract, setTokenContract] = useState(null);
-  const [account, setAccount] = useState('');
+  const [account, setAccount] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loadingStates, setLoadingStates] = useState({
     provider: true,
     contracts: true,
-    gameData: true
+    gameData: true,
   });
 
   // Error handling utility
   const handleError = (error) => {
-    console.error('Error details:', error);
+    console.error("Error details:", error);
     if (error.code === 4001) {
       return setError("Transaction rejected by user");
     } else if (error.code === -32603) {
@@ -438,11 +554,11 @@ function App() {
       const signer = await provider.getSigner();
       setProvider(provider);
       setSigner(signer);
-      setLoadingStates(prev => ({ ...prev, provider: false }));
+      setLoadingStates((prev) => ({ ...prev, provider: false }));
       return { provider, signer };
     } catch (err) {
       handleError(err);
-      setLoadingStates(prev => ({ ...prev, provider: false }));
+      setLoadingStates((prev) => ({ ...prev, provider: false }));
       return null;
     }
   };
@@ -451,7 +567,9 @@ function App() {
   const initializeContracts = async (signer) => {
     try {
       if (!DICE_CONTRACT_ADDRESS || !TOKEN_CONTRACT_ADDRESS) {
-        throw new Error("Contract addresses not found in environment variables");
+        throw new Error(
+          "Contract addresses not found in environment variables"
+        );
       }
 
       const diceContract = new ethers.Contract(
@@ -467,11 +585,11 @@ function App() {
 
       setDiceContract(diceContract);
       setTokenContract(tokenContract);
-      setLoadingStates(prev => ({ ...prev, contracts: false }));
+      setLoadingStates((prev) => ({ ...prev, contracts: false }));
       return { diceContract, tokenContract };
     } catch (err) {
       handleError(err);
-      setLoadingStates(prev => ({ ...prev, contracts: false }));
+      setLoadingStates((prev) => ({ ...prev, contracts: false }));
       return null;
     }
   };
@@ -480,7 +598,7 @@ function App() {
   const handleAccountsChanged = async (accounts) => {
     if (accounts.length === 0) {
       setError("Please connect to MetaMask.");
-      setAccount('');
+      setAccount("");
       setIsAdmin(false);
     } else {
       setAccount(accounts[0]);
@@ -507,13 +625,13 @@ function App() {
 
       try {
         const accounts = await window.ethereum.request({
-          method: 'eth_requestAccounts'
+          method: "eth_requestAccounts",
         });
         await handleAccountsChanged(accounts);
-        setLoadingStates(prev => ({ ...prev, gameData: false }));
+        setLoadingStates((prev) => ({ ...prev, gameData: false }));
       } catch (err) {
         handleError(err);
-        setLoadingStates(prev => ({ ...prev, gameData: false }));
+        setLoadingStates((prev) => ({ ...prev, gameData: false }));
       }
     };
 
@@ -521,19 +639,22 @@ function App() {
 
     // Event listeners
     if (window.ethereum) {
-      window.ethereum.on('accountsChanged', handleAccountsChanged);
-      window.ethereum.on('chainChanged', handleChainChanged);
+      window.ethereum.on("accountsChanged", handleAccountsChanged);
+      window.ethereum.on("chainChanged", handleChainChanged);
 
       // Cleanup
       return () => {
-        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-        window.ethereum.removeListener('chainChanged', handleChainChanged);
+        window.ethereum.removeListener(
+          "accountsChanged",
+          handleAccountsChanged
+        );
+        window.ethereum.removeListener("chainChanged", handleChainChanged);
       };
     }
   }, []);
 
   // Loading state check
-  if (Object.values(loadingStates).some(state => state)) {
+  if (Object.values(loadingStates).some((state) => state)) {
     return (
       <div className="App">
         <div className="loading-container">
@@ -560,47 +681,64 @@ function App() {
   }
 
   return (
-    <div className="App">
-      <header>
-        <h1>Dice Game</h1>
-        <p>Connected Account: {account}</p>
-      </header>
+    <Router>
+      <div className="App">
+        <nav className="navigation">
+          <Link to="/" className="nav-link">
+            Home
+          </Link>
+          <Link to="/dice" className="nav-link">
+            Play Dice
+          </Link>
+          <div className="account-info">
+            {account && (
+              <p>
+                Connected: {account.slice(0, 6)}...{account.slice(-4)}
+              </p>
+            )}
+          </div>
+        </nav>
 
-      <main>
-        <GameComponent
-          diceContract={diceContract}
-          tokenContract={tokenContract}
-          account={account}
-          onError={handleError}
-        />
-
-        <GameStatus
-          diceContract={diceContract}
-          account={account}
-          onError={handleError}
-        />
-
-        <PlayerStats
-          diceContract={diceContract}
-          account={account}
-          onError={handleError}
-        />
-
-        <GameHistory
-          diceContract={diceContract}
-          account={account}
-          onError={handleError}
-        />
-
-        {isAdmin && (
-          <AdminPanel
-            diceContract={diceContract}
-            tokenContract={tokenContract}
-            onError={handleError}
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route
+            path="/dice"
+            element={
+              <main>
+                <GameComponent
+                  diceContract={diceContract}
+                  tokenContract={tokenContract}
+                  account={account}
+                  onError={handleError}
+                />
+                <GameStatus
+                  diceContract={diceContract}
+                  account={account}
+                  onError={handleError}
+                />
+                <PlayerStats
+                  diceContract={diceContract}
+                  account={account}
+                  onError={handleError}
+                />
+                <GameHistory
+                  diceContract={diceContract}
+                  account={account}
+                  onError={handleError}
+                />
+                {isAdmin && (
+                  <AdminPanel
+                    diceContract={diceContract}
+                    tokenContract={tokenContract}
+                    onError={handleError}
+                  />
+                )}
+              </main>
+            }
           />
-        )}
-      </main>
-    </div>
+        </Routes>
+      </div>
+    </Router>
   );
 }
 
