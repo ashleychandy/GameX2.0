@@ -138,103 +138,132 @@ const Toast = ({ message, type, onClose }) => (
 // };
 
 // Enhanced Bet Slider with Preset Amounts
-const BetSlider = ({ value, onChange, min, max }) => {
+const BetSlider = ({ value = "0", onChange, min = "1", userBalance = "0" }) => {
   const formatValue = (val) => {
     try {
-      return Number(ethers.formatEther(val.toString())).toFixed(3);
+      return ethers.formatEther(val.toString());
     } catch (error) {
       console.error("Error formatting value:", error);
-      return "0.000";
+      return "0";
     }
   };
 
+  const parseValue = (val) => {
+    try {
+      return ethers.parseEther(val.toString());
+    } catch (error) {
+      console.error("Error parsing value:", error);
+      return BigInt(0);
+    }
+  };
+
+  const calculatePercentage = (amount, percentage) => {
+    try {
+      const safeAmount = BigInt(amount || "0");
+      const result = (safeAmount * BigInt(percentage)) / BigInt(100);
+      const minValue = BigInt(min);
+      return result < minValue ? minValue : result;
+    } catch {
+      return BigInt(min);
+    }
+  };
+
+  const safeBigIntValue = BigInt(value || "0");
+  const safeBigIntMin = BigInt(min);
+  const safeBigIntBalance = BigInt(userBalance || "0");
+
   const presetAmounts = [
-    min,
-    (max * window.BigInt(25)) / window.BigInt(100),
-    (max * window.BigInt(50)) / window.BigInt(100),
-    (max * window.BigInt(75)) / window.BigInt(100),
-    max,
-  ];
+    safeBigIntMin,
+    calculatePercentage(safeBigIntBalance, 25),
+    calculatePercentage(safeBigIntBalance, 50),
+    calculatePercentage(safeBigIntBalance, 75),
+    safeBigIntBalance
+  ].filter((amount, index, self) => 
+    index === self.findIndex(a => a === amount) && 
+    amount >= safeBigIntMin && 
+    amount <= safeBigIntBalance
+  );
 
   const handleSliderChange = (e) => {
-    const newValue = window.BigInt(e.target.value);
-    onChange(newValue);
+    try {
+      const newValue = parseValue(e.target.value);
+      if (newValue < safeBigIntMin) return onChange(safeBigIntMin);
+      if (newValue > safeBigIntBalance) return onChange(safeBigIntBalance);
+      onChange(newValue);
+    } catch (error) {
+      console.error("Error converting slider value:", error);
+      onChange(safeBigIntMin);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    try {
+      const newValue = parseValue(e.target.value);
+      if (newValue < safeBigIntMin) return onChange(safeBigIntMin);
+      if (newValue > safeBigIntBalance) return onChange(safeBigIntBalance);
+      onChange(newValue);
+    } catch (error) {
+      console.error("Error converting input value:", error);
+    }
   };
 
   return (
-    <div
-      className="bet-controls relative overflow-hidden rounded-2xl bg-secondary-800/40 
+    <div className="bet-controls relative overflow-hidden rounded-2xl bg-secondary-800/40 
       backdrop-blur-lg border border-white/10 shadow-xl p-8 transform 
-      hover:shadow-2xl transition-all duration-300"
-    >
-      {/* Animated Background Gradient */}
-      <div
-        className="absolute inset-0 bg-gradient-to-br from-gaming-primary/5 
-        to-gaming-accent/5 animate-gradient-shift"
-      ></div>
+      hover:shadow-2xl transition-all duration-300">
+      <div className="absolute inset-0 bg-gradient-to-br from-gaming-primary/5 
+        to-gaming-accent/5 animate-gradient-shift"></div>
 
-      {/* Main Content */}
       <div className="relative z-10 space-y-6">
-        {/* Header */}
         <div className="flex justify-between items-center">
           <div className="space-y-1">
-            <h3 className="text-xl font-bold text-primary-100">
-              Place Your Bet
-            </h3>
-            <p className="text-sm text-secondary-400">Select amount to wager</p>
+            <h3 className="text-xl font-bold text-primary-100">Place Your Bet</h3>
+            <p className="text-sm text-secondary-400">Select amount of tokens to wager</p>
           </div>
           <div className="text-right">
-            <div
-              className="text-2xl font-bold text-primary-400 
-              transition-all duration-300 animate-value-change"
-            >
-              {formatValue(value)} ETH
-            </div>
+            <input
+              type="number"
+              value={formatValue(safeBigIntValue)}
+              onChange={handleInputChange}
+              min={formatValue(safeBigIntMin)}
+              max={formatValue(safeBigIntBalance)}
+              step="0.000000000000000001"
+              className="w-24 text-right bg-transparent text-2xl font-bold text-primary-400 
+                focus:outline-none focus:ring-1 focus:ring-gaming-primary rounded-lg"
+            />
             <div className="text-xs text-secondary-400">Current Bet Amount</div>
           </div>
         </div>
 
-        {/* Preset Amount Buttons */}
         <div className="grid grid-cols-5 gap-3">
           {presetAmounts.map((amount, index) => (
             <button
               key={index}
               onClick={() => onChange(amount)}
+              disabled={amount > safeBigIntBalance}
               className={`relative group px-3 py-2 rounded-xl transition-all duration-300
-                ${
-                  value === amount
-                    ? "bg-gaming-primary text-white shadow-glow-primary scale-105"
-                    : "bg-secondary-700/50 hover:bg-secondary-600/50 text-secondary-300"
-                }`}
-            >
-              {/* Hover Glow Effect */}
-              <div
-                className={`absolute inset-0 rounded-xl bg-gaming-primary/20 
-                opacity-0 group-hover:opacity-100 transition-opacity duration-300
-                ${value === amount ? "animate-pulse-subtle" : ""}`}
-              ></div>
-
-              {/* Button Content */}
+                ${safeBigIntValue === amount
+                  ? "bg-gaming-primary text-white shadow-glow-primary scale-105"
+                  : "bg-secondary-700/50 hover:bg-secondary-600/50 text-secondary-300"}
+                ${amount > safeBigIntBalance ? "opacity-50 cursor-not-allowed" : ""}`}>
               <div className="relative z-10">
-                <span className="block text-sm font-medium">
-                  {formatValue(amount)}
-                </span>
+                <span className="block text-sm font-medium">{formatValue(amount)}</span>
                 <span className="block text-xs opacity-75">
-                  {index === 0 ? "Min" : index === 4 ? "Max" : `${index * 25}%`}
+                  {index === 0 ? "Min" : index === presetAmounts.length - 1 ? "Max" : `${index * 25}%`}
                 </span>
               </div>
             </button>
           ))}
         </div>
 
-        {/* Custom Slider */}
         <div className="space-y-4">
           <input
             type="range"
-            min={min.toString()}
-            max={max.toString()}
-            value={value.toString()}
+            min={formatValue(safeBigIntMin)}
+            max={formatValue(safeBigIntBalance)}
+            value={formatValue(safeBigIntValue)}
             onChange={handleSliderChange}
+            step="0.000000000000000001"
             className="w-full h-2 bg-secondary-700/50 rounded-lg appearance-none 
               cursor-pointer relative z-10
               [&::-webkit-slider-thumb]:appearance-none
@@ -246,18 +275,12 @@ const BetSlider = ({ value, onChange, min, max }) => {
               [&::-webkit-slider-thumb]:cursor-pointer
               [&::-webkit-slider-thumb]:transition-all
               [&::-webkit-slider-thumb]:duration-300
-              [&::-webkit-slider-thumb]:hover:scale-110
-              [&::-webkit-slider-thumb]:hover:shadow-glow-primary-lg"
+              [&::-webkit-slider-thumb]:hover:scale-110"
           />
 
-          {/* Min/Max Labels */}
           <div className="flex justify-between text-sm">
-            <span className="text-secondary-400">
-              Min: {formatValue(min)} ETH
-            </span>
-            <span className="text-secondary-400">
-              Max: {formatValue(max)} ETH
-            </span>
+            <span className="text-secondary-400">Min: {formatValue(safeBigIntMin)} ETH</span>
+            <span className="text-secondary-400">Balance: {formatValue(safeBigIntBalance)} ETH</span>
           </div>
         </div>
       </div>
@@ -481,105 +504,105 @@ const LoadingDots = () => (
 );
 
 // Enhanced Game History Component
-const GameHistory = ({ diceContract, account }) => {
+const GameHistory = ({ diceContract, account, onError }) => {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
 
   useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const history = await diceContract.getPlayerHistory(account);
-        const processedGames = history
-          .map((game) => ({
-            chosenNumber: game.chosenNumber.toString(),
-            result: game.result.toString(),
-            amount: ethers.formatEther(game.amount),
-            timestamp: new Date(game.timestamp * 1000),
-            status: game.status,
-            payout: ethers.formatEther(game.payout),
-          }))
-          .reverse()
-          .slice(0, 10);
+    const fetchGames = async () => {
+      if (!diceContract || !account) {
+        setGames([]);
+        setLoading(false);
+        return;
+      }
 
+      try {
+        setLoading(true);
+        const history = await diceContract.getPreviousBets(account);
+        const processedGames = history.map((game) => ({
+          chosenNumber: Number(game.chosenNumber),
+          result: Number(game.rolledNumber),
+          amount: game.amount,
+          timestamp: Number(game.timestamp),
+          status:
+            game.chosenNumber.toString() === game.rolledNumber.toString()
+              ? 2
+              : 3,
+        }));
         setGames(processedGames);
       } catch (error) {
-        console.error("Error fetching history:", error);
+        console.error("Error fetching game history:", error);
+        onError(error);
       } finally {
         setLoading(false);
       }
     };
 
-    if (diceContract && account) {
-      fetchHistory();
-    }
+    fetchGames();
   }, [diceContract, account]);
 
+  const filteredGames = games.filter((game) => {
+    if (filter === "wins") return game.status === 2;
+    if (filter === "losses") return game.status === 3;
+    return true;
+  });
+
   return (
-    <div className="glass-panel p-6 rounded-2xl">
-      <h2 className="text-2xl font-bold text-white/90 mb-6">Recent Games</h2>
+    <div className="glass-panel p-6 rounded-2xl space-y-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-white/90">Game History</h2>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setFilter("all")}
+            className={`px-3 py-1 rounded-lg ${
+              filter === "all"
+                ? "bg-gaming-primary text-white"
+                : "bg-gaming-primary/20 text-gaming-primary"
+            } text-sm hover:bg-gaming-primary/30 transition-colors`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setFilter("wins")}
+            className={`px-3 py-1 rounded-lg ${
+              filter === "wins"
+                ? "bg-gaming-success text-white"
+                : "bg-gaming-success/20 text-gaming-success"
+            } text-sm hover:bg-gaming-success/30 transition-colors`}
+          >
+            Wins
+          </button>
+          <button
+            onClick={() => setFilter("losses")}
+            className={`px-3 py-1 rounded-lg ${
+              filter === "losses"
+                ? "bg-gaming-error text-white"
+                : "bg-gaming-error/20 text-gaming-error"
+            } text-sm hover:bg-gaming-error/30 transition-colors`}
+          >
+            Losses
+          </button>
+        </div>
+      </div>
 
       {loading ? (
-        <div className="flex justify-center items-center h-48">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gaming-primary"></div>
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="animate-pulse">
+              <div className="h-24 bg-secondary-800/50 rounded-xl" />
+            </div>
+          ))}
+        </div>
+      ) : filteredGames.length === 0 ? (
+        <div className="text-center py-8 text-secondary-400">
+          No games found
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar">
           <AnimatePresence>
-            {games.map((game, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ delay: index * 0.1 }}
-                className={`
-                  relative p-4 rounded-xl border 
-                  ${
-                    game.status === 2
-                      ? "border-gaming-success/20 bg-gaming-success/10"
-                      : "border-gaming-error/20 bg-gaming-error/10"
-                  }
-                `}
-              >
-                <div className="flex justify-between items-center">
-                  <div className="space-y-1">
-                    <div className="text-sm text-secondary-400">
-                      Chosen: {game.chosenNumber} | Result: {game.result}
-                    </div>
-                    <div className="text-lg font-semibold">
-                      {game.status === 2 ? (
-                        <span className="text-gaming-success">
-                          Won {Number(game.payout).toFixed(4)} ETH
-                        </span>
-                      ) : (
-                        <span className="text-gaming-error">
-                          Lost {Number(game.amount).toFixed(4)} ETH
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm text-secondary-400">
-                      {game.timestamp.toLocaleDateString()}
-                    </div>
-                    <div className="text-xs text-secondary-500">
-                      {game.timestamp.toLocaleTimeString()}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Progress Indicator */}
-                <div className="absolute bottom-0 left-0 right-0 h-1 rounded-b-xl overflow-hidden">
-                  <div
-                    className={`h-full ${
-                      game.status === 2
-                        ? "bg-gaming-success"
-                        : "bg-gaming-error"
-                    }`}
-                    style={{ width: "100%" }}
-                  />
-                </div>
-              </motion.div>
+            {filteredGames.map((game, index) => (
+              <GameHistoryItem key={index} game={game} index={index} />
             ))}
           </AnimatePresence>
         </div>
@@ -587,6 +610,57 @@ const GameHistory = ({ diceContract, account }) => {
     </div>
   );
 };
+
+const GameHistoryItem = ({ game, index }) => (
+  <motion.div
+    initial={{ opacity: 0, x: -20 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: 20 }}
+    transition={{ delay: index * 0.1 }}
+    className={`
+      relative p-4 rounded-xl border backdrop-blur-sm
+      ${
+        game.status === 2
+          ? "border-gaming-success/20 bg-gaming-success/5"
+          : "border-gaming-error/20 bg-gaming-error/5"
+      }
+      hover:transform hover:scale-[1.02] transition-all duration-300
+    `}
+  >
+    <div className="flex justify-between items-start">
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <div
+            className="dice-result w-8 h-8 rounded-lg bg-secondary-800/50 
+            flex items-center justify-center font-bold"
+          >
+            {game.chosenNumber}
+          </div>
+          <span className="text-secondary-400">→</span>
+          <div
+            className="dice-result w-8 h-8 rounded-lg bg-secondary-800/50 
+            flex items-center justify-center font-bold"
+          >
+            {game.result}
+          </div>
+        </div>
+
+        <div className="text-lg font-semibold">
+          {ethers.formatEther(game.amount)} ETH
+        </div>
+      </div>
+
+      <div className="text-right">
+        <div className="text-sm text-secondary-400">
+          {new Date(game.timestamp * 1000).toLocaleDateString()}
+        </div>
+        <div className="text-xs text-secondary-500">
+          {new Date(game.timestamp * 1000).toLocaleTimeString()}
+        </div>
+      </div>
+    </div>
+  </motion.div>
+);
 
 // Environment variables
 const DICE_CONTRACT_ADDRESS = process.env.REACT_APP_DICE_GAME_ADDRESS;
@@ -681,140 +755,98 @@ const GameComponent = ({
   );
 };
 
+
+const StatusIndicator = ({ status, isActive }) => (
+  <div
+    className={`relative flex items-center gap-2 ${
+      isActive ? "animate-pulse" : ""
+    }`}
+  >
+    <span
+      className={`h-3 w-3 rounded-full ${
+        status === "COMPLETED_WIN"
+          ? "bg-gaming-success"
+          : status === "COMPLETED_LOSS"
+          ? "bg-gaming-error"
+          : status === "PENDING"
+          ? "bg-gaming-warning"
+          : "bg-gaming-primary"
+      }`}
+    />
+    <span className="text-sm font-medium">{status.replace("_", " ")}</span>
+  </div>
+);
+
+
 // GameStatus Component
-const GameStatus = ({ diceContract, account, onError }) => {
-  const [gameStatus, setGameStatus] = useState(null);
-  const [requestDetails, setRequestDetails] = useState(null);
-  const [loading, setLoading] = useState(false);
+const GameStatus = ({ gameState }) => {
+  if (!gameState) return null;
 
-  // Define status mapping object
-  const STATUS_MAP = {
-    0: "PENDING",
-    1: "STARTED",
-    2: "COMPLETED_WIN",
-    3: "COMPLETED_LOSS",
-    4: "CANCELLED",
-  };
-
-  const fetchGameStatus = async () => {
-    if (!diceContract || !account) return;
-
-    try {
-      const [status, reqDetails] = await Promise.all([
-        diceContract.getGameStatus(account),
-        diceContract.getCurrentRequestDetails(account),
-      ]);
-
-      console.log("Raw Game Status:", status);
-      console.log("Raw Request Details:", reqDetails);
-
-      const currentGame = await diceContract.getCurrentGame(account);
-      console.log("Current Game Details:", currentGame);
-
-      setGameStatus({
-        isActive: status[0],
-        status: STATUS_MAP[Number(status[1])] || "UNKNOWN",
-        chosenNumber: status[2].toString(),
-        amount: status[3],
-        timestamp: Number(status[4]),
-      });
-
-      setRequestDetails({
-        requestId: reqDetails[0].toString(),
-        requestFulfilled: reqDetails[1],
-        requestActive: reqDetails[2],
-      });
-    } catch (err) {
-      console.error("Error fetching game status:", err);
-      onError(err);
-    }
-  };
-
-  useEffect(() => {
-    fetchGameStatus();
-    const interval = setInterval(fetchGameStatus, 3000);
-    return () => clearInterval(interval);
-  }, [diceContract, account, onError]);
-
-  const resolveGame = async () => {
-    if (!diceContract || loading) return;
-
-    setLoading(true);
-    try {
-      const tx = await diceContract.resolveGame();
-      await tx.wait();
-      await fetchGameStatus();
-    } catch (err) {
-      console.error("Error resolving game:", err);
-      onError(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!gameStatus) return <div>Loading game status...</div>;
-
-  const canResolve =
-    gameStatus.isActive &&
-    requestDetails?.requestFulfilled &&
-    !requestDetails?.requestActive;
+  const { isActive, status, chosenNumber, amount, timestamp } = gameState;
 
   return (
-    <div className="card game-status">
-      <h3 className="text-xl font-bold mb-4">Game Status</h3>
-      <div className="grid gap-4">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass-panel relative p-6 rounded-xl border border-white/10
+        bg-gradient-to-br from-gaming-primary/5 to-gaming-accent/5
+        backdrop-blur-lg shadow-xl"
+    >
+      <div
+        className="absolute inset-0 bg-gradient-to-r from-gaming-primary/10 
+        to-gaming-accent/10 rounded-xl opacity-20"
+      />
+
+      <div className="relative z-10 space-y-6">
         <div className="flex justify-between items-center">
-          <span className="text-text-secondary">Game Active:</span>
-          <span
-            className={`status-badge ${
-              gameStatus.isActive ? "bg-success" : "bg-error"
-            }`}
-          >
-            {gameStatus.isActive ? "Yes" : "No"}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-text-secondary">Status:</span>
-          <span
-            className={`status-badge ${
-              gameStatus.status === "COMPLETED_WIN"
-                ? "status-win"
-                : gameStatus.status === "COMPLETED_LOSS"
-                ? "status-loss"
-                : "status-pending"
-            }`}
-          >
-            {gameStatus.status}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-text-secondary">Chosen Number:</span>
-          <span className="font-mono">{gameStatus.chosenNumber}</span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-text-secondary">Bet Amount:</span>
-          <span className="font-mono">
-            {ethers.formatEther(gameStatus.amount)} ETH
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-text-secondary">Time:</span>
-          <span className="font-mono">
-            {new Date(gameStatus.timestamp * 1000).toLocaleString()}
-          </span>
+          <h3 className="text-xl font-bold text-white/90">Game Status</h3>
+          <StatusIndicator status={status} isActive={isActive} />
         </div>
 
-        {canResolve && (
-          <button
-            onClick={resolveGame}
-            disabled={loading}
-            className="btn-gaming mt-4"
-          >
-            {loading ? "Resolving..." : "Resolve Game"}
-          </button>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="stat-card">
+            <span className="text-sm text-secondary-400">Chosen Number</span>
+            <div className="flex items-center gap-2">
+              <div
+                className="w-8 h-8 rounded-lg bg-gaming-primary/20 
+                flex items-center justify-center text-lg font-bold"
+              >
+                {chosenNumber}
+              </div>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <span className="text-sm text-secondary-400">Bet Amount</span>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-bold">
+                {ethers.formatEther(amount)} ETH
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {isActive && (
+          <div className="mt-4">
+            <div className="h-1 w-full bg-secondary-700 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-gaming-primary"
+                initial={{ width: 0 }}
+                animate={{ width: "100%" }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+            </div>
+            <p className="text-sm text-secondary-400 mt-2">
+              Transaction in progress...
+            </p>
+          </div>
         )}
+
+        <div className="text-sm text-secondary-400">
+          Last Updated: {new Date(timestamp * 1000).toLocaleString()}
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
