@@ -1,71 +1,141 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Link,
+  Navigate,
+} from "react-router-dom";
 import { ethers } from "ethers";
+import { motion, AnimatePresence } from "framer-motion";
+import { Line } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
 import DiceABI from "./contracts/abi/Dice.json";
 import TokenABI from "./contracts/abi/Token.json";
 
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
+
 // Enhanced Toast Component
 const Toast = ({ message, type, onClose }) => (
-  <div className={`fixed bottom-4 right-4 flex items-center min-w-[300px] p-4 
+  <div
+    className={`fixed bottom-4 right-4 flex items-center min-w-[300px] p-4 
     rounded-lg shadow-xl transform transition-all duration-300 ease-in-out
-    ${type === 'success' ? 'bg-success-500' : type === 'error' ? 'bg-error-500' : 'bg-primary-500'}
-    animate-slide-up z-50`}>
+    ${
+      type === "success"
+        ? "bg-success-500"
+        : type === "error"
+        ? "bg-error-500"
+        : "bg-primary-500"
+    }
+    animate-slide-up z-50`}
+  >
     <div className="flex-1 text-white">
       <div className="flex items-center space-x-2">
-        {type === 'success' && (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+        {type === "success" && (
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M5 13l4 4L19 7"
+            />
           </svg>
         )}
-        {type === 'error' && (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+        {type === "error" && (
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         )}
         <span className="font-medium">{message}</span>
       </div>
     </div>
-    <button onClick={onClose} className="ml-4 text-white hover:text-gray-200 transition-colors">
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+    <button
+      onClick={onClose}
+      className="ml-4 text-white hover:text-gray-200 transition-colors"
+    >
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          d="M6 18L18 6M6 6l12 12"
+        />
       </svg>
     </button>
   </div>
 );
 
-// Number Selector Component with Dice Visual
-const DiceSelector = ({ value, onChange }) => {
-  return (
-    <div className="grid grid-cols-3 gap-4 sm:grid-cols-6 my-6">
-      {[1, 2, 3, 4, 5, 6].map((num) => (
-        <button
-          key={num}
-          onClick={() => onChange(num)}
-          className={`relative group h-16 w-16 rounded-xl transition-all duration-300
-            ${Number(value) === num 
-              ? 'bg-primary-500 shadow-glow scale-110' 
-              : 'bg-secondary-800 hover:bg-secondary-700'}`}
-        >
-          <div className={`grid grid-cols-3 gap-1 p-2 h-full
-            ${Number(value) === num ? 'dice-face-selected' : 'dice-face'}`}>
-            {[...Array(num)].map((_, i) => (
-              <span key={i} className={`rounded-full
-                ${Number(value) === num 
-                  ? 'bg-white' 
-                  : 'bg-secondary-400 group-hover:bg-secondary-300'} 
-                transition-colors duration-300`} 
-              />
-            ))}
-          </div>
-          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 
-            opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <span className="text-sm text-primary-400">Select {num}</span>
-          </div>
-        </button>
-      ))}
-    </div>
-  );
-};
+// // Number Selector Component with Dice Visual
+// const DiceSelector = ({ value, onChange }) => {
+//   return (
+//     <div className="grid grid-cols-3 gap-4 sm:grid-cols-6 my-6">
+//       {[1, 2, 3, 4, 5, 6].map((num) => (
+//         <button
+//           key={num}
+//           onClick={() => onChange(num)}
+//           className={`relative group h-16 w-16 rounded-xl transition-all duration-300
+//             ${Number(value) === num
+//               ? 'bg-primary-500 shadow-glow scale-110'
+//               : 'bg-secondary-800 hover:bg-secondary-700'}`}
+//         >
+//           <div className={`grid grid-cols-3 gap-1 p-2 h-full
+//             ${Number(value) === num ? 'dice-face-selected' : 'dice-face'}`}>
+//             {[...Array(num)].map((_, i) => (
+//               <span key={i} className={`rounded-full
+//                 ${Number(value) === num
+//                   ? 'bg-white'
+//                   : 'bg-secondary-400 group-hover:bg-secondary-300'}
+//                 transition-colors duration-300`}
+//               />
+//             ))}
+//           </div>
+//           <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2
+//             opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+//             <span className="text-sm text-primary-400">Select {num}</span>
+//           </div>
+//         </button>
+//       ))}
+//     </div>
+//   );
+// };
 
 // Enhanced Bet Slider with Preset Amounts
 const BetSlider = ({ value, onChange, min, max }) => {
@@ -73,7 +143,7 @@ const BetSlider = ({ value, onChange, min, max }) => {
     try {
       return Number(ethers.formatEther(val.toString())).toFixed(3);
     } catch (error) {
-      console.error('Error formatting value:', error);
+      console.error("Error formatting value:", error);
       return "0.000";
     }
   };
@@ -83,7 +153,7 @@ const BetSlider = ({ value, onChange, min, max }) => {
     (max * window.BigInt(25)) / window.BigInt(100),
     (max * window.BigInt(50)) / window.BigInt(100),
     (max * window.BigInt(75)) / window.BigInt(100),
-    max
+    max,
   ];
 
   const handleSliderChange = (e) => {
@@ -92,13 +162,16 @@ const BetSlider = ({ value, onChange, min, max }) => {
   };
 
   return (
-    <div className="bet-controls relative overflow-hidden rounded-2xl bg-secondary-800/40 
+    <div
+      className="bet-controls relative overflow-hidden rounded-2xl bg-secondary-800/40 
       backdrop-blur-lg border border-white/10 shadow-xl p-8 transform 
-      hover:shadow-2xl transition-all duration-300">
-      
+      hover:shadow-2xl transition-all duration-300"
+    >
       {/* Animated Background Gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-gaming-primary/5 
-        to-gaming-accent/5 animate-gradient-shift"></div>
+      <div
+        className="absolute inset-0 bg-gradient-to-br from-gaming-primary/5 
+        to-gaming-accent/5 animate-gradient-shift"
+      ></div>
 
       {/* Main Content */}
       <div className="relative z-10 space-y-6">
@@ -108,18 +181,16 @@ const BetSlider = ({ value, onChange, min, max }) => {
             <h3 className="text-xl font-bold text-primary-100">
               Place Your Bet
             </h3>
-            <p className="text-sm text-secondary-400">
-              Select amount to wager
-            </p>
+            <p className="text-sm text-secondary-400">Select amount to wager</p>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold text-primary-400 
-              transition-all duration-300 animate-value-change">
+            <div
+              className="text-2xl font-bold text-primary-400 
+              transition-all duration-300 animate-value-change"
+            >
               {formatValue(value)} ETH
             </div>
-            <div className="text-xs text-secondary-400">
-              Current Bet Amount
-            </div>
+            <div className="text-xs text-secondary-400">Current Bet Amount</div>
           </div>
         </div>
 
@@ -130,22 +201,26 @@ const BetSlider = ({ value, onChange, min, max }) => {
               key={index}
               onClick={() => onChange(amount)}
               className={`relative group px-3 py-2 rounded-xl transition-all duration-300
-                ${value === amount 
-                  ? 'bg-gaming-primary text-white shadow-glow-primary scale-105' 
-                  : 'bg-secondary-700/50 hover:bg-secondary-600/50 text-secondary-300'}`}
+                ${
+                  value === amount
+                    ? "bg-gaming-primary text-white shadow-glow-primary scale-105"
+                    : "bg-secondary-700/50 hover:bg-secondary-600/50 text-secondary-300"
+                }`}
             >
               {/* Hover Glow Effect */}
-              <div className={`absolute inset-0 rounded-xl bg-gaming-primary/20 
+              <div
+                className={`absolute inset-0 rounded-xl bg-gaming-primary/20 
                 opacity-0 group-hover:opacity-100 transition-opacity duration-300
-                ${value === amount ? 'animate-pulse-subtle' : ''}`}></div>
-              
+                ${value === amount ? "animate-pulse-subtle" : ""}`}
+              ></div>
+
               {/* Button Content */}
               <div className="relative z-10">
                 <span className="block text-sm font-medium">
                   {formatValue(amount)}
                 </span>
                 <span className="block text-xs opacity-75">
-                  {index === 0 ? 'Min' : index === 4 ? 'Max' : `${index * 25}%`}
+                  {index === 0 ? "Min" : index === 4 ? "Max" : `${index * 25}%`}
                 </span>
               </div>
             </button>
@@ -195,8 +270,10 @@ const LoadingSpinner = ({ message }) => (
   <div className="flex items-center justify-center space-x-3">
     <div className="relative">
       <div className="w-8 h-8 border-4 border-primary-200 rounded-full"></div>
-      <div className="absolute top-0 left-0 w-8 h-8 border-4 border-primary-500 rounded-full 
-        border-t-transparent animate-spin"></div>
+      <div
+        className="absolute top-0 left-0 w-8 h-8 border-4 border-primary-500 rounded-full 
+        border-t-transparent animate-spin"
+      ></div>
     </div>
     <span className="text-primary-100 font-medium">{message}</span>
   </div>
@@ -204,14 +281,195 @@ const LoadingSpinner = ({ message }) => (
 
 // Enhanced Loading Overlay Component
 const LoadingOverlay = ({ message }) => (
-  <div className="fixed inset-0 bg-secondary-900/80 backdrop-blur-sm flex items-center 
-    justify-center z-50 transition-opacity duration-300">
-    <div className="bg-secondary-800 p-6 rounded-xl shadow-xl border border-secondary-700
-      transform transition-all duration-300 ease-out">
+  <div
+    className="fixed inset-0 bg-secondary-900/80 backdrop-blur-sm flex items-center 
+    justify-center z-50 transition-opacity duration-300"
+  >
+    <div
+      className="bg-secondary-800 p-6 rounded-xl shadow-xl border border-secondary-700
+      transform transition-all duration-300 ease-out"
+    >
       <LoadingSpinner message={message} />
     </div>
   </div>
 );
+
+const DiceVisualizer = ({ chosenNumber, isRolling, result }) => {
+  const diceVariants = {
+    rolling: {
+      rotate: [0, 360, 720, 1080],
+      transition: {
+        duration: 2,
+        ease: "easeInOut",
+        times: [0, 0.2, 0.5, 1],
+      },
+    },
+    static: {
+      rotate: 0,
+      transition: {
+        duration: 0.5,
+        ease: "easeOut",
+      },
+    },
+  };
+
+  const dotPositions = {
+    1: [4],
+    2: [0, 8],
+    3: [0, 4, 8],
+    4: [0, 2, 6, 8],
+    5: [0, 2, 4, 6, 8],
+    6: [0, 2, 3, 5, 6, 8],
+  };
+
+  const renderDots = (number) => {
+    return Array(9)
+      .fill(null)
+      .map((_, index) => (
+        <div
+          key={index}
+          className={`w-4 h-4 rounded-full transition-all duration-300
+          ${
+            dotPositions[number]?.includes(index)
+              ? "bg-white scale-100 opacity-100"
+              : "bg-transparent scale-0 opacity-0"
+          }`}
+        />
+      ));
+  };
+
+  return (
+    <div className="relative w-full aspect-square max-w-[300px] mx-auto">
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={isRolling ? "rolling" : result || chosenNumber}
+          variants={diceVariants}
+          animate={isRolling ? "rolling" : "static"}
+          className="w-full h-full"
+        >
+          <div className="dice-container relative w-full h-full">
+            {/* 3D Dice Face */}
+            <div
+              className={`
+              absolute inset-0 rounded-2xl bg-gaming-primary/20
+              backdrop-blur-lg border border-white/20
+              shadow-[0_0_15px_rgba(59,130,246,0.5)]
+              ${isRolling ? "animate-shake" : ""}
+              transform transition-all duration-300
+            `}
+            >
+              <div className="grid grid-cols-3 grid-rows-3 gap-2 p-6 h-full">
+                {renderDots(result || chosenNumber || 1)}
+              </div>
+            </div>
+
+            {/* Reflection Effect */}
+            <div
+              className="absolute inset-0 rounded-2xl bg-gradient-to-tr 
+              from-white/5 to-transparent pointer-events-none"
+            />
+          </div>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Result Overlay */}
+      {result && !isRolling && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="absolute top-0 left-0 w-full h-full flex items-center justify-center"
+        >
+          <div
+            className={`text-4xl font-bold ${
+              result === chosenNumber
+                ? "text-gaming-success animate-bounce"
+                : "text-gaming-error animate-shake"
+            }`}
+          >
+            {result === chosenNumber ? "WIN!" : "LOSE"}
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
+};
+
+const NumberSelector = ({ value, onChange, disabled }) => {
+  const numbers = [1, 2, 3, 4, 5, 6];
+
+  const buttonVariants = {
+    idle: { scale: 1 },
+    hover: { scale: 1.05 },
+    selected: { scale: 1.1 },
+    disabled: { opacity: 0.5, scale: 1 },
+  };
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-xl font-bold text-white/90">Choose Your Number</h3>
+
+      <div className="grid grid-cols-3 gap-4 sm:grid-cols-6">
+        {numbers.map((num) => (
+          <motion.button
+            key={num}
+            variants={buttonVariants}
+            initial="idle"
+            whileHover={disabled ? "disabled" : "hover"}
+            animate={
+              value === num ? "selected" : disabled ? "disabled" : "idle"
+            }
+            onClick={() => !disabled && onChange(num)}
+            disabled={disabled}
+            className={`
+              relative group p-4 rounded-xl
+              ${
+                value === num
+                  ? "bg-gaming-primary shadow-neon"
+                  : "bg-secondary-800/40 hover:bg-secondary-700/40"
+              }
+              backdrop-blur-sm border border-white/10
+              transition-colors duration-300
+            `}
+          >
+            {/* Number Display */}
+            <div className="text-2xl font-bold text-center mb-2">{num}</div>
+
+            {/* Probability Info */}
+            <div className="text-xs text-center opacity-75">
+              Win: {((1 / 6) * 100).toFixed(1)}%
+            </div>
+
+            {/* Selection Indicator */}
+            {value === num && (
+              <motion.div
+                layoutId="selector"
+                className="absolute inset-0 rounded-xl border-2 border-gaming-primary"
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              />
+            )}
+
+            {/* Hover Effect */}
+            <div
+              className="absolute inset-0 rounded-xl bg-gaming-primary/10 
+              opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            />
+          </motion.button>
+        ))}
+      </div>
+
+      {/* Selected Number Display */}
+      {value && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center text-sm text-gaming-primary"
+        >
+          Selected Number: {value}
+        </motion.div>
+      )}
+    </div>
+  );
+};
 
 // Loading Dots Component
 const LoadingDots = () => (
@@ -223,78 +481,109 @@ const LoadingDots = () => (
 );
 
 // Enhanced Game History Component
-const GameHistory = ({ diceContract, account, onError }) => {
-  const [bets, setBets] = useState([]);
+const GameHistory = ({ diceContract, account }) => {
+  const [games, setGames] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchHistory = async () => {
-      if (diceContract && account) {
-        try {
-          const previousBets = await diceContract.getPreviousBets(account);
-          const formattedBets = previousBets.map((bet) => ({
-            chosenNumber: bet.chosenNumber.toString(),
-            rolledNumber: bet.rolledNumber.toString(),
-            amount: bet.amount,
-            timestamp: Number(bet.timestamp),
-            won: bet.chosenNumber.toString() === bet.rolledNumber.toString()
-          }));
-          setBets(formattedBets);
-        } catch (err) {
-          onError(err);
-        }
+      try {
+        const history = await diceContract.getPlayerHistory(account);
+        const processedGames = history
+          .map((game) => ({
+            chosenNumber: game.chosenNumber.toString(),
+            result: game.result.toString(),
+            amount: ethers.formatEther(game.amount),
+            timestamp: new Date(game.timestamp * 1000),
+            status: game.status,
+            payout: ethers.formatEther(game.payout),
+          }))
+          .reverse()
+          .slice(0, 10);
+
+        setGames(processedGames);
+      } catch (error) {
+        console.error("Error fetching history:", error);
+      } finally {
+        setLoading(false);
       }
     };
-    fetchHistory();
+
+    if (diceContract && account) {
+      fetchHistory();
+    }
   }, [diceContract, account]);
 
-  const formatAmount = (amount) => {
-    try {
-      return `${ethers.formatEther(amount)} ETH`;
-    } catch (err) {
-      console.error("Error formatting amount:", err);
-      return "0 ETH";
-    }
-  };
-
   return (
-    <div className="glass-effect p-6 rounded-xl">
-      <h3 className="text-lg font-semibold text-primary-100 mb-4">
-        Recent Games
-      </h3>
-      <div className="space-y-3">
-        {bets.map((bet, index) => (
-          <div 
-            key={index}
-            className="flex items-center justify-between p-3 bg-secondary-800 
-              rounded-lg border border-secondary-700"
-          >
-            <div className="flex items-center space-x-3">
-              <div className={`w-2 h-2 rounded-full ${
-                bet.won ? 'bg-success-500' : 'bg-error-500'
-              }`} />
-              <span className="text-sm text-secondary-300">
-                {new Date(bet.timestamp * 1000).toLocaleTimeString()}
-              </span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm">
-                Chosen: {bet.chosenNumber}
-              </span>
-              <span className="text-sm">
-                Rolled: {bet.rolledNumber}
-              </span>
-              <span className="text-sm">
-                {formatAmount(bet.amount)}
-              </span>
-              <span className={`font-medium ${
-                bet.won ? 'text-success-400' : 'text-error-400'
-              }`}>
-                {bet.won ? 'Won!' : 'Lost'}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
+    <div className="glass-panel p-6 rounded-2xl">
+      <h2 className="text-2xl font-bold text-white/90 mb-6">Recent Games</h2>
+
+      {loading ? (
+        <div className="flex justify-center items-center h-48">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gaming-primary"></div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <AnimatePresence>
+            {games.map((game, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ delay: index * 0.1 }}
+                className={`
+                  relative p-4 rounded-xl border 
+                  ${
+                    game.status === 2
+                      ? "border-gaming-success/20 bg-gaming-success/10"
+                      : "border-gaming-error/20 bg-gaming-error/10"
+                  }
+                `}
+              >
+                <div className="flex justify-between items-center">
+                  <div className="space-y-1">
+                    <div className="text-sm text-secondary-400">
+                      Chosen: {game.chosenNumber} | Result: {game.result}
+                    </div>
+                    <div className="text-lg font-semibold">
+                      {game.status === 2 ? (
+                        <span className="text-gaming-success">
+                          Won {Number(game.payout).toFixed(4)} ETH
+                        </span>
+                      ) : (
+                        <span className="text-gaming-error">
+                          Lost {Number(game.amount).toFixed(4)} ETH
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-secondary-400">
+                      {game.timestamp.toLocaleDateString()}
+                    </div>
+                    <div className="text-xs text-secondary-500">
+                      {game.timestamp.toLocaleTimeString()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Progress Indicator */}
+                <div className="absolute bottom-0 left-0 right-0 h-1 rounded-b-xl overflow-hidden">
+                  <div
+                    className={`h-full ${
+                      game.status === 2
+                        ? "bg-gaming-success"
+                        : "bg-gaming-error"
+                    }`}
+                    style={{ width: "100%" }}
+                  />
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 };
@@ -317,12 +606,18 @@ const GameComponent = ({
   onError,
   addToast,
 }) => {
-  const [chosenNumber, setChosenNumber] = useState("");
-  const [betAmount, setBetAmount] = useState("0.01");
+  const [chosenNumber, setChosenNumber] = useState(null);
+  const [betAmount, setBetAmount] = useState(
+    window.BigInt(ethers.parseEther("0.01").toString())
+  );
   const [canPlay, setCanPlay] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [minBet, setMinBet] = useState("0.01");
-  const [maxBet, setMaxBet] = useState("1.0");
+  const [minBet, setMinBet] = useState(
+    window.BigInt(ethers.parseEther("0.01").toString())
+  );
+  const [maxBet, setMaxBet] = useState(
+    window.BigInt(ethers.parseEther("1.0").toString())
+  );
 
   useEffect(() => {
     const checkGameState = async () => {
@@ -350,8 +645,7 @@ const GameComponent = ({
 
     setLoading(true);
     try {
-      const parsedAmount = ethers.parseEther(betAmount);
-      const tx = await diceContract.playDice(chosenNumber, parsedAmount);
+      const tx = await diceContract.playDice(chosenNumber, betAmount);
       await tx.wait();
       addToast("Bet placed successfully!", "success");
       onGameStart();
@@ -365,16 +659,20 @@ const GameComponent = ({
 
   return (
     <div className="game-component glass-effect p-6 rounded-xl">
-      <DiceSelector value={chosenNumber} onChange={setChosenNumber} />
-      
-      <BetSlider 
-        value={betAmount} 
-        onChange={setBetAmount}
-        min={ethers.parseEther(minBet)}
-        max={ethers.parseEther(maxBet)}
+      <NumberSelector
+        value={chosenNumber}
+        onChange={setChosenNumber}
+        disabled={loading}
       />
 
-      <GameControls 
+      <BetSlider
+        value={betAmount}
+        onChange={setBetAmount}
+        min={minBet}
+        max={maxBet}
+      />
+
+      <GameControls
         onRoll={handlePlay}
         isRolling={loading}
         canRoll={canPlay && chosenNumber && betAmount}
@@ -654,14 +952,14 @@ const Home = () => {
               The Future of Decentralized Gaming
             </p>
             <div className="flex gap-4 justify-center">
-              <Link 
-                to="/dice" 
+              <Link
+                to="/dice"
                 className="btn-gaming hover:scale-105 transform transition-all"
               >
                 Play Now
               </Link>
-              <a 
-                href="#learn-more" 
+              <a
+                href="#learn-more"
                 className="btn-outline-gaming hover:scale-105 transform transition-all"
               >
                 Learn More
@@ -679,12 +977,14 @@ const Home = () => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <div 
+              <div
                 key={index}
                 className="glass-effect p-6 rounded-xl hover:transform hover:scale-105 
                   transition-all duration-300"
               >
-                <div className="text-3xl mb-4 text-gaming-accent">{feature.icon}</div>
+                <div className="text-3xl mb-4 text-gaming-accent">
+                  {feature.icon}
+                </div>
                 <h3 className="text-xl font-bold mb-3 text-primary-100">
                   {feature.title}
                 </h3>
@@ -702,29 +1002,43 @@ const Home = () => {
             Available Games
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="glass-effect rounded-xl p-8 hover:transform hover:scale-105 
-              transition-all duration-300">
+            <div
+              className="glass-effect rounded-xl p-8 hover:transform hover:scale-105 
+              transition-all duration-300"
+            >
               <div className="flex justify-between items-start mb-6">
-                <h3 className="text-2xl font-bold text-primary-100">Dice Game</h3>
-                <span className="px-3 py-1 bg-gaming-primary/20 text-gaming-primary 
-                  rounded-full text-sm">Live</span>
+                <h3 className="text-2xl font-bold text-primary-100">
+                  Dice Game
+                </h3>
+                <span
+                  className="px-3 py-1 bg-gaming-primary/20 text-gaming-primary 
+                  rounded-full text-sm"
+                >
+                  Live
+                </span>
               </div>
               <p className="text-gray-400 mb-6">
-                Test your luck with our provably fair dice game. Roll to win up to 6x your stake!
+                Test your luck with our provably fair dice game. Roll to win up
+                to 6x your stake!
               </p>
-              <Link 
-                to="/dice" 
-                className="btn-gaming inline-block"
-              >
+              <Link to="/dice" className="btn-gaming inline-block">
                 Play Now
               </Link>
             </div>
-            <div className="glass-effect rounded-xl p-8 hover:transform hover:scale-105 
-              transition-all duration-300">
+            <div
+              className="glass-effect rounded-xl p-8 hover:transform hover:scale-105 
+              transition-all duration-300"
+            >
               <div className="flex justify-between items-start mb-6">
-                <h3 className="text-2xl font-bold text-primary-100">Coming Soon</h3>
-                <span className="px-3 py-1 bg-gaming-accent/20 text-gaming-accent 
-                  rounded-full text-sm">Soon</span>
+                <h3 className="text-2xl font-bold text-primary-100">
+                  Coming Soon
+                </h3>
+                <span
+                  className="px-3 py-1 bg-gaming-accent/20 text-gaming-accent 
+                  rounded-full text-sm"
+                >
+                  Soon
+                </span>
               </div>
               <div className="space-y-4 text-gray-400">
                 <p>More exciting games are on the way:</p>
@@ -747,12 +1061,11 @@ const Home = () => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {steps.map((step, index) => (
-              <div 
-                key={index} 
-                className="glass-effect p-8 rounded-xl relative"
-              >
-                <div className="absolute -top-6 -left-6 w-12 h-12 rounded-full 
-                  bg-gaming-primary flex items-center justify-center text-2xl font-bold">
+              <div key={index} className="glass-effect p-8 rounded-xl relative">
+                <div
+                  className="absolute -top-6 -left-6 w-12 h-12 rounded-full 
+                  bg-gaming-primary flex items-center justify-center text-2xl font-bold"
+                >
                   {index + 1}
                 </div>
                 <h3 className="text-xl font-bold mb-4 text-primary-100">
@@ -773,63 +1086,170 @@ const features = [
   {
     icon: "🔒",
     title: "Secure & Transparent",
-    description: "Built on Ethereum blockchain with verifiable smart contracts"
+    description: "Built on Ethereum blockchain with verifiable smart contracts",
   },
   {
     icon: "⚡",
     title: "Instant Settlements",
-    description: "Immediate payouts and game resolutions"
+    description: "Immediate payouts and game resolutions",
   },
   {
     icon: "🎮",
     title: "Fair Gaming",
-    description: "Provably fair mechanics using Chainlink VRF"
-  }
+    description: "Provably fair mechanics using Chainlink VRF",
+  },
 ];
 
 const steps = [
   {
     title: "Connect Wallet",
-    description: "Connect your MetaMask or any Web3 wallet to get started"
+    description: "Connect your MetaMask or any Web3 wallet to get started",
   },
   {
     title: "Get GameToken",
-    description: "Purchase tokens directly through our platform"
+    description: "Purchase tokens directly through our platform",
   },
   {
     title: "Start Playing",
-    description: "Choose your game and start your winning journey"
-  }
+    description: "Choose your game and start your winning journey",
+  },
 ];
 
 // New Game Statistics Panel
-const GameStats = ({ stats }) => {
+const GameStats = ({ diceContract, account }) => {
+  const [stats, setStats] = useState({
+    totalGames: 0,
+    wins: 0,
+    losses: 0,
+    totalWagered: 0,
+    netProfit: 0,
+    recentResults: [],
+  });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [games, totalBets, totalWinnings] = await Promise.all([
+          diceContract.getTotalGames(),
+          diceContract.getTotalBets(),
+          diceContract.getTotalWinnings(account),
+        ]);
+
+        const gameHistory = await diceContract.getPlayerHistory(account);
+        const processedHistory = gameHistory.map((game) => ({
+          result: game.status === 2, // COMPLETED_WIN = 2
+          amount: Number(ethers.formatEther(game.amount)),
+          payout: Number(ethers.formatEther(game.payout)),
+        }));
+
+        setStats({
+          totalGames: games.toString(),
+          wins: processedHistory.filter((g) => g.result).length,
+          losses: processedHistory.filter((g) => !g.result).length,
+          totalWagered: Number(ethers.formatEther(totalBets)),
+          netProfit: Number(ethers.formatEther(totalWinnings)),
+          recentResults: processedHistory.slice(-10).reverse(),
+        });
+      } catch (error) {
+        console.error("Error fetching stats:", error);
+      }
+    };
+
+    if (diceContract && account) {
+      fetchStats();
+    }
+  }, [diceContract, account]);
+
+  const chartData = {
+    labels: stats.recentResults.map((_, i) => `Game ${i + 1}`),
+    datasets: [
+      {
+        label: "Profit/Loss",
+        data: stats.recentResults.map((game) =>
+          game.result ? game.payout - game.amount : -game.amount
+        ),
+        borderColor: "rgb(59, 130, 246)",
+        backgroundColor: "rgba(59, 130, 246, 0.5)",
+        tension: 0.4,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        backgroundColor: "rgba(15, 23, 42, 0.9)",
+        titleColor: "rgb(226, 232, 240)",
+        bodyColor: "rgb(226, 232, 240)",
+        borderColor: "rgba(148, 163, 184, 0.1)",
+        borderWidth: 1,
+      },
+    },
+    scales: {
+      y: {
+        grid: {
+          color: "rgba(148, 163, 184, 0.1)",
+        },
+        ticks: {
+          color: "rgb(148, 163, 184)",
+        },
+      },
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          color: "rgb(148, 163, 184)",
+        },
+      },
+    },
+  };
+
   return (
-    <div className="glass-effect p-6 rounded-xl">
-      <h3 className="text-lg font-semibold text-primary-100 mb-4">
-        Game Statistics
-      </h3>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard
-          title="Total Games"
-          value={stats.totalGames}
-          icon="🎲"
-        />
-        <StatCard
-          title="Win Rate"
-          value={`${stats.winRate}%`}
-          icon="📈"
-        />
-        <StatCard
-          title="Biggest Win"
-          value={`${stats.biggestWin} ETH`}
-          icon="🏆"
-        />
-        <StatCard
-          title="Total Winnings"
-          value={`${stats.totalWinnings} ETH`}
-          icon="💰"
-        />
+    <div className="glass-panel p-6 rounded-2xl space-y-6">
+      <h2 className="text-2xl font-bold text-white/90">Your Statistics</h2>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        {[
+          { label: "Total Games", value: stats.totalGames },
+          {
+            label: "Win Rate",
+            value: `${((stats.wins / stats.totalGames) * 100 || 0).toFixed(
+              1
+            )}%`,
+          },
+          { label: "Net Profit", value: `${stats.netProfit.toFixed(4)} ETH` },
+          {
+            label: "Total Wagered",
+            value: `${stats.totalWagered.toFixed(4)} ETH`,
+          },
+          { label: "Wins", value: stats.wins },
+          { label: "Losses", value: stats.losses },
+        ].map((stat, index) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className="stat-card p-4 rounded-xl bg-secondary-800/40 border border-white/5"
+          >
+            <div className="text-sm text-secondary-400">{stat.label}</div>
+            <div className="text-xl font-bold text-white mt-1">
+              {stat.value}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Profit Chart */}
+      <div className="h-64 mt-6">
+        <Line data={chartData} options={chartOptions} />
       </div>
     </div>
   );
@@ -856,11 +1276,12 @@ const GameControls = ({ onRoll, isRolling, canRoll }) => {
         className={`
           w-full sm:w-auto px-8 py-4 rounded-xl font-bold text-lg
           transition-all duration-300 transform
-          ${canRoll && !isRolling
-            ? 'bg-primary-500 hover:bg-primary-400 hover:scale-105'
-            : 'bg-secondary-700 cursor-not-allowed opacity-50'
+          ${
+            canRoll && !isRolling
+              ? "bg-primary-500 hover:bg-primary-400 hover:scale-105"
+              : "bg-secondary-700 cursor-not-allowed opacity-50"
           }
-          ${isRolling ? 'animate-pulse' : ''}
+          ${isRolling ? "animate-pulse" : ""}
         `}
       >
         {isRolling ? (
@@ -869,10 +1290,10 @@ const GameControls = ({ onRoll, isRolling, canRoll }) => {
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
           </div>
         ) : (
-          'Roll Dice'
+          "Roll Dice"
         )}
       </button>
-      
+
       {!canRoll && (
         <p className="text-error-400 text-sm">
           Please connect your wallet and select a number to roll
@@ -1070,7 +1491,10 @@ function App() {
       window.ethereum.on("chainChanged", handleChainChanged);
 
       return () => {
-        window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
+        window.ethereum.removeListener(
+          "accountsChanged",
+          handleAccountsChanged
+        );
         window.ethereum.removeListener("chainChanged", handleChainChanged);
       };
     }
