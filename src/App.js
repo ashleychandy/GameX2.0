@@ -272,7 +272,7 @@ const GameComponent = ({
   addToast,
 }) => {
   const [chosenNumber, setChosenNumber] = useState("");
-  const [betAmount, setBetAmount] = useState(window.BigInt(0));
+  const [betAmount, setBetAmount] = useState("0.01");
   const [canPlay, setCanPlay] = useState(false);
   const [loading, setLoading] = useState(false);
   const [minBet, setMinBet] = useState("0.01");
@@ -595,95 +595,166 @@ const AdminPage = ({ diceContract, tokenContract, account, onError }) => (
 // Home Component
 const Home = () => {
   return (
-    <div className="home-container">
-      <header className="hero-section">
-        <h1>Welcome to GameToken</h1>
-        <p className="hero-subtitle">Your Gateway to Decentralized Gaming</p>
-      </header>
-
-      <section className="token-info">
-        <h2>About GameToken</h2>
-        <div className="info-grid">
-          <div className="info-card">
-            <h3>What is GameToken?</h3>
-            <p>
-              GameToken is a specialized ERC20 token designed specifically for
-              decentralized gaming platforms. It enables secure, transparent,
-              and fair gaming experiences on the blockchain.
+    <div className="min-h-screen">
+      {/* Hero Section with Animated Background */}
+      <section className="relative h-screen flex items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-gaming-primary/20 to-gaming-accent/20" />
+        <div className="responsive-container relative z-10 text-center">
+          <div className="animate-fade-in-up">
+            <h1 className="text-6xl md:text-7xl font-bold mb-6 text-gradient-gaming">
+              GameToken
+            </h1>
+            <p className="text-xl md:text-2xl text-gray-300 mb-8">
+              The Future of Decentralized Gaming
             </p>
-          </div>
-          <div className="info-card">
-            <h3>Features</h3>
-            <ul>
-              <li>Secure transactions</li>
-              <li>Instant settlements</li>
-              <li>Verifiable fairness</li>
-              <li>Decentralized gaming</li>
-            </ul>
+            <div className="flex gap-4 justify-center">
+              <Link 
+                to="/dice" 
+                className="btn-gaming hover:scale-105 transform transition-all"
+              >
+                Play Now
+              </Link>
+              <a 
+                href="#learn-more" 
+                className="btn-outline-gaming hover:scale-105 transform transition-all"
+              >
+                Learn More
+              </a>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="games-showcase">
-        <h2>Available Games</h2>
-        <div className="games-grid">
-          <div className="game-card">
-            <h3>Dice Game</h3>
-            <p>
-              Test your luck with our blockchain-powered dice game! Choose a
-              number, place your bet, and win up to 6x your stake.
-            </p>
-            <ul>
-              <li>Provably fair results</li>
-              <li>Instant payouts</li>
-              <li>Multiple betting options</li>
-            </ul>
-            <Link to="/dice" className="play-button">
-              Play Now
-            </Link>
-          </div>
-          <div className="game-card coming-soon">
-            <h3>Coming Soon</h3>
-            <p>More exciting games are on the way! Stay tuned for:</p>
-            <ul>
-              <li>Coin Flip</li>
-              <li>Lottery</li>
-              <li>Card Games</li>
-              <li>And more!</li>
-            </ul>
+      {/* Features Grid */}
+      <section className="py-20 bg-secondary-900/50">
+        <div className="responsive-container">
+          <h2 className="text-4xl font-bold text-center mb-16 text-gradient-gaming">
+            Why Choose GameToken?
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {features.map((feature, index) => (
+              <div 
+                key={index}
+                className="glass-effect p-6 rounded-xl hover:transform hover:scale-105 
+                  transition-all duration-300"
+              >
+                <div className="text-3xl mb-4 text-gaming-accent">{feature.icon}</div>
+                <h3 className="text-xl font-bold mb-3 text-primary-100">
+                  {feature.title}
+                </h3>
+                <p className="text-gray-400">{feature.description}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="how-to-start">
-        <h2>How to Get Started</h2>
-        <div className="steps-container">
-          <div className="step">
-            <h3>Step 1: Connect Wallet</h3>
-            <p>
-              Use MetaMask or any compatible wallet to connect to the Ethereum
-              network.
-            </p>
+      {/* Games Showcase */}
+      <section className="py-20">
+        <div className="responsive-container">
+          <h2 className="text-4xl font-bold text-center mb-16 text-gradient-gaming">
+            Available Games
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="glass-effect rounded-xl p-8 hover:transform hover:scale-105 
+              transition-all duration-300">
+              <div className="flex justify-between items-start mb-6">
+                <h3 className="text-2xl font-bold text-primary-100">Dice Game</h3>
+                <span className="px-3 py-1 bg-gaming-primary/20 text-gaming-primary 
+                  rounded-full text-sm">Live</span>
+              </div>
+              <p className="text-gray-400 mb-6">
+                Test your luck with our provably fair dice game. Roll to win up to 6x your stake!
+              </p>
+              <Link 
+                to="/dice" 
+                className="btn-gaming inline-block"
+              >
+                Play Now
+              </Link>
+            </div>
+            <div className="glass-effect rounded-xl p-8 hover:transform hover:scale-105 
+              transition-all duration-300">
+              <div className="flex justify-between items-start mb-6">
+                <h3 className="text-2xl font-bold text-primary-100">Coming Soon</h3>
+                <span className="px-3 py-1 bg-gaming-accent/20 text-gaming-accent 
+                  rounded-full text-sm">Soon</span>
+              </div>
+              <div className="space-y-4 text-gray-400">
+                <p>More exciting games are on the way:</p>
+                <ul className="list-disc list-inside space-y-2">
+                  <li>Coin Flip</li>
+                  <li>Lottery</li>
+                  <li>Card Games</li>
+                </ul>
+              </div>
+            </div>
           </div>
-          <div className="step">
-            <h3>Step 2: Acquire GameToken</h3>
-            <p>
-              Purchase GameToken from a supported exchange or directly from our
-              platform.
-            </p>
-          </div>
-          <div className="step">
-            <h3>Step 3: Start Playing</h3>
-            <p>
-              Choose a game, place your bets, and enjoy the decentralized gaming
-              experience.
-            </p>
+        </div>
+      </section>
+
+      {/* Getting Started Steps */}
+      <section className="py-20 bg-secondary-900/50">
+        <div className="responsive-container">
+          <h2 className="text-4xl font-bold text-center mb-16 text-gradient-gaming">
+            Get Started
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {steps.map((step, index) => (
+              <div 
+                key={index} 
+                className="glass-effect p-8 rounded-xl relative"
+              >
+                <div className="absolute -top-6 -left-6 w-12 h-12 rounded-full 
+                  bg-gaming-primary flex items-center justify-center text-2xl font-bold">
+                  {index + 1}
+                </div>
+                <h3 className="text-xl font-bold mb-4 text-primary-100">
+                  {step.title}
+                </h3>
+                <p className="text-gray-400">{step.description}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
     </div>
   );
 };
+
+// Data arrays for features and steps
+const features = [
+  {
+    icon: "🔒",
+    title: "Secure & Transparent",
+    description: "Built on Ethereum blockchain with verifiable smart contracts"
+  },
+  {
+    icon: "⚡",
+    title: "Instant Settlements",
+    description: "Immediate payouts and game resolutions"
+  },
+  {
+    icon: "🎮",
+    title: "Fair Gaming",
+    description: "Provably fair mechanics using Chainlink VRF"
+  }
+];
+
+const steps = [
+  {
+    title: "Connect Wallet",
+    description: "Connect your MetaMask or any Web3 wallet to get started"
+  },
+  {
+    title: "Get GameToken",
+    description: "Purchase tokens directly through our platform"
+  },
+  {
+    title: "Start Playing",
+    description: "Choose your game and start your winning journey"
+  }
+];
 
 // New Game Statistics Panel
 const GameStats = ({ stats }) => {
