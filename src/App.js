@@ -141,7 +141,8 @@ const Toast = ({ message, type, onClose }) => (
 const BetSlider = ({ value = "0", onChange, min = "1", userBalance = "0" }) => {
   const formatValue = (val) => {
     try {
-      return ethers.formatEther(val.toString());
+      // Format as whole number instead of ether
+      return val.toString();
     } catch (error) {
       console.error("Error formatting value:", error);
       return "0";
@@ -150,7 +151,8 @@ const BetSlider = ({ value = "0", onChange, min = "1", userBalance = "0" }) => {
 
   const parseValue = (val) => {
     try {
-      return ethers.parseEther(val.toString());
+      // Parse as BigInt directly without using parseEther
+      return BigInt(val);
     } catch (error) {
       console.error("Error parsing value:", error);
       return BigInt(0);
@@ -208,17 +210,25 @@ const BetSlider = ({ value = "0", onChange, min = "1", userBalance = "0" }) => {
   };
 
   return (
-    <div className="bet-controls relative overflow-hidden rounded-2xl bg-secondary-800/40 
+    <div
+      className="bet-controls relative overflow-hidden rounded-2xl bg-secondary-800/40 
       backdrop-blur-lg border border-white/10 shadow-xl p-8 transform 
-      hover:shadow-2xl transition-all duration-300">
-      <div className="absolute inset-0 bg-gradient-to-br from-gaming-primary/5 
-        to-gaming-accent/5 animate-gradient-shift"></div>
+      hover:shadow-2xl transition-all duration-300"
+    >
+      <div
+        className="absolute inset-0 bg-gradient-to-br from-gaming-primary/5 
+        to-gaming-accent/5 animate-gradient-shift"
+      ></div>
 
       <div className="relative z-10 space-y-6">
         <div className="flex justify-between items-center">
           <div className="space-y-1">
-            <h3 className="text-xl font-bold text-primary-100">Place Your Bet</h3>
-            <p className="text-sm text-secondary-400">Select amount of tokens to wager</p>
+            <h3 className="text-xl font-bold text-primary-100">
+              Place Your Bet
+            </h3>
+            <p className="text-sm text-secondary-400">
+              Select amount of tokens to wager
+            </p>
           </div>
           <div className="text-right">
             <input
@@ -227,8 +237,8 @@ const BetSlider = ({ value = "0", onChange, min = "1", userBalance = "0" }) => {
               onChange={handleInputChange}
               min={formatValue(safeBigIntMin)}
               max={formatValue(safeBigIntBalance)}
-              step="0.000000000000000001"
-              className="w-24 text-right bg-transparent text-2xl font-bold text-primary-400 
+              step="1"
+              className="w-32 text-right bg-transparent text-2xl font-bold text-primary-400 
                 focus:outline-none focus:ring-1 focus:ring-gaming-primary rounded-lg"
             />
             <div className="text-xs text-secondary-400">Current Bet Amount</div>
@@ -242,14 +252,27 @@ const BetSlider = ({ value = "0", onChange, min = "1", userBalance = "0" }) => {
               onClick={() => onChange(amount)}
               disabled={amount > safeBigIntBalance}
               className={`relative group px-3 py-2 rounded-xl transition-all duration-300
-                ${safeBigIntValue === amount
-                  ? "bg-gaming-primary text-white shadow-glow-primary scale-105"
-                  : "bg-secondary-700/50 hover:bg-secondary-600/50 text-secondary-300"}
-                ${amount > safeBigIntBalance ? "opacity-50 cursor-not-allowed" : ""}`}>
+                ${
+                  safeBigIntValue === amount
+                    ? "bg-gaming-primary text-white shadow-glow-primary scale-105"
+                    : "bg-secondary-700/50 hover:bg-secondary-600/50 text-secondary-300"
+                }
+                ${
+                  amount > safeBigIntBalance
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                }`}
+            >
               <div className="relative z-10">
-                <span className="block text-sm font-medium">{formatValue(amount)}</span>
+                <span className="block text-sm font-medium">
+                  {formatValue(amount)}
+                </span>
                 <span className="block text-xs opacity-75">
-                  {index === 0 ? "Min" : index === presetAmounts.length - 1 ? "Max" : `${index * 25}%`}
+                  {index === 0
+                    ? "Min"
+                    : index === presetAmounts.length - 1
+                    ? "Max"
+                    : `${index * 25}%`}
                 </span>
               </div>
             </button>
@@ -263,7 +286,7 @@ const BetSlider = ({ value = "0", onChange, min = "1", userBalance = "0" }) => {
             max={formatValue(safeBigIntBalance)}
             value={formatValue(safeBigIntValue)}
             onChange={handleSliderChange}
-            step="0.000000000000000001"
+            step="1"
             className="w-full h-2 bg-secondary-700/50 rounded-lg appearance-none 
               cursor-pointer relative z-10
               [&::-webkit-slider-thumb]:appearance-none
@@ -279,8 +302,12 @@ const BetSlider = ({ value = "0", onChange, min = "1", userBalance = "0" }) => {
           />
 
           <div className="flex justify-between text-sm">
-            <span className="text-secondary-400">Min: {formatValue(safeBigIntMin)} ETH</span>
-            <span className="text-secondary-400">Balance: {formatValue(safeBigIntBalance)} ETH</span>
+            <span className="text-secondary-400">
+              Min: {formatValue(safeBigIntMin)} GameX
+            </span>
+            <span className="text-secondary-400">
+              Balance: {formatValue(safeBigIntBalance)} GameX
+            </span>
           </div>
         </div>
       </div>
@@ -627,37 +654,8 @@ const GameHistoryItem = ({ game, index }) => (
       hover:transform hover:scale-[1.02] transition-all duration-300
     `}
   >
-    <div className="flex justify-between items-start">
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <div
-            className="dice-result w-8 h-8 rounded-lg bg-secondary-800/50 
-            flex items-center justify-center font-bold"
-          >
-            {game.chosenNumber}
-          </div>
-          <span className="text-secondary-400">→</span>
-          <div
-            className="dice-result w-8 h-8 rounded-lg bg-secondary-800/50 
-            flex items-center justify-center font-bold"
-          >
-            {game.result}
-          </div>
-        </div>
-
-        <div className="text-lg font-semibold">
-          {ethers.formatEther(game.amount)} ETH
-        </div>
-      </div>
-
-      <div className="text-right">
-        <div className="text-sm text-secondary-400">
-          {new Date(game.timestamp * 1000).toLocaleDateString()}
-        </div>
-        <div className="text-xs text-secondary-500">
-          {new Date(game.timestamp * 1000).toLocaleTimeString()}
-        </div>
-      </div>
+    <div className="text-lg font-semibold">
+      {ethers.formatEther(game.amount)} GameX
     </div>
   </motion.div>
 );
@@ -851,55 +849,143 @@ const GameStatus = ({ gameState }) => {
 };
 
 // PlayerStats Component
-const PlayerStats = ({ diceContract, account, onError }) => {
-  const [stats, setStats] = useState(null);
+const PlayerStats = ({ diceContract, account }) => {
+  const [stats, setStats] = useState({
+    winRate: 0,
+    averageBet: "0",
+    totalGamesWon: 0,
+    totalGamesLost: 0
+  });
 
   useEffect(() => {
     const fetchStats = async () => {
-      if (diceContract && account) {
-        try {
-          // Match contract function return values
-          const [
-            currentGame,
-            totalGames,
-            totalBets,
-            totalWinnings,
-            totalLosses,
-            lastPlayed,
-          ] = await diceContract.getUserData(account);
+      if (!diceContract || !account) return;
 
-          setStats({
-            totalGames: totalGames.toString(),
-            totalBets: ethers.formatEther(totalBets),
-            totalWinnings: ethers.formatEther(totalWinnings),
-            totalLosses: ethers.formatEther(totalLosses),
-            lastPlayed: lastPlayed.toString(),
-          });
-        } catch (err) {
-          onError(err);
-        }
+      try {
+        const [winRate, averageBet, gamesWon, gamesLost] = await diceContract.getPlayerStats(account);
+        
+        // Convert win rate from basis points (10000 = 100.00%) to percentage
+        const formattedWinRate = Number(winRate) / 100;
+        
+        // Convert average bet from wei to token units
+        const formattedAverageBet = ethers.formatUnits(averageBet, 18);
+
+        setStats({
+          winRate: formattedWinRate,
+          averageBet: formattedAverageBet,
+          totalGamesWon: Number(gamesWon),
+          totalGamesLost: Number(gamesLost)
+        });
+      } catch (error) {
+        console.error("Error fetching player stats:", error);
       }
     };
+
     fetchStats();
   }, [diceContract, account]);
 
+  const formatNumber = (num) => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+    return num.toString();
+  };
+
   return (
-    <div className="player-stats">
-      <h3>Player Statistics</h3>
-      {stats && (
-        <div>
-          <p>Total Games: {stats.totalGames}</p>
-          <p>Total Bets: {stats.totalBets}</p>
-          <p>Total Winnings: {stats.totalWinnings}</p>
-          <p>Total Losses: {stats.totalLosses}</p>
-          <p>
-            Last Played: {new Date(stats.lastPlayed * 1000).toLocaleString()}
-          </p>
+    <div className="glass-panel p-6 rounded-xl">
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-xl font-bold text-white/90">Player Statistics</h3>
+        <div className="text-sm text-secondary-400">
+          Total Games:{" "}
+          {formatNumber(stats.totalGamesWon + stats.totalGamesLost)}
         </div>
-      )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="stat-card">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🎯</span>
+            <div>
+              <p className="text-sm text-secondary-400">Win Rate</p>
+              <p className="text-xl font-bold text-primary-100">
+                {stats.winRate.toFixed(2)}%
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">💰</span>
+            <div>
+              <p className="text-sm text-secondary-400">Average Bet</p>
+              <p className="text-xl font-bold text-primary-100">
+                {Number(stats.averageBet).toFixed(4)} GameX
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🏆</span>
+            <div>
+              <p className="text-sm text-secondary-400">Games Won</p>
+              <p className="text-xl font-bold text-success-500">
+                {formatNumber(stats.totalGamesWon)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">📉</span>
+            <div>
+              <p className="text-sm text-secondary-400">Games Lost</p>
+              <p className="text-xl font-bold text-error-500">
+                {formatNumber(stats.totalGamesLost)}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
+
+const StatCard = ({ title, value, icon, color = "primary" }) => (
+  <div
+    className={`
+    p-4 rounded-xl border backdrop-blur-sm
+    ${
+      color === "success"
+        ? "border-gaming-success/20 bg-gaming-success/5"
+        : color === "error"
+        ? "border-gaming-error/20 bg-gaming-error/5"
+        : "border-gaming-primary/20 bg-gaming-primary/5"
+    }
+  `}
+  >
+    <div className="flex items-center gap-2 mb-2">
+      <span className="text-2xl">{icon}</span>
+      <span className="text-sm text-secondary-400">{title}</span>
+    </div>
+    <div className="text-lg font-bold">
+      <span
+        className={
+          color === "success"
+            ? "text-gaming-success"
+            : color === "error"
+            ? "text-gaming-error"
+            : "text-gaming-primary"
+        }
+      >
+        {value}
+      </span>
+    </div>
+  </div>
+);
+
 
 // AdminPanel Component
 const AdminPanel = ({ diceContract, tokenContract, onError }) => {
@@ -978,7 +1064,7 @@ const Home = () => {
         <div className="responsive-container relative z-10 text-center">
           <div className="animate-fade-in-up">
             <h1 className="text-6xl md:text-7xl font-bold mb-6 text-gradient-gaming">
-              GameToken
+              GameX
             </h1>
             <p className="text-xl md:text-2xl text-gray-300 mb-8">
               The Future of Decentralized Gaming
@@ -1138,8 +1224,8 @@ const steps = [
     description: "Connect your MetaMask or any Web3 wallet to get started",
   },
   {
-    title: "Get GameToken",
-    description: "Purchase tokens directly through our platform",
+    title: "Get GameX",
+    description: "Purchase GameX tokens directly through our platform",
   },
   {
     title: "Start Playing",
@@ -1148,155 +1234,43 @@ const steps = [
 ];
 
 // New Game Statistics Panel
-const GameStats = ({ diceContract, account }) => {
-  const [stats, setStats] = useState({
-    totalGames: 0,
-    wins: 0,
-    losses: 0,
-    totalWagered: 0,
-    netProfit: 0,
-    recentResults: [],
-  });
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const [games, totalBets, totalWinnings] = await Promise.all([
-          diceContract.getTotalGames(),
-          diceContract.getTotalBets(),
-          diceContract.getTotalWinnings(account),
-        ]);
-
-        const gameHistory = await diceContract.getPlayerHistory(account);
-        const processedHistory = gameHistory.map((game) => ({
-          result: game.status === 2, // COMPLETED_WIN = 2
-          amount: Number(ethers.formatEther(game.amount)),
-          payout: Number(ethers.formatEther(game.payout)),
-        }));
-
-        setStats({
-          totalGames: games.toString(),
-          wins: processedHistory.filter((g) => g.result).length,
-          losses: processedHistory.filter((g) => !g.result).length,
-          totalWagered: Number(ethers.formatEther(totalBets)),
-          netProfit: Number(ethers.formatEther(totalWinnings)),
-          recentResults: processedHistory.slice(-10).reverse(),
-        });
-      } catch (error) {
-        console.error("Error fetching stats:", error);
-      }
-    };
-
-    if (diceContract && account) {
-      fetchStats();
-    }
-  }, [diceContract, account]);
-
-  const chartData = {
-    labels: stats.recentResults.map((_, i) => `Game ${i + 1}`),
-    datasets: [
-      {
-        label: "Profit/Loss",
-        data: stats.recentResults.map((game) =>
-          game.result ? game.payout - game.amount : -game.amount
-        ),
-        borderColor: "rgb(59, 130, 246)",
-        backgroundColor: "rgba(59, 130, 246, 0.5)",
-        tension: 0.4,
-      },
-    ],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        backgroundColor: "rgba(15, 23, 42, 0.9)",
-        titleColor: "rgb(226, 232, 240)",
-        bodyColor: "rgb(226, 232, 240)",
-        borderColor: "rgba(148, 163, 184, 0.1)",
-        borderWidth: 1,
-      },
-    },
-    scales: {
-      y: {
-        grid: {
-          color: "rgba(148, 163, 184, 0.1)",
-        },
-        ticks: {
-          color: "rgb(148, 163, 184)",
-        },
-      },
-      x: {
-        grid: {
-          display: false,
-        },
-        ticks: {
-          color: "rgb(148, 163, 184)",
-        },
-      },
-    },
-  };
-
+const GameStats = ({ gameData }) => {
   return (
-    <div className="glass-panel p-6 rounded-2xl space-y-6">
-      <h2 className="text-2xl font-bold text-white/90">Your Statistics</h2>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        {[
-          { label: "Total Games", value: stats.totalGames },
-          {
-            label: "Win Rate",
-            value: `${((stats.wins / stats.totalGames) * 100 || 0).toFixed(
-              1
-            )}%`,
-          },
-          { label: "Net Profit", value: `${stats.netProfit.toFixed(4)} ETH` },
-          {
-            label: "Total Wagered",
-            value: `${stats.totalWagered.toFixed(4)} ETH`,
-          },
-          { label: "Wins", value: stats.wins },
-          { label: "Losses", value: stats.losses },
-        ].map((stat, index) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="stat-card p-4 rounded-xl bg-secondary-800/40 border border-white/5"
-          >
-            <div className="text-sm text-secondary-400">{stat.label}</div>
-            <div className="text-xl font-bold text-white mt-1">
-              {stat.value}
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Profit Chart */}
-      <div className="h-64 mt-6">
-        <Line data={chartData} options={chartOptions} />
+    <div className="stats-panel glass-effect p-6 rounded-xl">
+      <h3 className="text-xl font-bold mb-4 text-primary-100">
+        Game Statistics
+      </h3>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <p className="text-secondary-400">Total Bets</p>
+          <p className="text-2xl font-bold text-primary-100">
+            {gameData.totalBets}
+          </p>
+        </div>
+        <div>
+          <p className="text-secondary-400">Total Volume</p>
+          <p className="text-2xl font-bold text-primary-100">
+            {ethers.formatEther(gameData.totalVolume)} GameX
+          </p>
+        </div>
+        <div>
+          <p className="text-secondary-400">Largest Win</p>
+          <p className="text-2xl font-bold text-success-500">
+            {ethers.formatEther(gameData.largestWin)} GameX
+          </p>
+        </div>
+        <div>
+          <p className="text-secondary-400">House Edge</p>
+          <p className="text-2xl font-bold text-primary-100">
+            {gameData.houseEdge}%
+          </p>
+        </div>
       </div>
     </div>
   );
 };
 
-// Stat Card Component
-const StatCard = ({ title, value, icon }) => (
-  <div className="bg-secondary-800 p-4 rounded-lg border border-secondary-700">
-    <div className="flex items-center space-x-2 mb-2">
-      <span className="text-xl">{icon}</span>
-      <span className="text-sm text-secondary-400">{title}</span>
-    </div>
-    <div className="text-lg font-bold text-primary-400">{value}</div>
-  </div>
-);
+
 
 // New Game Controls Component
 const GameControls = ({ onRoll, isRolling, canRoll }) => {
@@ -1363,7 +1337,9 @@ function App() {
     } else if (error.code === -32603) {
       return setError("Internal JSON-RPC error");
     } else if (error.message.includes("insufficient funds")) {
-      return setError("Insufficient funds for transaction");
+      return setError("Insufficient token balance");
+    } else if (error.message.includes("ERC20: insufficient allowance")) {
+      return setError("Token approval needed");
     }
     setError(error.message);
   };
