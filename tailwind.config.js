@@ -46,7 +46,28 @@ module.exports = {
       },
       boxShadow: {
         'glow': '0 0 15px rgba(255, 70, 85, 0.3)',
-      }
+        'glow-primary': '0 0 15px rgba(99, 102, 241, 0.5)',
+        'glow-primary-lg': '0 0 25px rgba(99, 102, 241, 0.6)',
+      },
+      animation: {
+        'gradient-shift': 'gradient 3s ease infinite',
+        'value-change': 'valueChange 0.3s ease-out',
+        'pulse-subtle': 'pulseSoft 2s ease-in-out infinite',
+      },
+      keyframes: {
+        gradient: {
+          '0%, 100%': { backgroundPosition: '0% 50%' },
+          '50%': { backgroundPosition: '100% 50%' },
+        },
+        valueChange: {
+          '0%': { transform: 'scale(0.95)', opacity: '0.8' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        pulseSoft: {
+          '0%, 100%': { opacity: '0.6' },
+          '50%': { opacity: '0.3' },
+        },
+      },
     }
   },
   plugins: [
