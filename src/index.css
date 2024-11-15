@@ -7,165 +7,53 @@
 @tailwind utilities;
 
 @layer base {
-  html {
-    font-family: 'Inter', system-ui, sans-serif;
-    @apply antialiased;
+  :root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --secondary: #1f2937;
+    --secondary-dark: #111827;
+    --accent: #8b5cf6;
+    --success: #10b981;
+    --error: #ef4444;
+    --warning: #f59e0b;
+    --text-primary: #f3f4f6;
+    --text-secondary: #9ca3af;
   }
-  
+
   body {
-    @apply bg-secondary-900 text-secondary-100;
+    @apply bg-gradient-to-br from-secondary-800 to-secondary-900 text-text-primary font-sans;
   }
-
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-display font-semibold tracking-tight;
-  }
-
-  h1 { @apply text-4xl md:text-5xl lg:text-6xl; }
-  h2 { @apply text-3xl md:text-4xl lg:text-5xl; }
-  h3 { @apply text-2xl md:text-3xl lg:text-4xl; }
-  h4 { @apply text-xl md:text-2xl lg:text-3xl; }
-  h5 { @apply text-lg md:text-xl lg:text-2xl; }
-  h6 { @apply text-base md:text-lg lg:text-xl; }
 }
 
 @layer components {
-  /* Button Variants */
-  .btn {
-    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 
-           disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 
-           focus:ring-offset-secondary-900;
-  }
-  
-  .btn-primary {
-    @apply btn bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500;
-  }
-  
-  .btn-secondary {
-    @apply btn bg-secondary-700 text-secondary-100 hover:bg-secondary-600 focus:ring-secondary-500;
+  .responsive-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 
-  .btn-success {
-    @apply btn bg-success-600 text-white hover:bg-success-700 focus:ring-success-500;
-  }
-
-  .btn-error {
-    @apply btn bg-error-600 text-white hover:bg-error-700 focus:ring-error-500;
-  }
-
-  .btn-outline {
-    @apply btn border-2 border-primary-500 text-primary-500 hover:bg-primary-500 hover:text-white;
-  }
-
-  /* Gaming-themed Button */
-  .btn-gaming {
-    @apply btn bg-gaming-primary text-white hover:bg-gaming-accent 
-           border-2 border-gaming-primary hover:border-gaming-accent
-           transform hover:-translate-y-1 hover:shadow-glow;
-  }
-
-  /* Input Variants */
-  .input {
-    @apply w-full px-4 py-2 bg-secondary-800 border border-secondary-600 rounded-lg 
-           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 
-           text-secondary-100 placeholder-secondary-400;
-  }
-
-  .input-error {
-    @apply input border-error-500 focus:ring-error-500 focus:border-error-500;
-  }
-
-  .input-success {
-    @apply input border-success-500 focus:ring-success-500 focus:border-success-500;
-  }
-
-  /* Card Variants */
-  .card {
-    @apply bg-secondary-800 rounded-xl border border-secondary-700 shadow-xl p-6;
-  }
-
-  .card-hover {
-    @apply card hover:border-primary-500 transition-colors duration-200;
-  }
-
-  .card-gaming {
-    @apply card border-gaming-primary bg-gaming-secondary;
-  }
-
-  /* Navigation */
-  .nav-link {
-    @apply text-secondary-100 hover:text-primary-400 px-3 py-2 rounded-md text-sm font-medium 
-           transition-colors duration-200 relative after:absolute after:bottom-0 after:left-0 
-           after:w-full after:h-0.5 after:bg-primary-500 after:scale-x-0 hover:after:scale-x-100 
-           after:transition-transform after:duration-200;
-  }
-
-  .nav-link-active {
-    @apply nav-link text-primary-400 after:scale-x-100;
-  }
-
-  /* Badge Variants */
-  .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
-  }
-
-  .badge-primary {
-    @apply badge bg-primary-100 text-primary-800;
-  }
-
-  .badge-error {
-    @apply badge bg-error-100 text-error-800;
-  }
-
-  .badge-success {
-    @apply badge bg-success-100 text-success-800;
-  }
-
-  /* Loading States */
-  .loading-skeleton {
-    @apply animate-pulse bg-secondary-700 rounded;
-  }
-
-  /* Toast/Alert Variants */
-  .toast {
-    @apply fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg transform transition-all duration-300;
-  }
-
-  .toast-success {
-    @apply toast bg-success-500 text-white;
-  }
-
-  .toast-error {
-    @apply toast bg-error-500 text-white;
-  }
-}
-
-@layer utilities {
-  /* Glass Effects */
   .glass-effect {
-    @apply bg-secondary-800/80 backdrop-blur-lg border border-secondary-700/50;
-  }
-  
-  .glass-effect-light {
-    @apply bg-white/10 backdrop-blur-lg border border-white/20;
+    @apply bg-secondary-800/70 backdrop-blur-md border border-white/10 shadow-lg;
   }
 
-  /* Text Effects */
-  .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-primary-600;
+  .card {
+    @apply bg-secondary-800/70 rounded-xl p-6 mb-6 border border-white/10 shadow-lg;
+  }
+
+  .btn-gaming {
+    @apply bg-gradient-to-r from-gaming-primary to-gaming-accent 
+           text-white py-3 px-6 rounded-lg font-semibold cursor-pointer 
+           transition-all duration-300 hover:shadow-glow;
   }
 
   .text-gradient-gaming {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-gaming-primary to-gaming-accent;
   }
 
-  /* Animations */
   .animate-shimmer {
     @apply relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full
            before:animate-[shimmer_1.5s_infinite]
            before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent;
   }
 
-  /* Gaming Theme Utilities */
   .gaming-border {
     @apply border-2 border-gaming-primary;
   }
@@ -174,13 +62,49 @@
     @apply shadow-[0_0_15px_rgba(255,70,85,0.3)];
   }
 
-  /* Responsive Utilities */
-  .responsive-container {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
-  }
-
-  /* Grid Layouts */
   .grid-auto-fit {
     @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6;
+  }
+
+  /* Game Component Specific Styles */
+  .dice-button {
+    @apply relative w-16 h-16 rounded-xl transition-all duration-200 
+           bg-secondary-800 border-2 border-secondary-600 
+           hover:border-gaming-primary hover:shadow-glow;
+  }
+
+  .dice-button.selected {
+    @apply border-gaming-primary shadow-glow bg-secondary-700;
+  }
+
+  .dice-face {
+    @apply grid grid-cols-3 grid-rows-3 gap-1 p-2 h-full w-full;
+  }
+
+  .dice-dot {
+    @apply w-2 h-2 bg-white rounded-full;
+  }
+
+  .input-gaming {
+    @apply w-full px-4 py-2 bg-secondary-700 border border-secondary-600 
+           rounded-lg text-white placeholder-secondary-400
+           focus:border-gaming-primary focus:ring-1 focus:ring-gaming-primary;
+  }
+}
+
+@layer utilities {
+  .tooltip {
+    @apply relative inline-block;
+  }
+
+  .tooltip-text {
+    @apply invisible absolute z-10 p-2 bg-secondary-900 text-sm text-white rounded-md 
+           shadow-lg opacity-0 transition-opacity duration-300 
+           -translate-y-full left-1/2 -translate-x-1/2 top-0 
+           whitespace-nowrap;
+  }
+
+  .tooltip:hover .tooltip-text {
+    @apply visible opacity-100;
   }
 } 

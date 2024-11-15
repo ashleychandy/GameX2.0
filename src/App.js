@@ -4,6 +4,255 @@ import { ethers } from "ethers";
 import DiceABI from "./contracts/abi/Dice.json";
 import TokenABI from "./contracts/abi/Token.json";
 
+// Enhanced Toast Component
+const Toast = ({ message, type, onClose }) => (
+  <div className={`fixed bottom-4 right-4 flex items-center min-w-[300px] p-4 
+    rounded-lg shadow-xl transform transition-all duration-300 ease-in-out
+    ${type === 'success' ? 'bg-success-500' : type === 'error' ? 'bg-error-500' : 'bg-primary-500'}
+    animate-slide-up z-50`}>
+    <div className="flex-1 text-white">
+      <div className="flex items-center space-x-2">
+        {type === 'success' && (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+          </svg>
+        )}
+        {type === 'error' && (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        )}
+        <span className="font-medium">{message}</span>
+      </div>
+    </div>
+    <button onClick={onClose} className="ml-4 text-white hover:text-gray-200 transition-colors">
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+);
+
+// Number Selector Component with Dice Visual
+const DiceSelector = ({ value, onChange }) => {
+  return (
+    <div className="grid grid-cols-3 gap-4 sm:grid-cols-6 my-6">
+      {[1, 2, 3, 4, 5, 6].map((num) => (
+        <button
+          key={num}
+          onClick={() => onChange(num)}
+          className={`relative group h-16 w-16 rounded-xl transition-all duration-300
+            ${Number(value) === num 
+              ? 'bg-primary-500 shadow-glow scale-110' 
+              : 'bg-secondary-800 hover:bg-secondary-700'}`}
+        >
+          <div className={`grid grid-cols-3 gap-1 p-2 h-full
+            ${Number(value) === num ? 'dice-face-selected' : 'dice-face'}`}>
+            {[...Array(num)].map((_, i) => (
+              <span key={i} className={`rounded-full
+                ${Number(value) === num 
+                  ? 'bg-white' 
+                  : 'bg-secondary-400 group-hover:bg-secondary-300'} 
+                transition-colors duration-300`} 
+              />
+            ))}
+          </div>
+          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 
+            opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <span className="text-sm text-primary-400">Select {num}</span>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+};
+
+// Enhanced Bet Slider with Preset Amounts
+const BetSlider = ({ value, onChange, min, max }) => {
+  const formatValue = (val) => {
+    try {
+      return Number(ethers.formatEther(val.toString())).toFixed(3);
+    } catch (error) {
+      console.error('Error formatting value:', error);
+      return "0.000";
+    }
+  };
+  
+  // Convert preset amounts to BigInt using string values
+  const presetAmounts = [
+    min,
+    (max * window.BigInt(25)) / window.BigInt(100),
+    (max * window.BigInt(50)) / window.BigInt(100), 
+    (max * window.BigInt(75)) / window.BigInt(100),
+    max
+  ];
+
+  const handleSliderChange = (e) => {
+    // Convert the string value to BigInt
+    const newValue = window.BigInt(e.target.value);
+    onChange(newValue);
+  };
+
+  return (
+    <div className="bet-controls glass-effect p-6 rounded-xl space-y-4">
+      <div className="flex justify-between items-center">
+        <span className="text-lg font-semibold text-primary-100">Bet Amount</span>
+        <span className="text-xl font-bold text-primary-400">
+          {formatValue(value)} ETH
+        </span>
+      </div>
+      
+      <div className="grid grid-cols-5 gap-2 mb-4">
+        {presetAmounts.map((amount, index) => (
+          <button
+            key={index}
+            onClick={() => onChange(amount)}
+            className={`px-2 py-1 rounded-lg text-sm transition-all duration-200
+              ${value === amount 
+                ? 'bg-primary-500 text-white' 
+                : 'bg-secondary-700 hover:bg-secondary-600 text-secondary-300'}`}
+          >
+            {formatValue(amount)}
+          </button>
+        ))}
+      </div>
+
+      <input
+        type="range"
+        min={min.toString()}
+        max={max.toString()}
+        value={value.toString()}
+        onChange={handleSliderChange}
+        className="w-full h-2 bg-secondary-700 rounded-lg appearance-none cursor-pointer
+          [&::-webkit-slider-thumb]:appearance-none
+          [&::-webkit-slider-thumb]:w-6
+          [&::-webkit-slider-thumb]:h-6
+          [&::-webkit-slider-thumb]:rounded-full
+          [&::-webkit-slider-thumb]:bg-primary-500
+          [&::-webkit-slider-thumb]:shadow-lg
+          [&::-webkit-slider-thumb]:cursor-pointer
+          [&::-webkit-slider-thumb]:transition-all
+          [&::-webkit-slider-thumb]:duration-200
+          [&::-webkit-slider-thumb]:hover:bg-primary-400"
+      />
+      
+      <div className="flex justify-between text-sm text-secondary-400">
+        <span>Min: {formatValue(min)} ETH</span>
+        <span>Max: {formatValue(max)} ETH</span>
+      </div>
+    </div>
+  );
+};
+
+// Enhanced Loading Spinner Component
+const LoadingSpinner = ({ message }) => (
+  <div className="flex items-center justify-center space-x-3">
+    <div className="relative">
+      <div className="w-8 h-8 border-4 border-primary-200 rounded-full"></div>
+      <div className="absolute top-0 left-0 w-8 h-8 border-4 border-primary-500 rounded-full 
+        border-t-transparent animate-spin"></div>
+    </div>
+    <span className="text-primary-100 font-medium">{message}</span>
+  </div>
+);
+
+// Enhanced Loading Overlay Component
+const LoadingOverlay = ({ message }) => (
+  <div className="fixed inset-0 bg-secondary-900/80 backdrop-blur-sm flex items-center 
+    justify-center z-50 transition-opacity duration-300">
+    <div className="bg-secondary-800 p-6 rounded-xl shadow-xl border border-secondary-700
+      transform transition-all duration-300 ease-out">
+      <LoadingSpinner message={message} />
+    </div>
+  </div>
+);
+
+// Loading Dots Component
+const LoadingDots = () => (
+  <span className="flex items-center">
+    <span className="dot bg-primary-500"></span>
+    <span className="dot bg-primary-500"></span>
+    <span className="dot bg-primary-500"></span>
+  </span>
+);
+
+// Enhanced Game History Component
+const GameHistory = ({ diceContract, account, onError }) => {
+  const [bets, setBets] = useState([]);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (diceContract && account) {
+        try {
+          const previousBets = await diceContract.getPreviousBets(account);
+          const formattedBets = previousBets.map((bet) => ({
+            chosenNumber: bet.chosenNumber.toString(),
+            rolledNumber: bet.rolledNumber.toString(),
+            amount: bet.amount,
+            timestamp: Number(bet.timestamp),
+            won: bet.chosenNumber.toString() === bet.rolledNumber.toString()
+          }));
+          setBets(formattedBets);
+        } catch (err) {
+          onError(err);
+        }
+      }
+    };
+    fetchHistory();
+  }, [diceContract, account]);
+
+  const formatAmount = (amount) => {
+    try {
+      return `${ethers.formatEther(amount)} ETH`;
+    } catch (err) {
+      console.error("Error formatting amount:", err);
+      return "0 ETH";
+    }
+  };
+
+  return (
+    <div className="glass-effect p-6 rounded-xl">
+      <h3 className="text-lg font-semibold text-primary-100 mb-4">
+        Recent Games
+      </h3>
+      <div className="space-y-3">
+        {bets.map((bet, index) => (
+          <div 
+            key={index}
+            className="flex items-center justify-between p-3 bg-secondary-800 
+              rounded-lg border border-secondary-700"
+          >
+            <div className="flex items-center space-x-3">
+              <div className={`w-2 h-2 rounded-full ${
+                bet.won ? 'bg-success-500' : 'bg-error-500'
+              }`} />
+              <span className="text-sm text-secondary-300">
+                {new Date(bet.timestamp * 1000).toLocaleTimeString()}
+              </span>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm">
+                Chosen: {bet.chosenNumber}
+              </span>
+              <span className="text-sm">
+                Rolled: {bet.rolledNumber}
+              </span>
+              <span className="text-sm">
+                {formatAmount(bet.amount)}
+              </span>
+              <span className={`font-medium ${
+                bet.won ? 'text-success-400' : 'text-error-400'
+              }`}>
+                {bet.won ? 'Won!' : 'Lost'}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // Environment variables
 const DICE_CONTRACT_ADDRESS = process.env.REACT_APP_DICE_GAME_ADDRESS;
 const TOKEN_CONTRACT_ADDRESS = process.env.REACT_APP_TOKEN_ADDRESS;
@@ -20,12 +269,14 @@ const GameComponent = ({
   onGameStart,
   onGameResolve,
   onError,
+  addToast,
 }) => {
   const [chosenNumber, setChosenNumber] = useState("");
-  const [betAmount, setBetAmount] = useState("");
+  const [betAmount, setBetAmount] = useState(window.BigInt(0));
   const [canPlay, setCanPlay] = useState(false);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [minBet, setMinBet] = useState("0.01");
+  const [maxBet, setMaxBet] = useState("1.0");
 
   useEffect(() => {
     const checkGameState = async () => {
@@ -41,112 +292,47 @@ const GameComponent = ({
     };
 
     checkGameState();
-    const interval = setInterval(checkGameState, 5000); // Poll every 5 seconds
-
+    const interval = setInterval(checkGameState, 5000);
     return () => clearInterval(interval);
-  }, [diceContract, account]);
+  }, [diceContract, account, onError]);
 
-  const playGame = async () => {
+  const handlePlay = async () => {
     if (!chosenNumber || !betAmount) {
-      setError("Please enter both number and bet amount");
-      return;
-    }
-
-    const number = parseInt(chosenNumber);
-    if (number < 1 || number > 6) {
-      setError("Number must be between 1 and 6");
+      addToast("Please enter both number and bet amount", "error");
       return;
     }
 
     setLoading(true);
-    setError("");
-
     try {
       const parsedAmount = ethers.parseEther(betAmount);
-
-      // Check allowance first
-      const allowance = await tokenContract.allowance(
-        account,
-        diceContract.target
-      );
-
-      if (allowance < parsedAmount) {
-        const approveTx = await tokenContract.approve(
-          diceContract.target,
-          parsedAmount
-        );
-        await approveTx.wait();
-      }
-
-      // Play the game
-      const tx = await diceContract.playDice(number, parsedAmount);
+      const tx = await diceContract.playDice(chosenNumber, parsedAmount);
       await tx.wait();
-
-      // Clear inputs after successful transaction
-      setChosenNumber("");
-      setBetAmount("");
+      addToast("Bet placed successfully!", "success");
+      onGameStart();
     } catch (err) {
-      setError(err.message);
+      addToast(err.message, "error");
       onError(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatBalance = (balance) => {
-    if (!balance) return "0";
-    return ethers.formatEther(balance);
-  };
-
-  const formatGameResult = (result) => {
-    if (!result) return null;
-    return {
-      chosenNumber: Number(result.chosenNumber),
-      result: Number(result.result),
-      amount: formatBalance(result.amount),
-      timestamp: new Date(Number(result.timestamp) * 1000).toLocaleString(),
-      payout: formatBalance(result.payout),
-      status: result.status,
-    };
-  };
-
-  const formatBetHistory = (bet) => {
-    return {
-      chosenNumber: Number(bet.chosenNumber),
-      rolledNumber: Number(bet.rolledNumber),
-      amount: formatBalance(bet.amount),
-      timestamp: new Date(Number(bet.timestamp) * 1000).toLocaleString(),
-    };
-  };
-
   return (
-    <div className="game-component">
-      <h2>Play Dice</h2>
-      {error && <div className="error">{error}</div>}
-      <div className="game-controls">
-        <input
-          type="number"
-          min="1"
-          max="6"
-          value={chosenNumber}
-          onChange={(e) => setChosenNumber(e.target.value)}
-          placeholder="Choose number (1-6)"
-          disabled={!canPlay || loading}
-        />
-        <input
-          type="text"
-          value={betAmount}
-          onChange={(e) => setBetAmount(e.target.value)}
-          placeholder="Bet amount in ETH"
-          disabled={!canPlay || loading}
-        />
-        <button
-          onClick={playGame}
-          disabled={!canPlay || loading || !chosenNumber || !betAmount}
-        >
-          {loading ? "Processing..." : "Play"}
-        </button>
-      </div>
+    <div className="game-component glass-effect p-6 rounded-xl">
+      <DiceSelector value={chosenNumber} onChange={setChosenNumber} />
+      
+      <BetSlider 
+        value={betAmount} 
+        onChange={setBetAmount}
+        min={ethers.parseEther(minBet)}
+        max={ethers.parseEther(maxBet)}
+      />
+
+      <GameControls 
+        onRoll={handlePlay}
+        isRolling={loading}
+        canRoll={canPlay && chosenNumber && betAmount}
+      />
     </div>
   );
 };
@@ -156,7 +342,6 @@ const GameStatus = ({ diceContract, account, onError }) => {
   const [gameStatus, setGameStatus] = useState(null);
   const [requestDetails, setRequestDetails] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState(Date.now());
 
   // Define status mapping object
   const STATUS_MAP = {
@@ -195,8 +380,6 @@ const GameStatus = ({ diceContract, account, onError }) => {
         requestFulfilled: reqDetails[1],
         requestActive: reqDetails[2],
       });
-
-      setLastUpdate(Date.now());
     } catch (err) {
       console.error("Error fetching game status:", err);
       onError(err);
@@ -207,7 +390,7 @@ const GameStatus = ({ diceContract, account, onError }) => {
     fetchGameStatus();
     const interval = setInterval(fetchGameStatus, 3000);
     return () => clearInterval(interval);
-  }, [diceContract, account]);
+  }, [diceContract, account, onError]);
 
   const resolveGame = async () => {
     if (!diceContract || loading) return;
@@ -233,36 +416,56 @@ const GameStatus = ({ diceContract, account, onError }) => {
     !requestDetails?.requestActive;
 
   return (
-    <div className="game-status">
-      <h3>Current Game Status</h3>
-      <div>
-        <p>Active: {gameStatus.isActive.toString()}</p>
-        <p>Status: {gameStatus.status}</p>
-        <p>Chosen Number: {gameStatus.chosenNumber}</p>
-        <p>Amount: {ethers.formatEther(gameStatus.amount)} ETH</p>
-        <p>Time: {new Date(gameStatus.timestamp * 1000).toLocaleString()}</p>
-
-        <div
-          className="debug-info"
-          style={{
-            fontSize: "0.8em",
-            color: "#666",
-            textAlign: "left",
-            marginTop: "20px",
-          }}
-        >
-          <h4>Debug Information:</h4>
-          <p>Request ID: {requestDetails?.requestId || "None"}</p>
-          <p>
-            Request Fulfilled: {requestDetails?.requestFulfilled?.toString()}
-          </p>
-          <p>Request Active: {requestDetails?.requestActive?.toString()}</p>
-          <p>Can Resolve: {canResolve.toString()}</p>
-          <p>Last Updated: {new Date(lastUpdate).toLocaleString()}</p>
+    <div className="card game-status">
+      <h3 className="text-xl font-bold mb-4">Game Status</h3>
+      <div className="grid gap-4">
+        <div className="flex justify-between items-center">
+          <span className="text-text-secondary">Game Active:</span>
+          <span
+            className={`status-badge ${
+              gameStatus.isActive ? "bg-success" : "bg-error"
+            }`}
+          >
+            {gameStatus.isActive ? "Yes" : "No"}
+          </span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-text-secondary">Status:</span>
+          <span
+            className={`status-badge ${
+              gameStatus.status === "COMPLETED_WIN"
+                ? "status-win"
+                : gameStatus.status === "COMPLETED_LOSS"
+                ? "status-loss"
+                : "status-pending"
+            }`}
+          >
+            {gameStatus.status}
+          </span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-text-secondary">Chosen Number:</span>
+          <span className="font-mono">{gameStatus.chosenNumber}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-text-secondary">Bet Amount:</span>
+          <span className="font-mono">
+            {ethers.formatEther(gameStatus.amount)} ETH
+          </span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-text-secondary">Time:</span>
+          <span className="font-mono">
+            {new Date(gameStatus.timestamp * 1000).toLocaleString()}
+          </span>
         </div>
 
         {canResolve && (
-          <button onClick={resolveGame} disabled={loading}>
+          <button
+            onClick={resolveGame}
+            disabled={loading}
+            className="btn-gaming mt-4"
+          >
             {loading ? "Resolving..." : "Resolve Game"}
           </button>
         )}
@@ -322,57 +525,6 @@ const PlayerStats = ({ diceContract, account, onError }) => {
   );
 };
 
-// GameHistory Component
-const GameHistory = ({ diceContract, account, onError }) => {
-  const [bets, setBets] = useState([]);
-
-  useEffect(() => {
-    const fetchHistory = async () => {
-      if (diceContract && account) {
-        try {
-          const previousBets = await diceContract.getPreviousBets(account);
-          const formattedBets = previousBets.map((bet) => ({
-            chosenNumber: bet.chosenNumber.toString(),
-            rolledNumber: bet.rolledNumber.toString(),
-            amount: bet.amount,
-            timestamp: Number(bet.timestamp),
-          }));
-          setBets(formattedBets);
-        } catch (err) {
-          onError(err);
-        }
-      }
-    };
-    fetchHistory();
-  }, [diceContract, account]);
-
-  // Format only when displaying
-  const formatAmount = (amount) => {
-    try {
-      return `${ethers.formatEther(amount)} ETH`;
-    } catch (err) {
-      console.error("Error formatting amount:", err);
-      return "0 ETH";
-    }
-  };
-
-  return (
-    <div className="game-history">
-      <h3>Game History</h3>
-      <div className="history-list">
-        {bets.map((bet, index) => (
-          <div key={index} className="history-item">
-            <p>Chosen: {bet.chosenNumber}</p>
-            <p>Rolled: {bet.rolledNumber}</p>
-            <p>Amount: {formatAmount(bet.amount)}</p>
-            <p>Time: {new Date(bet.timestamp * 1000).toLocaleString()}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
 // AdminPanel Component
 const AdminPanel = ({ diceContract, tokenContract, onError }) => {
   const [historySize, setHistorySize] = useState("");
@@ -428,6 +580,19 @@ const AdminPanel = ({ diceContract, tokenContract, onError }) => {
   );
 };
 
+// AdminPage Component
+const AdminPage = ({ diceContract, tokenContract, account, onError }) => (
+  <div className="admin-page">
+    <h2>Admin Dashboard</h2>
+    <AdminPanel
+      diceContract={diceContract}
+      tokenContract={tokenContract}
+      onError={onError}
+    />
+  </div>
+);
+
+// Home Component
 const Home = () => {
   return (
     <div className="home-container">
@@ -494,19 +659,25 @@ const Home = () => {
         <h2>How to Get Started</h2>
         <div className="steps-container">
           <div className="step">
-            <div className="step-number">1</div>
-            <h3>Connect Wallet</h3>
-            <p>Connect your MetaMask or other Web3 wallet to get started</p>
+            <h3>Step 1: Connect Wallet</h3>
+            <p>
+              Use MetaMask or any compatible wallet to connect to the Ethereum
+              network.
+            </p>
           </div>
           <div className="step">
-            <div className="step-number">2</div>
-            <h3>Get Tokens</h3>
-            <p>Acquire GameTokens through our faucet or supported exchanges</p>
+            <h3>Step 2: Acquire GameToken</h3>
+            <p>
+              Purchase GameToken from a supported exchange or directly from our
+              platform.
+            </p>
           </div>
           <div className="step">
-            <div className="step-number">3</div>
-            <h3>Start Playing</h3>
-            <p>Choose your favorite game and start playing!</p>
+            <h3>Step 3: Start Playing</h3>
+            <p>
+              Choose a game, place your bets, and enjoy the decentralized gaming
+              experience.
+            </p>
           </div>
         </div>
       </section>
@@ -514,220 +685,85 @@ const Home = () => {
   );
 };
 
-const AdminPage = ({ diceContract, tokenContract, account, onError }) => {
-  const [historySize, setHistorySize] = useState("");
-  const [playerAddress, setPlayerAddress] = useState("");
-  const [callbackGasLimit, setCallbackGasLimit] = useState("");
-  const [roleAddress, setRoleAddress] = useState("");
-  const [minters, setMinters] = useState([]);
-  const [burners, setBurners] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [contractBalance, setContractBalance] = useState("0");
-
-  useEffect(() => {
-    fetchData();
-  }, [diceContract, tokenContract]);
-
-  const fetchData = async () => {
-    try {
-      if (diceContract && tokenContract) {
-        const balance = await diceContract.getContractBalance();
-        setContractBalance(ethers.formatEther(balance));
-
-        const { minters: mintersArray, burners: burnersArray } =
-          await tokenContract.getMinterBurnerAddresses();
-        setMinters(mintersArray);
-        setBurners(burnersArray);
-      }
-    } catch (err) {
-      onError(err);
-    }
-  };
-
-  const handleTransaction = async (operation) => {
-    setLoading(true);
-    try {
-      let tx;
-      switch (operation) {
-        case "pause":
-          tx = await diceContract.pause();
-          break;
-        case "unpause":
-          tx = await diceContract.unpause();
-          break;
-        case "setHistorySize":
-          tx = await diceContract.setHistorySize(historySize);
-          break;
-        case "recoverStuckGame":
-          tx = await diceContract.recoverStuckGame(playerAddress);
-          break;
-        case "forceStopGame":
-          tx = await diceContract.forceStopGame(playerAddress);
-          break;
-        case "setCallbackGasLimit":
-          tx = await diceContract.setCallbackGasLimit(callbackGasLimit);
-          break;
-        case "revokeMinterRole":
-          tx = await tokenContract.revokeRole(
-            await tokenContract.MINTER_ROLE(),
-            roleAddress
-          );
-          break;
-        case "revokeBurnerRole":
-          tx = await tokenContract.revokeRole(
-            await tokenContract.BURNER_ROLE(),
-            roleAddress
-          );
-          break;
-        default:
-          throw new Error("Invalid operation");
-      }
-      await tx.wait();
-      await fetchData();
-    } catch (err) {
-      onError(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+// New Game Statistics Panel
+const GameStats = ({ stats }) => {
   return (
-    <div className="admin-page">
-      <h1>Admin Dashboard</h1>
+    <div className="glass-effect p-6 rounded-xl">
+      <h3 className="text-lg font-semibold text-primary-100 mb-4">
+        Game Statistics
+      </h3>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Games"
+          value={stats.totalGames}
+          icon="🎲"
+        />
+        <StatCard
+          title="Win Rate"
+          value={`${stats.winRate}%`}
+          icon="📈"
+        />
+        <StatCard
+          title="Biggest Win"
+          value={`${stats.biggestWin} ETH`}
+          icon="🏆"
+        />
+        <StatCard
+          title="Total Winnings"
+          value={`${stats.totalWinnings} ETH`}
+          icon="💰"
+        />
+      </div>
+    </div>
+  );
+};
 
-      <section className="admin-section">
-        <h2>Contract Status</h2>
-        <div className="status-info">
-          <p>Contract Balance: {contractBalance} Tokens</p>
-        </div>
-      </section>
+// Stat Card Component
+const StatCard = ({ title, value, icon }) => (
+  <div className="bg-secondary-800 p-4 rounded-lg border border-secondary-700">
+    <div className="flex items-center space-x-2 mb-2">
+      <span className="text-xl">{icon}</span>
+      <span className="text-sm text-secondary-400">{title}</span>
+    </div>
+    <div className="text-lg font-bold text-primary-400">{value}</div>
+  </div>
+);
 
-      <section className="admin-section">
-        <h2>Game Controls</h2>
-        <div className="button-group">
-          <button onClick={() => handleTransaction("pause")} disabled={loading}>
-            Pause Game
-          </button>
-          <button
-            onClick={() => handleTransaction("unpause")}
-            disabled={loading}
-          >
-            Unpause Game
-          </button>
-        </div>
-      </section>
-
-      <section className="admin-section">
-        <h2>Game Settings</h2>
-        <div className="input-group">
-          <input
-            type="number"
-            value={historySize}
-            onChange={(e) => setHistorySize(e.target.value)}
-            placeholder="New history size"
-          />
-          <button
-            onClick={() => handleTransaction("setHistorySize")}
-            disabled={loading}
-          >
-            Set History Size
-          </button>
-        </div>
-
-        <div className="input-group">
-          <input
-            type="number"
-            value={callbackGasLimit}
-            onChange={(e) => setCallbackGasLimit(e.target.value)}
-            placeholder="Callback gas limit"
-          />
-          <button
-            onClick={() => handleTransaction("setCallbackGasLimit")}
-            disabled={loading}
-          >
-            Set Callback Gas Limit
-          </button>
-        </div>
-      </section>
-
-      <section className="admin-section">
-        <h2>Player Management</h2>
-        <div className="input-group">
-          <input
-            type="text"
-            value={playerAddress}
-            onChange={(e) => setPlayerAddress(e.target.value)}
-            placeholder="Player address"
-          />
-          <div className="button-group">
-            <button
-              onClick={() => handleTransaction("recoverStuckGame")}
-              disabled={loading}
-            >
-              Recover Stuck Game
-            </button>
-            <button
-              onClick={() => handleTransaction("forceStopGame")}
-              disabled={loading}
-            >
-              Force Stop Game
-            </button>
+// New Game Controls Component
+const GameControls = ({ onRoll, isRolling, canRoll }) => {
+  return (
+    <div className="flex flex-col items-center space-y-4">
+      <button
+        onClick={onRoll}
+        disabled={!canRoll || isRolling}
+        className={`
+          w-full sm:w-auto px-8 py-4 rounded-xl font-bold text-lg
+          transition-all duration-300 transform
+          ${canRoll && !isRolling
+            ? 'bg-primary-500 hover:bg-primary-400 hover:scale-105'
+            : 'bg-secondary-700 cursor-not-allowed opacity-50'
+          }
+          ${isRolling ? 'animate-pulse' : ''}
+        `}
+      >
+        {isRolling ? (
+          <div className="flex items-center space-x-2">
+            <span>Rolling</span>
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
           </div>
-        </div>
-      </section>
-
-      <section className="admin-section">
-        <h2>Role Management</h2>
-        <div className="role-lists">
-          <div className="role-group">
-            <h3>Minters</h3>
-            <ul>
-              {minters.map((address, index) => (
-                <li key={index}>{address}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="role-group">
-            <h3>Burners</h3>
-            <ul>
-              {burners.map((address, index) => (
-                <li key={index}>{address}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-        <div className="input-group">
-          <input
-            type="text"
-            value={roleAddress}
-            onChange={(e) => setRoleAddress(e.target.value)}
-            placeholder="Address to revoke role from"
-          />
-          <div className="button-group">
-            <button
-              onClick={() => handleTransaction("revokeMinterRole")}
-              disabled={loading}
-            >
-              Revoke Minter Role
-            </button>
-            <button
-              onClick={() => handleTransaction("revokeBurnerRole")}
-              disabled={loading}
-            >
-              Revoke Burner Role
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {loading && (
-        <div className="loading-overlay">Processing transaction...</div>
+        ) : (
+          'Roll Dice'
+        )}
+      </button>
+      
+      {!canRoll && (
+        <p className="text-error-400 text-sm">
+          Please connect your wallet and select a number to roll
+        </p>
       )}
     </div>
   );
 };
-
-
 
 // Main App Component
 function App() {
@@ -745,6 +781,9 @@ function App() {
     gameData: true,
   });
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
 
   // Error handling utility
   const handleError = (error) => {
@@ -812,7 +851,7 @@ function App() {
   // Add missing checkAdminStatus function
   const checkAdminStatus = async (accountAddress) => {
     if (!tokenContract || !accountAddress) return;
-    
+
     setIsCheckingAdmin(true);
     try {
       const ADMIN_ROLE = await tokenContract.DEFAULT_ADMIN_ROLE();
@@ -828,15 +867,17 @@ function App() {
 
   // Update connectWallet function to handle errors better
   const connectWallet = async () => {
+    setLoadingStates((prev) => ({ ...prev, wallet: true }));
+    setLoadingMessage("Connecting to wallet...");
     try {
       if (!window.ethereum) {
         throw new Error("Please install MetaMask!");
       }
-      
+
       const accounts = await window.ethereum.request({
         method: "eth_requestAccounts",
       });
-      
+
       const providerData = await initializeProvider();
       if (!providerData) {
         throw new Error("Failed to initialize provider");
@@ -850,6 +891,9 @@ function App() {
       await handleAccountsChanged(accounts);
     } catch (err) {
       handleError(err);
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, wallet: false }));
+      setLoadingMessage("");
     }
   };
 
@@ -885,7 +929,7 @@ function App() {
 
         if (window.ethereum) {
           const accounts = await window.ethereum.request({
-            method: "eth_accounts"
+            method: "eth_accounts",
           });
           if (accounts.length > 0) {
             await handleAccountsChanged(accounts);
@@ -897,7 +941,7 @@ function App() {
         setLoadingStates({
           provider: false,
           contracts: false,
-          gameData: false
+          gameData: false,
         });
       }
     };
@@ -915,15 +959,45 @@ function App() {
     }
   }, []);
 
+  // Close mobile menu when screen size changes to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 640) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, []);
+
   // Loading state check
   if (Object.values(loadingStates).some((state) => state)) {
     return (
       <div className="min-h-screen bg-secondary-900 flex items-center justify-center">
         <div className="card animate-pulse p-8 max-w-md w-full">
-          <h2 className="text-2xl font-display text-primary-400 mb-4">Loading...</h2>
-          {loadingStates.provider && <p className="text-secondary-300 mb-2">Connecting to Web3 provider...</p>}
-          {loadingStates.contracts && <p className="text-secondary-300 mb-2">Initializing contracts...</p>}
-          {loadingStates.gameData && <p className="text-secondary-300 mb-2">Loading game data...</p>}
+          <h2 className="text-2xl font-display text-primary-400 mb-4">
+            Loading...
+          </h2>
+          {loadingStates.provider && (
+            <p className="text-secondary-300 mb-2">
+              Connecting to Web3 provider...
+            </p>
+          )}
+          {loadingStates.contracts && (
+            <p className="text-secondary-300 mb-2">Initializing contracts...</p>
+          )}
+          {loadingStates.gameData && (
+            <p className="text-secondary-300 mb-2">Loading game data...</p>
+          )}
         </div>
       </div>
     );
@@ -936,8 +1010,8 @@ function App() {
         <div className="card border-error-500 p-8 max-w-md w-full">
           <h2 className="text-2xl font-display text-error-500 mb-4">Error</h2>
           <p className="text-secondary-300 mb-4">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
+          <button
+            onClick={() => window.location.reload()}
             className="btn-error w-full"
           >
             Retry
@@ -947,9 +1021,26 @@ function App() {
     );
   }
 
+  const addToast = (message, type = "info") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    }, 3000);
+  };
+
+  const removeToast = (id) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  };
+
   return (
     <Router>
       <div className="min-h-screen bg-secondary-900">
+        {/* Add loading overlay */}
+        {Object.values(loadingStates).some((state) => state) && (
+          <LoadingOverlay message={loadingMessage} />
+        )}
+
         <nav className="glass-effect sticky top-0 z-50 border-b border-secondary-700/50">
           <div className="responsive-container">
             <div className="flex justify-between items-center h-16">
@@ -969,17 +1060,25 @@ function App() {
               <div className="flex items-center">
                 {account ? (
                   <div className="glass-effect px-4 py-2 rounded-lg text-sm">
-                    <span className="text-primary-400">Connected:</span>{' '}
+                    <span className="text-primary-400">Connected:</span>{" "}
                     <span className="text-secondary-300">
                       {account.slice(0, 6)}...{account.slice(-4)}
                     </span>
                   </div>
                 ) : (
-                  <button 
-                    onClick={connectWallet} 
+                  <button
+                    onClick={connectWallet}
                     className="btn-gaming"
+                    disabled={loadingStates.wallet}
                   >
-                    Connect Wallet
+                    {loadingStates.wallet ? (
+                      <span className="flex items-center">
+                        Connecting
+                        <LoadingDots />
+                      </span>
+                    ) : (
+                      "Connect Wallet"
+                    )}
                   </button>
                 )}
               </div>
@@ -999,6 +1098,7 @@ function App() {
                     tokenContract={tokenContract}
                     account={account}
                     onError={handleError}
+                    addToast={addToast}
                   />
                   <GameStatus
                     diceContract={diceContract}
@@ -1050,6 +1150,16 @@ function App() {
             />
           </Routes>
         </main>
+      </div>
+      <div className="toast-container">
+        {toasts.map((toast) => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
       </div>
     </Router>
   );
