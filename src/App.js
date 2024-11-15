@@ -77,68 +77,114 @@ const BetSlider = ({ value, onChange, min, max }) => {
       return "0.000";
     }
   };
-  
-  // Convert preset amounts to BigInt using string values
+
   const presetAmounts = [
     min,
     (max * window.BigInt(25)) / window.BigInt(100),
-    (max * window.BigInt(50)) / window.BigInt(100), 
+    (max * window.BigInt(50)) / window.BigInt(100),
     (max * window.BigInt(75)) / window.BigInt(100),
     max
   ];
 
   const handleSliderChange = (e) => {
-    // Convert the string value to BigInt
     const newValue = window.BigInt(e.target.value);
     onChange(newValue);
   };
 
   return (
-    <div className="bet-controls glass-effect p-6 rounded-xl space-y-4">
-      <div className="flex justify-between items-center">
-        <span className="text-lg font-semibold text-primary-100">Bet Amount</span>
-        <span className="text-xl font-bold text-primary-400">
-          {formatValue(value)} ETH
-        </span>
-      </div>
+    <div className="bet-controls relative overflow-hidden rounded-2xl bg-secondary-800/40 
+      backdrop-blur-lg border border-white/10 shadow-xl p-8 transform 
+      hover:shadow-2xl transition-all duration-300">
       
-      <div className="grid grid-cols-5 gap-2 mb-4">
-        {presetAmounts.map((amount, index) => (
-          <button
-            key={index}
-            onClick={() => onChange(amount)}
-            className={`px-2 py-1 rounded-lg text-sm transition-all duration-200
-              ${value === amount 
-                ? 'bg-primary-500 text-white' 
-                : 'bg-secondary-700 hover:bg-secondary-600 text-secondary-300'}`}
-          >
-            {formatValue(amount)}
-          </button>
-        ))}
-      </div>
+      {/* Animated Background Gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-gaming-primary/5 
+        to-gaming-accent/5 animate-gradient-shift"></div>
 
-      <input
-        type="range"
-        min={min.toString()}
-        max={max.toString()}
-        value={value.toString()}
-        onChange={handleSliderChange}
-        className="w-full h-2 bg-secondary-700 rounded-lg appearance-none cursor-pointer
-          [&::-webkit-slider-thumb]:appearance-none
-          [&::-webkit-slider-thumb]:w-6
-          [&::-webkit-slider-thumb]:h-6
-          [&::-webkit-slider-thumb]:rounded-full
-          [&::-webkit-slider-thumb]:bg-primary-500
-          [&::-webkit-slider-thumb]:shadow-lg
-          [&::-webkit-slider-thumb]:cursor-pointer
-          [&::-webkit-slider-thumb]:transition-all
-          [&::-webkit-slider-thumb]:duration-200
-          [&::-webkit-slider-thumb]:hover:bg-primary-400"
-      />
-      
-      <div className="flex justify-between text-sm text-secondary-400">
-        <span>Min: {formatValue(min)} ETH</span>
-        <span>Max: {formatValue(max)} ETH</span>
+      {/* Main Content */}
+      <div className="relative z-10 space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div className="space-y-1">
+            <h3 className="text-xl font-bold text-primary-100">
+              Place Your Bet
+            </h3>
+            <p className="text-sm text-secondary-400">
+              Select amount to wager
+            </p>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-primary-400 
+              transition-all duration-300 animate-value-change">
+              {formatValue(value)} ETH
+            </div>
+            <div className="text-xs text-secondary-400">
+              Current Bet Amount
+            </div>
+          </div>
+        </div>
+
+        {/* Preset Amount Buttons */}
+        <div className="grid grid-cols-5 gap-3">
+          {presetAmounts.map((amount, index) => (
+            <button
+              key={index}
+              onClick={() => onChange(amount)}
+              className={`relative group px-3 py-2 rounded-xl transition-all duration-300
+                ${value === amount 
+                  ? 'bg-gaming-primary text-white shadow-glow-primary scale-105' 
+                  : 'bg-secondary-700/50 hover:bg-secondary-600/50 text-secondary-300'}`}
+            >
+              {/* Hover Glow Effect */}
+              <div className={`absolute inset-0 rounded-xl bg-gaming-primary/20 
+                opacity-0 group-hover:opacity-100 transition-opacity duration-300
+                ${value === amount ? 'animate-pulse-subtle' : ''}`}></div>
+              
+              {/* Button Content */}
+              <div className="relative z-10">
+                <span className="block text-sm font-medium">
+                  {formatValue(amount)}
+                </span>
+                <span className="block text-xs opacity-75">
+                  {index === 0 ? 'Min' : index === 4 ? 'Max' : `${index * 25}%`}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Custom Slider */}
+        <div className="space-y-4">
+          <input
+            type="range"
+            min={min.toString()}
+            max={max.toString()}
+            value={value.toString()}
+            onChange={handleSliderChange}
+            className="w-full h-2 bg-secondary-700/50 rounded-lg appearance-none 
+              cursor-pointer relative z-10
+              [&::-webkit-slider-thumb]:appearance-none
+              [&::-webkit-slider-thumb]:w-6
+              [&::-webkit-slider-thumb]:h-6
+              [&::-webkit-slider-thumb]:rounded-full
+              [&::-webkit-slider-thumb]:bg-gaming-primary
+              [&::-webkit-slider-thumb]:shadow-glow-primary
+              [&::-webkit-slider-thumb]:cursor-pointer
+              [&::-webkit-slider-thumb]:transition-all
+              [&::-webkit-slider-thumb]:duration-300
+              [&::-webkit-slider-thumb]:hover:scale-110
+              [&::-webkit-slider-thumb]:hover:shadow-glow-primary-lg"
+          />
+
+          {/* Min/Max Labels */}
+          <div className="flex justify-between text-sm">
+            <span className="text-secondary-400">
+              Min: {formatValue(min)} ETH
+            </span>
+            <span className="text-secondary-400">
+              Max: {formatValue(max)} ETH
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
