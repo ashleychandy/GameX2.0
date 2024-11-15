@@ -90,6 +90,16 @@
            rounded-lg text-white placeholder-secondary-400
            focus:border-gaming-primary focus:ring-1 focus:ring-gaming-primary;
   }
+
+  .btn-outline-gaming {
+    @apply border-2 border-gaming-primary text-gaming-primary 
+           py-3 px-6 rounded-lg font-semibold cursor-pointer 
+           transition-all duration-300 hover:bg-gaming-primary/10;
+  }
+
+  .animate-fade-in-up {
+    @apply animate-[fadeInUp_1s_ease-out];
+  }
 }
 
 @layer utilities {
@@ -106,5 +116,16 @@
 
   .tooltip:hover .tooltip-text {
     @apply visible opacity-100;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 } 
