@@ -40,15 +40,15 @@
 
 @layer components {
   .responsive-container {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6;
   }
 
   .glass-effect {
-    @apply bg-secondary-800/70 backdrop-blur-md border border-white/10 shadow-lg;
+    @apply bg-secondary-800/70 backdrop-blur-md border border-white/10 shadow-lg p-6 mb-6;
   }
 
   .card {
-    @apply bg-secondary-800/70 rounded-xl p-6 mb-6 border border-white/10 shadow-lg
+    @apply bg-secondary-800/70 rounded-xl p-8 mb-8 border border-white/10 shadow-lg
            hover:shadow-xl transition-all duration-300 relative overflow-hidden;
   }
 

@@ -138,178 +138,139 @@ const Toast = ({ message, type, onClose }) => (
 // };
 
 // Enhanced Bet Slider with Preset Amounts
-const BetSlider = ({ value = "0", onChange, min = "1", userBalance = "0" }) => {
-  const formatValue = (val) => {
+const BetInput = ({ value, onChange, min = "1", userBalance = "0", disabled }) => {
+  const formatDisplayValue = (val) => {
     try {
-      // Format as whole number instead of ether
-      return val.toString();
+      // Convert from wei to actual token amount (divide by 1e18)
+      const actualAmount = BigInt(val) / BigInt(1e18);
+      return actualAmount.toLocaleString('fullwide', {useGrouping: true, maximumFractionDigits: 0});
     } catch (error) {
-      console.error("Error formatting value:", error);
       return "0";
-    }
-  };
-
-  const parseValue = (val) => {
-    try {
-      // Parse as BigInt directly without using parseEther
-      return BigInt(val);
-    } catch (error) {
-      console.error("Error parsing value:", error);
-      return BigInt(0);
-    }
-  };
-
-  const calculatePercentage = (amount, percentage) => {
-    try {
-      const safeAmount = BigInt(amount || "0");
-      const result = (safeAmount * BigInt(percentage)) / BigInt(100);
-      const minValue = BigInt(min);
-      return result < minValue ? minValue : result;
-    } catch {
-      return BigInt(min);
-    }
-  };
-
-  const safeBigIntValue = BigInt(value || "0");
-  const safeBigIntMin = BigInt(min);
-  const safeBigIntBalance = BigInt(userBalance || "0");
-
-  const presetAmounts = [
-    safeBigIntMin,
-    calculatePercentage(safeBigIntBalance, 25),
-    calculatePercentage(safeBigIntBalance, 50),
-    calculatePercentage(safeBigIntBalance, 75),
-    safeBigIntBalance
-  ].filter((amount, index, self) => 
-    index === self.findIndex(a => a === amount) && 
-    amount >= safeBigIntMin && 
-    amount <= safeBigIntBalance
-  );
-
-  const handleSliderChange = (e) => {
-    try {
-      const newValue = parseValue(e.target.value);
-      if (newValue < safeBigIntMin) return onChange(safeBigIntMin);
-      if (newValue > safeBigIntBalance) return onChange(safeBigIntBalance);
-      onChange(newValue);
-    } catch (error) {
-      console.error("Error converting slider value:", error);
-      onChange(safeBigIntMin);
     }
   };
 
   const handleInputChange = (e) => {
     try {
-      const newValue = parseValue(e.target.value);
-      if (newValue < safeBigIntMin) return onChange(safeBigIntMin);
-      if (newValue > safeBigIntBalance) return onChange(safeBigIntBalance);
-      onChange(newValue);
+      // Remove commas and non-digits
+      const inputValue = e.target.value.replace(/[^\d]/g, '');
+      if (!inputValue) {
+        onChange(BigInt(min));
+        return;
+      }
+      
+      // Convert input to wei (multiply by 1e18)
+      const weiValue = BigInt(inputValue) * BigInt(1e18);
+      
+      if (weiValue < BigInt(min)) {
+        onChange(BigInt(min));
+        return;
+      }
+      if (weiValue > BigInt(userBalance)) {
+        onChange(BigInt(userBalance));
+        return;
+      }
+      
+      onChange(weiValue);
     } catch (error) {
       console.error("Error converting input value:", error);
     }
   };
 
+  const handleQuickAmount = (percentage) => {
+    try {
+      const balance = BigInt(userBalance);
+      const amount = (balance * BigInt(percentage)) / BigInt(100);
+      const minValue = BigInt(min);
+      onChange(amount < minValue ? minValue : amount > balance ? balance : amount);
+    } catch (error) {
+      console.error("Error calculating quick amount:", error);
+    }
+  };
+
   return (
-    <div
-      className="bet-controls relative overflow-hidden rounded-2xl bg-secondary-800/40 
-      backdrop-blur-lg border border-white/10 shadow-xl p-8 transform 
-      hover:shadow-2xl transition-all duration-300"
-    >
-      <div
-        className="absolute inset-0 bg-gradient-to-br from-gaming-primary/5 
-        to-gaming-accent/5 animate-gradient-shift"
-      ></div>
-
-      <div className="relative z-10 space-y-6">
-        <div className="flex justify-between items-center">
-          <div className="space-y-1">
-            <h3 className="text-xl font-bold text-primary-100">
-              Place Your Bet
-            </h3>
-            <p className="text-sm text-secondary-400">
-              Select amount of tokens to wager
-            </p>
-          </div>
-          <div className="text-right">
+    <div className="glass-effect p-8 rounded-xl space-y-6">
+      <div className="flex flex-col space-y-2">
+        <label className="text-sm text-secondary-400">Bet Amount</label>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => {
+              const currentValue = BigInt(value);
+              const minValue = BigInt(min);
+              const decrement = BigInt(userBalance) / BigInt(100);
+              const newValue = currentValue - decrement;
+              if (newValue >= minValue) onChange(newValue);
+            }}
+            disabled={disabled || BigInt(value) <= BigInt(min)}
+            className="w-10 h-10 rounded-lg bg-secondary-700/50 hover:bg-secondary-600/50 
+                     flex items-center justify-center text-secondary-300
+                     disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+            </svg>
+          </button>
+          
+          <div className="relative flex-1">
             <input
-              type="number"
-              value={formatValue(safeBigIntValue)}
+              type="text"
+              inputMode="numeric"
+              value={formatDisplayValue(value)}
               onChange={handleInputChange}
-              min={formatValue(safeBigIntMin)}
-              max={formatValue(safeBigIntBalance)}
-              step="1"
-              className="w-32 text-right bg-transparent text-2xl font-bold text-primary-400 
-                focus:outline-none focus:ring-1 focus:ring-gaming-primary rounded-lg"
+              disabled={disabled}
+              className="w-full text-right bg-secondary-800/50 text-2xl font-bold 
+                       text-primary-400 rounded-lg px-4 py-2
+                       focus:outline-none focus:ring-2 focus:ring-gaming-primary
+                       disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            <div className="text-xs text-secondary-400">Current Bet Amount</div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-5 gap-3">
-          {presetAmounts.map((amount, index) => (
-            <button
-              key={index}
-              onClick={() => onChange(amount)}
-              disabled={amount > safeBigIntBalance}
-              className={`relative group px-3 py-2 rounded-xl transition-all duration-300
-                ${
-                  safeBigIntValue === amount
-                    ? "bg-gaming-primary text-white shadow-glow-primary scale-105"
-                    : "bg-secondary-700/50 hover:bg-secondary-600/50 text-secondary-300"
-                }
-                ${
-                  amount > safeBigIntBalance
-                    ? "opacity-50 cursor-not-allowed"
-                    : ""
-                }`}
-            >
-              <div className="relative z-10">
-                <span className="block text-sm font-medium">
-                  {formatValue(amount)}
-                </span>
-                <span className="block text-xs opacity-75">
-                  {index === 0
-                    ? "Min"
-                    : index === presetAmounts.length - 1
-                    ? "Max"
-                    : `${index * 25}%`}
-                </span>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        <div className="space-y-4">
-          <input
-            type="range"
-            min={formatValue(safeBigIntMin)}
-            max={formatValue(safeBigIntBalance)}
-            value={formatValue(safeBigIntValue)}
-            onChange={handleSliderChange}
-            step="1"
-            className="w-full h-2 bg-secondary-700/50 rounded-lg appearance-none 
-              cursor-pointer relative z-10
-              [&::-webkit-slider-thumb]:appearance-none
-              [&::-webkit-slider-thumb]:w-6
-              [&::-webkit-slider-thumb]:h-6
-              [&::-webkit-slider-thumb]:rounded-full
-              [&::-webkit-slider-thumb]:bg-gaming-primary
-              [&::-webkit-slider-thumb]:shadow-glow-primary
-              [&::-webkit-slider-thumb]:cursor-pointer
-              [&::-webkit-slider-thumb]:transition-all
-              [&::-webkit-slider-thumb]:duration-300
-              [&::-webkit-slider-thumb]:hover:scale-110"
-          />
-
-          <div className="flex justify-between text-sm">
-            <span className="text-secondary-400">
-              Min: {formatValue(safeBigIntMin)} GameX
-            </span>
-            <span className="text-secondary-400">
-              Balance: {formatValue(safeBigIntBalance)} GameX
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-secondary-400">
+              GameX
             </span>
           </div>
+
+          <button
+            onClick={() => {
+              const currentValue = BigInt(value);
+              const balance = BigInt(userBalance);
+              const increment = balance / BigInt(100);
+              const newValue = currentValue + increment;
+              if (newValue <= balance) onChange(newValue);
+            }}
+            disabled={disabled || BigInt(value) >= BigInt(userBalance)}
+            className="w-10 h-10 rounded-lg bg-secondary-700/50 hover:bg-secondary-600/50 
+                     flex items-center justify-center text-secondary-300
+                     disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
         </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-4">
+        {[
+          { label: "25%", value: 25 },
+          { label: "50%", value: 50 },
+          { label: "75%", value: 75 },
+          { label: "MAX", value: 100 }
+        ].map(({ label, value: percentage }) => (
+          <button
+            key={percentage}
+            onClick={() => handleQuickAmount(percentage)}
+            disabled={disabled}
+            className="px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200
+                     bg-secondary-700/50 hover:bg-secondary-600/50 text-secondary-300
+                     hover:text-white active:scale-95 disabled:opacity-50
+                     disabled:cursor-not-allowed"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="text-xs text-secondary-400 flex justify-between">
+        <span>Min: {formatDisplayValue(min)} GameX</span>
+        <span>Balance: {formatDisplayValue(userBalance)} GameX</span>
       </div>
     </div>
   );
@@ -455,10 +416,9 @@ const NumberSelector = ({ value, onChange, disabled }) => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       <h3 className="text-xl font-bold text-white/90">Choose Your Number</h3>
-
-      <div className="grid grid-cols-3 gap-4 sm:grid-cols-6">
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-6">
         {numbers.map((num) => (
           <motion.button
             key={num}
@@ -690,6 +650,9 @@ const GameComponent = ({
   const [maxBet, setMaxBet] = useState(
     window.BigInt(ethers.parseEther("1.0").toString())
   );
+  const [selectionError, setSelectionError] = useState("");
+  const [userBalance, setUserBalance] = useState("0");
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const checkGameState = async () => {
@@ -709,14 +672,37 @@ const GameComponent = ({
     return () => clearInterval(interval);
   }, [diceContract, account, onError]);
 
+  const validateSelection = () => {
+    if (!chosenNumber) {
+      setSelectionError("Please select a number to roll");
+      return false;
+    }
+    if (!account) {
+      setSelectionError("Please connect your wallet");
+      return false;
+    }
+    setSelectionError("");
+    return true;
+  };
+
   const handlePlay = async () => {
-    if (!chosenNumber || !betAmount) {
-      addToast("Please enter both number and bet amount", "error");
+    if (!validateSelection()) {
       return;
     }
 
     setLoading(true);
     try {
+      // First check current allowance
+      const currentAllowance = await tokenContract.allowance(account, diceContract.address);
+      
+      // If allowance is less than bet amount, request approval
+      if (currentAllowance < betAmount) {
+        const approveTx = await tokenContract.approve(diceContract.address, betAmount);
+        await approveTx.wait();
+        addToast("Token approval successful!", "success");
+      }
+
+      // Now place the bet
       const tx = await diceContract.playDice(chosenNumber, betAmount);
       await tx.wait();
       addToast("Bet placed successfully!", "success");
@@ -729,19 +715,78 @@ const GameComponent = ({
     }
   };
 
-  return (
-    <div className="game-component glass-effect p-6 rounded-xl">
-      <NumberSelector
-        value={chosenNumber}
-        onChange={setChosenNumber}
-        disabled={loading}
-      />
+  // Fetch balance function
+  const fetchBalance = async () => {
+    if (!tokenContract || !account) {
+      setUserBalance("0");
+      return;
+    }
 
-      <BetSlider
+    try {
+      setIsLoading(true);
+      const balance = await tokenContract.balanceOf(account);
+      setUserBalance(balance.toString());
+    } catch (error) {
+      console.error("Error fetching balance:", error);
+      onError("Failed to fetch balance");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Set up balance fetching and polling
+  useEffect(() => {
+    fetchBalance();
+
+    // Set up polling for balance updates
+    const interval = setInterval(fetchBalance, 10000); // Poll every 10 seconds
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(interval);
+  }, [tokenContract, account]);
+
+  // Add event listener for contract events that might affect balance
+  useEffect(() => {
+    if (!tokenContract || !account) return;
+
+    const transferFilter = tokenContract.filters.Transfer(account, null);
+    const receiveFilter = tokenContract.filters.Transfer(null, account);
+
+    const handleBalanceChange = () => {
+      fetchBalance();
+    };
+
+    tokenContract.on(transferFilter, handleBalanceChange);
+    tokenContract.on(receiveFilter, handleBalanceChange);
+
+    return () => {
+      tokenContract.off(transferFilter, handleBalanceChange);
+      tokenContract.off(receiveFilter, handleBalanceChange);
+    };
+  }, [tokenContract, account]);
+
+  // Handle bet amount changes
+  const handleBetChange = (newAmount) => {
+    setBetAmount(newAmount.toString());
+  };
+
+  return (
+    <div className="game-component space-y-12">
+      <div className="glass-effect p-8 rounded-xl">
+        <NumberSelector
+          value={chosenNumber}
+          onChange={setChosenNumber}
+          disabled={loading}
+        />
+      </div>
+
+      <BetInput
         value={betAmount}
-        onChange={setBetAmount}
+        onChange={handleBetChange}
         min={minBet}
         max={maxBet}
+        userBalance={userBalance}
+        disabled={isLoading}
       />
 
       <GameControls
@@ -749,6 +794,12 @@ const GameComponent = ({
         isRolling={loading}
         canRoll={canPlay && chosenNumber && betAmount}
       />
+
+      {selectionError && (
+        <div className="text-red-500 text-sm mt-2">
+          {selectionError}
+        </div>
+      )}
     </div>
   );
 };
@@ -856,12 +907,14 @@ const PlayerStats = ({ diceContract, account }) => {
     totalGamesWon: 0,
     totalGamesLost: 0
   });
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchStats = async () => {
       if (!diceContract || !account) return;
 
       try {
+        setError(null);
         const [winRate, averageBet, gamesWon, gamesLost] = await diceContract.getPlayerStats(account);
         
         // Convert win rate from basis points (10000 = 100.00%) to percentage
@@ -878,6 +931,14 @@ const PlayerStats = ({ diceContract, account }) => {
         });
       } catch (error) {
         console.error("Error fetching player stats:", error);
+        setError("Failed to load stats");
+        // Set default values on error
+        setStats({
+          winRate: 0,
+          averageBet: "0",
+          totalGamesWon: 0,
+          totalGamesLost: 0
+        });
       }
     };
 
@@ -890,13 +951,22 @@ const PlayerStats = ({ diceContract, account }) => {
     return num.toString();
   };
 
+  if (error) {
+    return (
+      <div className="glass-panel p-6 rounded-xl">
+        <div className="text-error-500 text-center">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="glass-panel p-6 rounded-xl">
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-xl font-bold text-white/90">Player Statistics</h3>
         <div className="text-sm text-secondary-400">
-          Total Games:{" "}
-          {formatNumber(stats.totalGamesWon + stats.totalGamesLost)}
+          Total Games: {formatNumber(stats.totalGamesWon + stats.totalGamesLost)}
         </div>
       </div>
 
@@ -1076,12 +1146,6 @@ const Home = () => {
               >
                 Play Now
               </Link>
-              <a
-                href="#learn-more"
-                className="btn-outline-gaming hover:scale-105 transform transition-all"
-              >
-                Learn More
-              </a>
             </div>
           </div>
         </div>
@@ -1275,7 +1339,7 @@ const GameStats = ({ gameData }) => {
 // New Game Controls Component
 const GameControls = ({ onRoll, isRolling, canRoll }) => {
   return (
-    <div className="flex flex-col items-center space-y-4">
+    <div className="flex flex-col items-center space-y-6 mt-12">
       <button
         onClick={onRoll}
         disabled={!canRoll || isRolling}
@@ -1308,6 +1372,59 @@ const GameControls = ({ onRoll, isRolling, canRoll }) => {
     </div>
   );
 };
+
+// Define Navbar component at the top of the file, before the App component
+const Navbar = ({ account, connectWallet, loadingStates, isAdmin }) => (
+  <nav className="glass-effect sticky top-0 z-50 border-b border-secondary-700/50">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="flex justify-between items-center h-20">
+        <div className="flex items-center space-x-8">
+          <Link to="/" className="text-2xl font-bold text-gaming-primary">
+            GameX
+          </Link>
+          <div className="hidden md:flex items-center space-x-6">
+            <Link to="/" className="nav-link">
+              Home
+            </Link>
+            <Link to="/dice" className="nav-link">
+              Play Dice
+            </Link>
+            {isAdmin && (
+              <Link to="/admin" className="nav-link">
+                Admin
+              </Link>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center space-x-4">
+          {account ? (
+            <div className="glass-effect px-6 py-3 rounded-lg text-sm">
+              <span className="text-primary-400">Connected:</span>{" "}
+              <span className="text-secondary-300">
+                {account.slice(0, 6)}...{account.slice(-4)}
+              </span>
+            </div>
+          ) : (
+            <button
+              onClick={connectWallet}
+              className="btn-gaming"
+              disabled={loadingStates.wallet}
+            >
+              {loadingStates.wallet ? (
+                <span className="flex items-center">
+                  Connecting
+                  <LoadingDots />
+                </span>
+              ) : (
+                "Connect Wallet"
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  </nav>
+);
 
 // Main App Component
 function App() {
@@ -1590,58 +1707,20 @@ function App() {
           <LoadingOverlay message={loadingMessage} />
         )}
 
-        <nav className="glass-effect sticky top-0 z-50 border-b border-secondary-700/50">
-          <div className="responsive-container">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center space-x-4">
-                <Link to="/" className="nav-link">
-                  Home
-                </Link>
-                <Link to="/dice" className="nav-link">
-                  Play Dice
-                </Link>
-                {isAdmin && (
-                  <Link to="/admin" className="nav-link">
-                    Admin
-                  </Link>
-                )}
-              </div>
-              <div className="flex items-center">
-                {account ? (
-                  <div className="glass-effect px-4 py-2 rounded-lg text-sm">
-                    <span className="text-primary-400">Connected:</span>{" "}
-                    <span className="text-secondary-300">
-                      {account.slice(0, 6)}...{account.slice(-4)}
-                    </span>
-                  </div>
-                ) : (
-                  <button
-                    onClick={connectWallet}
-                    className="btn-gaming"
-                    disabled={loadingStates.wallet}
-                  >
-                    {loadingStates.wallet ? (
-                      <span className="flex items-center">
-                        Connecting
-                        <LoadingDots />
-                      </span>
-                    ) : (
-                      "Connect Wallet"
-                    )}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </nav>
+        <Navbar 
+          account={account}
+          connectWallet={connectWallet}
+          loadingStates={loadingStates}
+          isAdmin={isAdmin}
+        />
 
-        <main className="responsive-container py-8">
+        <main className="responsive-container py-12 space-y-12">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route
               path="/dice"
               element={
-                <div className="grid gap-8">
+                <div className="space-y-12">
                   <GameComponent
                     diceContract={diceContract}
                     tokenContract={tokenContract}
@@ -1654,7 +1733,7 @@ function App() {
                     account={account}
                     onError={handleError}
                   />
-                  <div className="grid md:grid-cols-2 gap-8">
+                  <div className="grid md:grid-cols-2 gap-12">
                     <PlayerStats
                       diceContract={diceContract}
                       account={account}
@@ -1666,13 +1745,6 @@ function App() {
                       onError={handleError}
                     />
                   </div>
-                  {isAdmin && (
-                    <AdminPanel
-                      diceContract={diceContract}
-                      tokenContract={tokenContract}
-                      onError={handleError}
-                    />
-                  )}
                 </div>
               }
             />
