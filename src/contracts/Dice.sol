@@ -70,6 +70,7 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
     error VRFError(uint256 code);
     error RoleError(uint256 code);
     error PayoutCalculationError(string message);
+    error OwnerError(uint256 code); // 1: Not owner, 2: Already owner, 3: Cannot remove last owner, 4: Cannot remove self
 
     // Immutable VRF variables
     uint256 private immutable s_subscriptionId;
@@ -94,6 +95,14 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
 
     uint256 public constant DEFAULT_HISTORY_SIZE = 10;  // Store last 10 results by default
 
+    // Add these near the top with other state variables
+    mapping(address => bool) private owners;
+    uint256 private numOwners;
+
+    // Add these events
+    event OwnerAdded(address indexed newOwner);
+    event OwnerRemoved(address indexed removedOwner);
+
     constructor(
         address _myTokenAddress,
         uint256 subscriptionId,
@@ -114,6 +123,17 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         requestConfirmations = _requestConfirmations;
         numWords = _numWords;
         myToken = IMyToken(_myTokenAddress);
+        
+        // Initialize deployer as first owner
+        owners[msg.sender] = true;
+        numOwners = 1;
+        emit OwnerAdded(msg.sender);
+    }
+
+    // Add this modifier to replace onlyOwner
+    modifier onlyOwners() {
+        if (!owners[msg.sender]) revert OwnerError(1);
+        _;
     }
 
     function playDice(uint256 chosenNumber, uint256 amount) external nonReentrant whenNotPaused returns (uint256 requestId) {
@@ -162,7 +182,6 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         requestToPlayer[requestId] = msg.sender;
         activeRequestIds[requestId] = true;
         
-        // Update user data
         user.currentGame = GameState({
             isActive: true,
             chosenNumber: chosenNumber,
@@ -196,7 +215,7 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         user.currentGame.randomWord = randomWords[0];
         user.requestFulfilled = true;
         
-        // Clean up mappings
+        
         delete requestToPlayer[requestId];
         delete activeRequestIds[requestId];
     }
@@ -209,7 +228,7 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
 
         uint256 result = (user.currentGame.randomWord % MAX_ROLL) + 1;
         
-        // Store the detailed bet history first
+        
         if (user.maxHistorySize == 0) {
             user.maxHistorySize = DEFAULT_HISTORY_SIZE;
         }
@@ -227,7 +246,6 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
             timestamp: block.timestamp
         }));
 
-        // Calculate payout after recording history
         uint256 payout = 0;
         if (user.currentGame.chosenNumber == result) {
             // Calculate payout only if numbers match
@@ -239,7 +257,6 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
             user.totalWinnings += payout;
             user.currentGame.status = GameStatus.COMPLETED_WIN;
             
-            // Mint payout tokens only after confirming win
             if (!myToken.hasRole(MINTER_ROLE, address(this))) revert RoleError(2);
             try myToken.mint(msg.sender, payout) {} catch {
                 revert TransferFailed(2);
@@ -249,25 +266,22 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
             user.currentGame.status = GameStatus.COMPLETED_LOSS;
         }
 
-        // Cleanup
         user.currentGame.isActive = false;
         user.requestFulfilled = false;
         user.currentRequestId = 0;
     }
 
-    function recoverStuckGame(address player) external onlyOwner {
+    function recoverStuckGame(address player) external onlyOwners {
         UserData storage user = userData[player];
         
         require(user.currentGame.isActive, "No active game");
         require(block.timestamp > user.currentGame.timestamp + GAME_TIMEOUT, "Game not timed out");
 
-        // Clean up all related mappings
         if (user.currentRequestId != 0) {
             delete requestToPlayer[user.currentRequestId];
             delete activeRequestIds[user.currentRequestId];
         }
 
-        // Reset user's game state
         user.currentGame.isActive = false;
         user.requestFulfilled = false;
         user.currentRequestId = 0;
@@ -293,11 +307,11 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         );
     }
 
-    function pause() external onlyOwner {
+    function pause() external onlyOwners {
         _pause();
     }
 
-    function unpause() external onlyOwner {
+    function unpause() external onlyOwners {
         _unpause();
     }
 
@@ -305,12 +319,11 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         return myToken.balanceOf(address(this));
     }
 
-    function revokeTokenRole(bytes32 role, address account) external onlyOwner {
+    function revokeTokenRole(bytes32 role, address account) external onlyOwners {
         myToken.revokeRole(role, account);
     }
 
-    // Emergency function
-    function forceStopGame(address player) external onlyOwner {
+    function forceStopGame(address player) external onlyOwners {
         UserData storage user = userData[player];
         
         require(user.currentGame.isActive, "No active game");
@@ -341,7 +354,6 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         
         UserData storage user = userData[player];
         
-        // Check for potential overflows in the active game data
         if (user.currentGame.isActive) {
             // Validate amount doesn't exceed maximum safe value
             if (user.currentGame.amount > type(uint256).max / 6) {
@@ -361,7 +373,6 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
             return user.currentGame;
         }
         
-        // Return safe default state for inactive game
         return GameState({
             isActive: false,
             chosenNumber: 0,
@@ -374,7 +385,6 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         });
     }
 
-    // Get detailed game status for a player
     function getGameStatus(address player) external view returns (
         bool isActive,
         GameStatus status,
@@ -393,62 +403,29 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         );
     }
 
-    // Check if a player has a pending VRF request
     function hasPendingRequest(address player) external view returns (bool) {
         UserData storage user = userData[player];
         return user.currentRequestId != 0 && !user.requestFulfilled;
     }
 
-    // Get player's game statistics
     function getPlayerStats(address player) external view returns (
-        uint256 winRate,
-        uint256 averageBet,
         uint256 totalGamesWon,
         uint256 totalGamesLost
     ) {
         if (player == address(0)) revert InvalidBetParameters(10);
         UserData storage user = userData[player];
         
-        // Return zeros if no games played
         if (user.gamesPlayed == 0) {
-            return (0, 0, 0, 0);
+            return (0, 0);
         }
         
-        // Safe calculation for games won
-        uint256 gamesWon;
-        if (user.totalWinnings > 0) {
-            // Since payout is 6x, divide by 6 to get number of wins
-            gamesWon = user.totalWinnings / 6;
-        }
-        
+        // Calculate games won
+        uint256 gamesWon = user.totalWinnings / 6; // Since payout is 6x
         uint256 gamesLost = user.gamesPlayed - gamesWon;
         
-        // Safe percentage calculation with higher precision (2 decimal places)
-        // Multiply by 10000 first to preserve 2 decimal places
-        if (user.gamesPlayed > 0) {
-            if (gamesWon <= type(uint256).max / 10000) {
-                winRate = (gamesWon * 10000) / user.gamesPlayed;
-            } else {
-                // Handle potential overflow by reducing precision
-                winRate = (gamesWon / user.gamesPlayed) * 10000;
-            }
-        }
-        
-        // Safe average calculation
-        if (user.gamesPlayed > 0) {
-            if (user.totalBets <= type(uint256).max / 1e18) {
-                // Maintain precision for average calculation
-                averageBet = (user.totalBets * 1e18) / user.gamesPlayed;
-            } else {
-                // Handle potential overflow by reducing precision
-                averageBet = user.totalBets / user.gamesPlayed;
-            }
-        }
-        
-        return (winRate, averageBet, gamesWon, gamesLost);
+        return (gamesWon, gamesLost);
     }
 
-    // Get current request details
     function getCurrentRequestDetails(address player) external view returns (
         uint256 requestId,
         bool requestFulfilled,
@@ -474,7 +451,6 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         return !user.currentGame.isActive && user.currentRequestId == 0;
     }
 
-    // Add new function to get previous results
     function getPreviousBets(address player) external view returns (BetHistory[] memory) {
         if (player == address(0)) revert InvalidBetParameters(12);
         UserData storage user = userData[player];
@@ -489,7 +465,6 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         return bets;
     }
 
-    // Optional: Add function to set history size
     function setHistorySize(uint256 newSize) external {
         require(newSize > 0, "History size must be positive");
         require(newSize <= 100, "History size too large"); // Prevent excessive storage
@@ -502,7 +477,35 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         }
     }
 
-    function setCallbackGasLimit(uint32 _callbackGasLimit) external onlyOwner {
+    function setCallbackGasLimit(uint32 _callbackGasLimit) external onlyOwners {
         callbackGasLimit = _callbackGasLimit;
+    }
+
+    // Add these owner management functions
+    function addOwner(address newOwner) external onlyOwners {
+        if (newOwner == address(0)) revert InvalidBetParameters(14);
+        if (owners[newOwner]) revert OwnerError(2);
+        
+        owners[newOwner] = true;
+        numOwners++;
+        emit OwnerAdded(newOwner);
+    }
+
+    function removeOwner(address ownerToRemove) external onlyOwners {
+        if (!owners[ownerToRemove]) revert OwnerError(1);
+        if (numOwners <= 1) revert OwnerError(3);
+        if (ownerToRemove == msg.sender) revert OwnerError(4);
+        
+        owners[ownerToRemove] = false;
+        numOwners--;
+        emit OwnerRemoved(ownerToRemove);
+    }
+
+    function isOwner(address account) public view returns (bool) {
+        return owners[account];
+    }
+
+    function getOwnerCount() public view returns (uint256) {
+        return numOwners;
     }
 }
