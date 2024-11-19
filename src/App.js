@@ -890,233 +890,7 @@ const GameHistoryItem = ({ game, index }) => (
   </motion.div>
 );
 
-// Enhanced GameComponent with better state management and polling
-const GameComponent = ({
-  diceContract,
-  tokenContract,
-  account,
-  onError,
-  addToast,
-}) => {
-  const [chosenNumber, setChosenNumber] = useState(null);
-  const [betAmount, setBetAmount] = useState(BigInt(1e18)); // 1 token default
-  const [isLoading, setIsLoading] = useState(false);
-  const [userBalance, setUserBalance] = useState("0");
-  const [gameState, setGameState] = useState({
-    isActive: false,
-    requestId: null,
-    status: "PENDING",
-    result: null,
-    timestamp: 0,
-  });
-
-  // Initialize and cleanup game state
-  useEffect(() => {
-    if (!diceContract || !account) return;
-
-    const init = async () => {
-      try {
-        await updateGameState();
-        await updateBalance();
-      } catch (error) {
-        console.error("Error initializing game:", error);
-        onError(error);
-      }
-    };
-
-    init();
-    const interval = setInterval(init, 5000); // Poll every 5 seconds
-    return () => clearInterval(interval);
-  }, [diceContract, account]);
-
-  // Update user balance
-  const updateBalance = async () => {
-    if (!tokenContract || !account) return;
-    try {
-      const balance = await tokenContract.balanceOf(account);
-      setUserBalance(balance.toString());
-    } catch (error) {
-      console.error("Error updating balance:", error);
-    }
-  };
-
-  // Update game state
-  const updateGameState = async () => {
-    if (!diceContract || !account) return;
-    try {
-      const [isActive, status, chosenNum, amount, timestamp] =
-        await diceContract.getGameStatus(account);
-
-      const [requestId, requestFulfilled, requestActive] =
-        await diceContract.getCurrentRequestDetails(account);
-
-      setGameState({
-        isActive,
-        requestId: requestId.toString(),
-        status: [
-          "PENDING",
-          "STARTED",
-          "COMPLETED_WIN",
-          "COMPLETED_LOSS",
-          "CANCELLED",
-        ][status],
-        result: status > 1 ? chosenNum : null,
-        timestamp: Number(timestamp),
-      });
-
-      // Start monitoring if there's an active request
-      if (isActive && requestActive && !requestFulfilled) {
-        startRequestMonitoring(requestId.toString());
-      }
-    } catch (error) {
-      console.error("Error updating game state:", error);
-    }
-  };
-
-  // Monitor VRF request
-  const startRequestMonitoring = (requestId) => {
-    const checkRequest = async () => {
-      try {
-        const isActive = await diceContract.isRequestActive(requestId);
-        if (!isActive) {
-          await updateGameState();
-          await updateBalance();
-          return;
-        }
-        setTimeout(checkRequest, 2000);
-      } catch (error) {
-        console.error("Error monitoring request:", error);
-      }
-    };
-    checkRequest();
-  };
-
-  // Handle bet placement
-  const handleBet = async () => {
-    if (!chosenNumber || betAmount <= 0) {
-      addToast("Please select a number and bet amount", "error");
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-
-      // Check if user can start new game
-      const canStart = await diceContract.canStartNewGame(account);
-      if (!canStart) {
-        throw new Error("Cannot start new game - active game exists");
-      }
-
-      // Check balance
-      const balance = await tokenContract.balanceOf(account);
-      if (balance < betAmount) {
-        throw new Error("Insufficient balance");
-      }
-
-      // Check/Request token approval
-      const allowance = await tokenContract.allowance(
-        account,
-        diceContract.address
-      );
-      if (allowance < betAmount) {
-        addToast("Approving tokens...", "info");
-        const approveTx = await tokenContract.approve(
-          diceContract.address,
-          betAmount
-        );
-        await approveTx.wait();
-        addToast("Tokens approved!", "success");
-      }
-
-      // Place bet
-      addToast("Placing bet...", "info");
-      const tx = await diceContract.playDice(chosenNumber, betAmount);
-      const receipt = await tx.wait();
-
-      // Find requestId from events
-      const requestId = receipt.events
-        .find((e) => e.event === "RequestSent")
-        ?.args?.requestId.toString();
-
-      setGameState((prev) => ({
-        ...prev,
-        isActive: true,
-        requestId,
-        status: "STARTED",
-      }));
-
-      addToast("Bet placed! Waiting for result...", "success");
-      startRequestMonitoring(requestId);
-    } catch (error) {
-      console.error("Error placing bet:", error);
-      onError(error);
-      addToast(error.message, "error");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="space-y-8">
-      <NumberSelector
-        value={chosenNumber}
-        onChange={setChosenNumber}
-        disabled={isLoading || gameState.isActive}
-      />
-
-      <BetInput
-        value={betAmount}
-        onChange={setBetAmount}
-        min="1"
-        userBalance={userBalance}
-        disabled={isLoading || gameState.isActive}
-      />
-
-      <div className="flex justify-center">
-        <button
-          onClick={handleBet}
-          disabled={
-            isLoading || gameState.isActive || !chosenNumber || betAmount <= 0
-          }
-          className={`
-            px-8 py-4 rounded-xl text-lg font-bold
-            ${
-              isLoading || gameState.isActive
-                ? "bg-secondary-700 cursor-not-allowed"
-                : "bg-gaming-primary hover:bg-gaming-primary-dark"
-            }
-            transition-colors duration-200
-          `}
-        >
-          {isLoading
-            ? "Processing..."
-            : gameState.isActive
-            ? "Game in Progress"
-            : "Roll Dice"}
-        </button>
-      </div>
-
-      <DiceVisualizer
-        chosenNumber={chosenNumber}
-        isRolling={gameState.status === "STARTED"}
-        result={gameState.result}
-      />
-
-      {/* Game Status */}
-      {gameState.isActive && (
-        <div className="text-center space-y-2">
-          <StatusIndicator
-            status={gameState.status}
-            isActive={gameState.status === "STARTED"}
-          />
-          <p className="text-sm text-secondary-400">
-            Request ID: {gameState.requestId}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-};
+;
 
 const StatusIndicator = ({ status, isActive }) => (
   <div
@@ -1139,307 +913,6 @@ const StatusIndicator = ({ status, isActive }) => (
   </div>
 );
 
-// Enhanced GameStatus component
-const GameStatus = ({ diceContract, account, onStatusChange, onError }) => {
-  const [gameState, setGameState] = useState({
-    isActive: false,
-    status: "PENDING",
-    chosenNumber: 0,
-    amount: "0",
-    timestamp: 0,
-    hasPendingRequest: false,
-    result: null,
-    payout: "0",
-    lastUpdate: Date.now(),
-  });
-
-  const [monitoringActive, setMonitoringActive] = useState(true);
-
-  const checkStatus = useCallback(async () => {
-    if (!diceContract || !account) return;
-
-    try {
-      const [status, hasPending, currentGame] = await Promise.all([
-        diceContract.getGameStatus(account),
-        diceContract.hasPendingRequest(account),
-        diceContract.getCurrentGame(account),
-      ]);
-
-      const newStatus = {
-        isActive: status.isActive,
-        status: getStatusText(status.status),
-        chosenNumber: Number(status.chosenNumber),
-        amount: status.amount.toString(),
-        timestamp: Number(status.timestamp),
-        hasPendingRequest: hasPending,
-        result: Number(currentGame.result),
-        payout: currentGame.payout.toString(),
-        lastUpdate: Date.now(),
-      };
-
-      if (JSON.stringify(newStatus) !== JSON.stringify(gameState)) {
-        setGameState(newStatus);
-        onStatusChange?.(newStatus);
-
-        if (isGameCompleted(status.status)) {
-          setMonitoringActive(false);
-        }
-      }
-    } catch (error) {
-      console.error("Error checking game status:", error);
-      onError?.(error);
-      setMonitoringActive(false);
-    }
-  }, [diceContract, account, gameState, onStatusChange, onError]);
-
-  const getStatusText = (statusEnum) =>
-    ({
-      0: "PENDING",
-      1: "STARTED",
-      2: "COMPLETED_WIN",
-      3: "COMPLETED_LOSS",
-      4: "CANCELLED",
-    }[statusEnum] || "UNKNOWN");
-
-  const isGameCompleted = (statusEnum) =>
-    [2, 3, 4].includes(Number(statusEnum));
-
-  useEffect(() => {
-    setMonitoringActive(true);
-    setGameState((prev) => ({
-      ...prev,
-      isActive: false,
-      status: "PENDING",
-      lastUpdate: Date.now(),
-    }));
-  }, [account]);
-
-  useEffect(() => {
-    if (!monitoringActive) return;
-
-    const checkInterval = async () => {
-      await checkStatus();
-    };
-
-    checkInterval();
-    const interval = setInterval(checkInterval, 3000);
-
-    return () => clearInterval(interval);
-  }, [checkStatus, monitoringActive]);
-
-  useEffect(() => {
-    if (!diceContract || !account) return;
-
-    const filters = {
-      gameStarted: diceContract.filters.GameStarted(account),
-      gameCompleted: diceContract.filters.GameCompleted(account),
-      gameCancelled: diceContract.filters.GameCancelled(account),
-    };
-
-    const handleGameEvent = () => checkStatus();
-
-    Object.values(filters).forEach((filter) => {
-      diceContract.on(filter, handleGameEvent);
-    });
-
-    return () => {
-      Object.values(filters).forEach((filter) => {
-        diceContract.off(filter, handleGameEvent);
-      });
-    };
-  }, [diceContract, account, checkStatus]);
-
-  return (
-    <div className="glass-panel p-6 rounded-xl space-y-4">
-      <h2 className="text-2xl font-bold text-white/90">Current Game Status</h2>
-      <div className="grid grid-cols-2 gap-4">
-        <StatCard
-          title="Status"
-          value={gameState.status.replace("_", " ")}
-          color={
-            gameState.status === "COMPLETED_WIN"
-              ? "success"
-              : gameState.status === "COMPLETED_LOSS"
-              ? "error"
-              : "primary"
-          }
-        />
-        {gameState.isActive && (
-          <>
-            <StatCard title="Chosen Number" value={gameState.chosenNumber} />
-            <StatCard
-              title="Bet Amount"
-              value={`${ethers.formatEther(gameState.amount)} GameX`}
-            />
-            <StatCard
-              title="Time"
-              value={new Date(gameState.timestamp * 1000).toLocaleString()}
-            />
-            {gameState.result > 0 && (
-              <StatCard
-                title="Result"
-                value={gameState.result}
-                color={
-                  gameState.status === "COMPLETED_WIN" ? "success" : "error"
-                }
-              />
-            )}
-            {gameState.payout !== "0" && (
-              <StatCard
-                title="Payout"
-                value={`${ethers.formatEther(gameState.payout)} GameX`}
-                color="success"
-              />
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// PlayerStats Component
-const PlayerStats = ({ diceContract, account, onError }) => {
-  const [stats, setStats] = useState({
-    totalGamesWon: 0,
-    totalGamesLost: 0,
-    previousBets: [],
-    winRate: 0,
-    averageBet: "0",
-    biggestWin: "0",
-    totalBets: "0",
-    totalWinnings: "0",
-    totalLosses: "0",
-  });
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      if (!diceContract || !account) return;
-
-      try {
-        // Fetch all stats in parallel
-        const [playerStats, previousBets, userData] = await Promise.all([
-          diceContract.getPlayerStats(account),
-          diceContract.getPreviousBets(account),
-          diceContract.getUserData(account),
-        ]);
-
-        // Calculate derived statistics
-        const [totalGamesWon, totalGamesLost] = playerStats;
-        const totalGames = totalGamesWon + totalGamesLost;
-        const winRate = totalGames > 0 ? (totalGamesWon * 100) / totalGames : 0;
-
-        // Find biggest win from previous bets
-        const biggestWin = previousBets.reduce((max, bet) => {
-          if (bet.chosenNumber.toString() === bet.rolledNumber.toString()) {
-            return bet.amount > max ? bet.amount : max;
-          }
-          return max;
-        }, BigInt(0));
-
-        // Calculate average bet
-        const averageBet =
-          previousBets.length > 0
-            ? (userData.totalBets / BigInt(previousBets.length)).toString()
-            : "0";
-
-        setStats({
-          totalGamesWon: Number(totalGamesWon),
-          totalGamesLost: Number(totalGamesLost),
-          previousBets,
-          winRate,
-          averageBet,
-          biggestWin: biggestWin.toString(),
-          totalBets: userData.totalBets.toString(),
-          totalWinnings: userData.totalWinnings.toString(),
-          totalLosses: userData.totalLosses.toString(),
-        });
-      } catch (error) {
-        console.error("Error fetching player stats:", error);
-        onError(error);
-      }
-    };
-
-    fetchStats();
-    const interval = setInterval(fetchStats, 10000);
-
-    return () => clearInterval(interval);
-  }, [diceContract, account]);
-
-  return (
-    <div className="glass-panel p-6 rounded-xl">
-      <h2 className="text-2xl font-bold text-white/90 mb-6">
-        Player Statistics
-      </h2>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <StatCard
-          title="Win Rate"
-          value={`${stats.winRate.toFixed(2)}%`}
-          color={stats.winRate > 50 ? "success" : "primary"}
-        />
-        <StatCard
-          title="Total Games Won"
-          value={stats.totalGamesWon}
-          color="success"
-        />
-        <StatCard
-          title="Total Games Lost"
-          value={stats.totalGamesLost}
-          color="error"
-        />
-        <StatCard
-          title="Average Bet"
-          value={`${ethers.formatEther(stats.averageBet)} GameX`}
-        />
-        <StatCard
-          title="Biggest Win"
-          value={`${ethers.formatEther(stats.biggestWin)} GameX`}
-          color="success"
-        />
-        <StatCard
-          title="Total Wagered"
-          value={`${ethers.formatEther(stats.totalBets)} GameX`}
-        />
-      </div>
-
-      {/* Recent Bets History */}
-      {stats.previousBets.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold text-white/80 mb-4">
-            Recent Bets
-          </h3>
-          <div className="space-y-2">
-            {stats.previousBets.slice(-5).map((bet, index) => (
-              <div
-                key={index}
-                className={`flex items-center justify-between p-3 rounded-lg ${
-                  bet.chosenNumber.toString() === bet.rolledNumber.toString()
-                    ? "bg-gaming-success/10 border border-gaming-success/20"
-                    : "bg-gaming-error/10 border border-gaming-error/20"
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-secondary-400">
-                    {new Date(
-                      Number(bet.timestamp) * 1000
-                    ).toLocaleTimeString()}
-                  </span>
-                  <span>
-                    Rolled: {bet.rolledNumber.toString()} | Chosen:{" "}
-                    {bet.chosenNumber.toString()}
-                  </span>
-                </div>
-                <span className="font-medium">
-                  {ethers.formatEther(bet.amount)} GameX
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 
 // AdminPanel Component
@@ -1685,14 +1158,27 @@ const steps = [
 // New Game Statistics Panel
 const GameStats = ({ diceContract, account }) => {
   const [stats, setStats] = useState({
-    totalGames: 0,
+    // Game Status
+    currentGame: {
+      isActive: false,
+      status: "PENDING",
+      chosenNumber: 0,
+      amount: "0",
+      timestamp: 0,
+      payout: "0",
+      result: 0,
+    },
+    // Player Stats
+    totalGamesWon: 0,
+    totalGamesLost: 0,
     totalBets: "0",
     totalWinnings: "0",
     totalLosses: "0",
     winRate: 0,
     biggestWin: "0",
+    averageBet: "0",
+    previousBets: [],
     lastPlayed: 0,
-    recentResults: []
   });
 
   const [isLoading, setIsLoading] = useState(true);
@@ -1705,19 +1191,27 @@ const GameStats = ({ diceContract, account }) => {
       }
 
       try {
-        // Fetch user data from contract
-        const [gameData, previousBets] = await Promise.all([
-          diceContract.getUserData(account),
-          diceContract.getPreviousBets(account)
-        ]);
+        // Fetch all data in parallel
+        const [currentGame, playerStats, userData, previousBets] =
+          await Promise.all([
+            diceContract.getCurrentGame(account),
+            diceContract.getPlayerStats(account),
+            diceContract.getUserData(account),
+            diceContract.getPreviousBets(account),
+          ]);
 
-        // Calculate win rate
-        const gamesWon = previousBets.filter(
-          bet => bet.chosenNumber.toString() === bet.rolledNumber.toString()
-        ).length;
-        const winRate = previousBets.length > 0 
-          ? (gamesWon / previousBets.length) * 100 
-          : 0;
+        // Calculate derived statistics
+        const [totalGamesWon, totalGamesLost] = playerStats;
+        const totalGames = totalGamesWon + totalGamesLost;
+        const winRate = totalGames > 0 ? (totalGamesWon * 100) / totalGames : 0;
+
+        // Calculate average bet
+        const averageBet =
+          previousBets.length > 0
+            ? (
+                BigInt(userData.totalBets) / BigInt(previousBets.length)
+              ).toString()
+            : "0";
 
         // Find biggest win
         const biggestWin = previousBets.reduce((max, bet) => {
@@ -1728,14 +1222,25 @@ const GameStats = ({ diceContract, account }) => {
         }, BigInt(0));
 
         setStats({
-          totalGames: Number(gameData.totalGames),
-          totalBets: gameData.totalBets.toString(),
-          totalWinnings: gameData.totalWinnings.toString(),
-          totalLosses: gameData.totalLosses.toString(),
-          winRate: Number(winRate.toFixed(2)),
+          currentGame: {
+            isActive: currentGame.isActive,
+            status: currentGame.status,
+            chosenNumber: Number(currentGame.chosenNumber),
+            amount: currentGame.amount.toString(),
+            timestamp: Number(currentGame.timestamp),
+            payout: currentGame.payout.toString(),
+            result: Number(currentGame.result),
+          },
+          totalGamesWon,
+          totalGamesLost,
+          totalBets: userData.totalBets.toString(),
+          totalWinnings: userData.totalWinnings.toString(),
+          totalLosses: userData.totalLosses.toString(),
+          winRate,
           biggestWin: biggestWin.toString(),
-          lastPlayed: Number(gameData.lastPlayed),
-          recentResults: previousBets.slice(-5).reverse() // Get last 5 results
+          averageBet,
+          previousBets: previousBets.slice(-5).reverse(),
+          lastPlayed: Number(userData.lastPlayed),
         });
       } catch (error) {
         console.error("Error fetching game stats:", error);
@@ -1745,7 +1250,7 @@ const GameStats = ({ diceContract, account }) => {
     };
 
     fetchStats();
-    const interval = setInterval(fetchStats, 10000); // Update every 10 seconds
+    const interval = setInterval(fetchStats, 10000);
 
     return () => clearInterval(interval);
   }, [diceContract, account]);
@@ -1761,17 +1266,57 @@ const GameStats = ({ diceContract, account }) => {
   return (
     <div className="glass-panel p-6 rounded-xl space-y-6">
       <h2 className="text-2xl font-bold text-white/90">Game Statistics</h2>
-      
+
+      {/* Current Game Status */}
+      {stats.currentGame.isActive && (
+        <div className="bg-gaming-primary/10 border border-gaming-primary/20 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold text-white/80 mb-4">
+            Current Game
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <StatCard
+              title="Status"
+              value={stats.currentGame.status.replace("_", " ")}
+              color={
+                stats.currentGame.status === "COMPLETED_WIN"
+                  ? "success"
+                  : stats.currentGame.status === "COMPLETED_LOSS"
+                  ? "error"
+                  : "primary"
+              }
+            />
+            <StatCard
+              title="Chosen Number"
+              value={stats.currentGame.chosenNumber}
+            />
+            <StatCard
+              title="Bet Amount"
+              value={`${ethers.formatEther(stats.currentGame.amount)} GameX`}
+            />
+            {stats.currentGame.result > 0 && (
+              <StatCard title="Result" value={stats.currentGame.result} />
+            )}
+            {stats.currentGame.payout !== "0" && (
+              <StatCard
+                title="Payout"
+                value={`${ethers.formatEther(stats.currentGame.payout)} GameX`}
+                color="success"
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Overall Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {/* Main Stats */}
         <StatCard
           title="Total Games"
-          value={stats.totalGames.toLocaleString()}
+          value={(stats.totalGamesWon + stats.totalGamesLost).toLocaleString()}
           icon="🎲"
         />
         <StatCard
           title="Win Rate"
-          value={`${stats.winRate}%`}
+          value={`${stats.winRate.toFixed(2)}%`}
           icon="📈"
           color={stats.winRate > 50 ? "success" : "primary"}
         />
@@ -1781,15 +1326,14 @@ const GameStats = ({ diceContract, account }) => {
           icon="💰"
         />
         <StatCard
-          title="Biggest Win"
-          value={`${ethers.formatEther(stats.biggestWin)} GameX`}
-          icon="🏆"
-          color="success"
+          title="Average Bet"
+          value={`${ethers.formatEther(stats.averageBet)} GameX`}
+          icon="⚖️"
         />
       </div>
 
       {/* Profit/Loss Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard
           title="Total Winnings"
           value={`${ethers.formatEther(stats.totalWinnings)} GameX`}
@@ -1802,30 +1346,40 @@ const GameStats = ({ diceContract, account }) => {
           icon="📉"
           color="error"
         />
+        <StatCard
+          title="Biggest Win"
+          value={`${ethers.formatEther(stats.biggestWin)} GameX`}
+          icon="🏆"
+          color="success"
+        />
       </div>
 
       {/* Recent Results */}
-      {stats.recentResults.length > 0 && (
+      {stats.previousBets.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-white/80">Recent Results</h3>
+          <h3 className="text-lg font-semibold text-white/80">
+            Recent Results
+          </h3>
           <div className="grid gap-2">
-            {stats.recentResults.map((result, index) => (
+            {stats.previousBets.map((result, index) => (
               <div
                 key={index}
-                className={`flex items-center justify-between p-3 rounded-lg
-                  ${
-                    result.chosenNumber.toString() === result.rolledNumber.toString()
-                      ? "bg-gaming-success/10 border border-gaming-success/20"
-                      : "bg-gaming-error/10 border border-gaming-error/20"
-                  }`}
+                className={`flex items-center justify-between p-3 rounded-lg ${
+                  result.chosenNumber.toString() ===
+                  result.rolledNumber.toString()
+                    ? "bg-gaming-success/10 border border-gaming-success/20"
+                    : "bg-gaming-error/10 border border-gaming-error/20"
+                }`}
               >
                 <div className="flex items-center gap-4">
                   <span className="text-sm text-secondary-400">
-                    {new Date(Number(result.timestamp) * 1000).toLocaleTimeString()}
+                    {new Date(
+                      Number(result.timestamp) * 1000
+                    ).toLocaleTimeString()}
                   </span>
                   <span>
-                    Rolled: {result.rolledNumber.toString()} | 
-                    Chosen: {result.chosenNumber.toString()}
+                    Rolled: {result.rolledNumber.toString()} | Chosen:{" "}
+                    {result.chosenNumber.toString()}
                   </span>
                 </div>
                 <span className="font-medium">
@@ -1883,61 +1437,147 @@ const StatCard = ({ title, value, icon, color = "primary" }) => (
 
 
 // New Game Controls Component
-const GameControls = ({ 
-  diceContract, 
-  tokenContract, 
-  account, 
-  chosenNumber, 
-  betAmount, 
-  isRolling,
+const GameControls = ({
+  diceContract,
+  tokenContract,
+  account,
+  chosenNumber,
+  betAmount,
   onError,
   addToast,
-  disabled
+  onGameStateChange,
+  onBalanceChange
 }) => {
   const [gameState, setGameState] = useState({
-    canPlay: false,
-    isProcessing: false,
+    isActive: false,
     requestId: null,
-    needsResolution: false
+    status: "PENDING",
+    result: null,
+    timestamp: 0,
+    needsResolution: false,
+    canPlay: false,
+    isProcessing: false
   });
 
-  // Check if player can start a new game
+  // Initialize and cleanup game state
   useEffect(() => {
-    const checkGameState = async () => {
-      if (!diceContract || !account) return;
+    if (!diceContract || !account) return;
 
+    const init = async () => {
       try {
-        const [canStart, currentRequest] = await Promise.all([
-          diceContract.canStartNewGame(account),
-          diceContract.getCurrentRequestDetails(account)
-        ]);
-
-        setGameState(prev => ({
-          ...prev,
-          canPlay: canStart,
-          needsResolution: currentRequest.requestFulfilled && !currentRequest.requestActive,
-          requestId: currentRequest.requestId
-        }));
+        await updateGameState();
+        await updateBalance();
       } catch (error) {
-        console.error("Error checking game state:", error);
+        console.error("Error initializing game:", error);
         onError(error);
       }
     };
 
-    checkGameState();
-    const interval = setInterval(checkGameState, 5000);
+    init();
+    const interval = setInterval(init, 5000); // Poll every 5 seconds
     return () => clearInterval(interval);
   }, [diceContract, account]);
 
-  // Handle placing bet
-  const handleRoll = async () => {
-    if (!diceContract || !account || !chosenNumber || !betAmount) return;
+  // Update user balance
+  const updateBalance = async () => {
+    if (!tokenContract || !account) return;
+    try {
+      const balance = await tokenContract.balanceOf(account);
+      onBalanceChange(balance.toString());
+    } catch (error) {
+      console.error("Error updating balance:", error);
+      onError(error);
+    }
+  };
+
+  // Update game state
+  const updateGameState = async () => {
+    if (!diceContract || !account) return;
+    try {
+      // Get current game status
+      const [isActive, status, chosenNum, amount, timestamp] = 
+        await diceContract.getGameStatus(account);
+
+      // Get request details
+      const [requestId, requestFulfilled, requestActive] = 
+        await diceContract.getCurrentRequestDetails(account);
+
+      // Check if player can start new game
+      const canPlay = await diceContract.canStartNewGame(account);
+
+      const newGameState = {
+        isActive,
+        requestId: requestId.toString(),
+        status: [
+          "PENDING",
+          "STARTED", 
+          "COMPLETED_WIN",
+          "COMPLETED_LOSS",
+          "CANCELLED"
+        ][status],
+        result: status > 1 ? chosenNum : null,
+        timestamp: Number(timestamp),
+        needsResolution: requestFulfilled && !requestActive,
+        canPlay,
+        isProcessing: false
+      };
+
+      setGameState(newGameState);
+      onGameStateChange(newGameState);
+
+      // Start monitoring if there's an active request
+      if (isActive && requestActive && !requestFulfilled) {
+        startRequestMonitoring(requestId.toString());
+      }
+    } catch (error) {
+      console.error("Error updating game state:", error);
+      onError(error);
+    }
+  };
+
+  // Monitor VRF request
+  const startRequestMonitoring = (requestId) => {
+    const checkRequest = async () => {
+      try {
+        const isActive = await diceContract.isRequestActive(requestId);
+        if (!isActive) {
+          await updateGameState();
+          await updateBalance();
+          return;
+        }
+        setTimeout(checkRequest, 2000);
+      } catch (error) {
+        console.error("Error monitoring request:", error);
+        onError(error);
+      }
+    };
+    checkRequest();
+  };
+
+  // Handle bet placement
+  const handleBet = async () => {
+    if (!chosenNumber || betAmount <= 0) {
+      addToast("Please select a number and bet amount", "error");
+      return;
+    }
 
     try {
       setGameState(prev => ({ ...prev, isProcessing: true }));
       addToast("Initiating game...", "info");
 
-      // Check allowance and approve if needed
+      // Check if user can start new game
+      const canStart = await diceContract.canStartNewGame(account);
+      if (!canStart) {
+        throw new Error("Cannot start new game - active game exists");
+      }
+
+      // Check balance
+      const balance = await tokenContract.balanceOf(account);
+      if (balance < betAmount) {
+        throw new Error("Insufficient balance");
+      }
+
+      // Check/Request token approval
       const allowance = await tokenContract.allowance(account, diceContract.address);
       if (allowance < betAmount) {
         addToast("Approving tokens...", "info");
@@ -1957,18 +1597,22 @@ const GameControls = ({
         ?.args?.requestId.toString();
 
       if (requestId) {
-        setGameState(prev => ({ 
-          ...prev, 
+        setGameState(prev => ({
+          ...prev,
+          isActive: true,
           requestId,
+          status: "STARTED",
           isProcessing: false,
-          canPlay: false 
+          canPlay: false
         }));
         addToast("Bet placed! Waiting for result...", "success");
+        startRequestMonitoring(requestId);
       }
     } catch (error) {
       console.error("Error placing bet:", error);
       onError(error);
       setGameState(prev => ({ ...prev, isProcessing: false }));
+      addToast(error.message, "error");
     }
   };
 
@@ -1983,17 +1627,15 @@ const GameControls = ({
       const tx = await diceContract.resolveGame();
       await tx.wait();
 
-      setGameState(prev => ({ 
-        ...prev, 
-        isProcessing: false,
-        needsResolution: false,
-        requestId: null
-      }));
+      await updateGameState();
+      await updateBalance();
+
       addToast("Game resolved!", "success");
     } catch (error) {
       console.error("Error resolving game:", error);
       onError(error);
       setGameState(prev => ({ ...prev, isProcessing: false }));
+      addToast(error.message, "error");
     }
   };
 
@@ -2031,9 +1673,8 @@ const GameControls = ({
           </button>
         ) : (
           <button
-            onClick={handleRoll}
+            onClick={handleBet}
             disabled={
-              disabled ||
               gameState.isProcessing ||
               !gameState.canPlay ||
               !chosenNumber ||
@@ -2041,7 +1682,7 @@ const GameControls = ({
             }
             className={`
               px-8 py-4 rounded-xl font-bold text-lg
-              ${disabled || gameState.isProcessing || !gameState.canPlay
+              ${gameState.isProcessing || !gameState.canPlay
                 ? "bg-secondary-700 cursor-not-allowed opacity-50"
                 : "bg-gaming-primary hover:bg-gaming-primary/80"}
               transition-all duration-300 transform hover:scale-105
@@ -2074,6 +1715,7 @@ const GameControls = ({
     </div>
   );
 };
+
 
 // Define Navbar component at the top of the file, before the App component
 const Navbar = ({ account, connectWallet, loadingStates, isAdmin }) => (
