@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -32,6 +32,14 @@ ChartJS.register(
   Tooltip,
   Legend
 );
+
+// Environment variables
+const DICE_CONTRACT_ADDRESS = process.env.REACT_APP_DICE_GAME_ADDRESS;
+const TOKEN_CONTRACT_ADDRESS = process.env.REACT_APP_TOKEN_ADDRESS;
+const SUPPORTED_CHAIN_IDS = [80002];
+// Add console logs for debugging
+console.log("DICE_CONTRACT_ADDRESS:", DICE_CONTRACT_ADDRESS);
+console.log("TOKEN_CONTRACT_ADDRESS:", TOKEN_CONTRACT_ADDRESS);
 
 // Enhanced Toast Component
 const Toast = ({ message, type, onClose }) => (
@@ -138,44 +146,94 @@ const Toast = ({ message, type, onClose }) => (
 // };
 
 // Enhanced Bet Slider with Preset Amounts
-const BetInput = ({ value, onChange, min = "1", userBalance = "0", disabled }) => {
-  const formatDisplayValue = (val) => {
+
+const BetInput = ({
+  value,
+  onChange,
+  min = "1",
+  userBalance = "0",
+  disabled,
+}) => {
+  const [error, setError] = useState("");
+  const [localValue, setLocalValue] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (value) {
+      setLocalValue(formatDisplayValue(value));
+    }
+  }, [value]);
+
+  const formatDisplayValue = (weiValue) => {
     try {
-      // Safely handle BigInt conversion and division
-      const actualAmount = val / BigInt(1e18);
-      return actualAmount.toString();
+      const formatted = ethers.formatEther(weiValue.toString());
+      return formatted.replace(/\.?0+$/, "") || "0";
     } catch (error) {
       console.error("Error formatting display value:", error);
       return "0";
     }
   };
 
-  const handleInputChange = (e) => {
+  const validateInput = (input) => {
+    if (input === "") return true;
+    const regex = /^\d*\.?\d{0,18}$/;
+    if (!regex.test(input)) return false;
+    if (input.startsWith("0") && !input.startsWith("0.")) return false;
+    if ((input.match(/\./g) || []).length > 1) return false;
+    return true;
+  };
+
+  const parseTokenAmount = (amount) => {
     try {
-      // Remove commas and non-digits
-      const inputValue = e.target.value.replace(/[^\d]/g, '');
-      if (!inputValue) {
-        onChange(BigInt(min));
-        return;
+      if (!amount || isNaN(Number(amount))) {
+        return BigInt(0);
       }
-      
-      // Safely convert to wei (multiply by 1e18)
-      const weiValue = BigInt(inputValue) * BigInt(1e18);
-      
-      // Validate against min and max values
+
+      const parts = amount.split(".");
+      if (parts[1] && parts[1].length > 18) {
+        throw new Error("Too many decimal places");
+      }
+
+      if (Number(amount) < 0) {
+        throw new Error("Negative amount not allowed");
+      }
+
+      const weiValue = ethers.parseEther(amount);
       const minValue = BigInt(min);
       const maxValue = BigInt(userBalance);
-      
+
       if (weiValue < minValue) {
-        onChange(minValue);
-      } else if (weiValue > maxValue) {
-        onChange(maxValue);
-      } else {
-        onChange(weiValue);
+        throw new Error(`Minimum bet is ${formatDisplayValue(minValue)} GameX`);
       }
+      if (weiValue > maxValue) {
+        throw new Error(`Maximum bet is ${formatDisplayValue(maxValue)} GameX`);
+      }
+
+      return weiValue;
     } catch (error) {
-      console.error("Error converting input value:", error);
-      onChange(BigInt(min));
+      throw error;
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const inputValue = e.target.value.trim();
+
+    if (validateInput(inputValue)) {
+      setLocalValue(inputValue);
+      setError("");
+
+      try {
+        if (inputValue === "") {
+          onChange(BigInt(min));
+          return;
+        }
+
+        const weiValue = parseTokenAmount(inputValue);
+        onChange(weiValue);
+      } catch (error) {
+        setError(error.message);
+        onChange(BigInt(min));
+      }
     }
   };
 
@@ -184,94 +242,133 @@ const BetInput = ({ value, onChange, min = "1", userBalance = "0", disabled }) =
       const balance = BigInt(userBalance);
       const amount = (balance * BigInt(percentage)) / BigInt(100);
       const minValue = BigInt(min);
-      
+
       if (amount < minValue) {
+        setError("Amount too small, using minimum bet");
         onChange(minValue);
-      } else if (amount > balance) {
-        onChange(balance);
+        setLocalValue(formatDisplayValue(minValue));
       } else {
+        setError("");
         onChange(amount);
+        setLocalValue(formatDisplayValue(amount));
       }
     } catch (error) {
       console.error("Error calculating quick amount:", error);
+      setError("Error calculating amount");
       onChange(BigInt(min));
+      setLocalValue(formatDisplayValue(BigInt(min)));
+    }
+  };
+
+  const handleAdjustAmount = (increment) => {
+    try {
+      const currentValue = BigInt(value);
+      const balance = BigInt(userBalance);
+      const step = balance / BigInt(100); // 1% step
+      const minValue = BigInt(min);
+
+      let newValue;
+      if (increment) {
+        newValue = currentValue + step;
+        if (newValue > balance) newValue = balance;
+      } else {
+        newValue = currentValue - step;
+        if (newValue < minValue) newValue = minValue;
+      }
+
+      setError("");
+      onChange(newValue);
+      setLocalValue(formatDisplayValue(newValue));
+    } catch (error) {
+      console.error("Error adjusting amount:", error);
+      setError("Error adjusting amount");
     }
   };
 
   return (
-    <div className="glass-effect p-8 rounded-xl space-y-6">
-      <div className="flex flex-col space-y-2">
-        <label className="text-sm text-secondary-400">Bet Amount</label>
+    <div className="space-y-4">
+      <div className="relative">
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => {
-              try {
-                const currentValue = BigInt(value);
-                const minValue = BigInt(min);
-                const decrement = BigInt(userBalance) / BigInt(100);
-                const newValue = currentValue - decrement;
-                onChange(newValue >= minValue ? newValue : minValue);
-              } catch (error) {
-                console.error("Error handling decrement:", error);
-              }
-            }}
+            onClick={() => handleAdjustAmount(false)}
             disabled={disabled || BigInt(value) <= BigInt(min)}
             className="w-10 h-10 rounded-lg bg-secondary-700/50 hover:bg-secondary-600/50 
                      flex items-center justify-center text-secondary-300
                      disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Decrease amount"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M20 12H4"
+              />
             </svg>
           </button>
-          
+
           <div className="relative flex-1">
             <input
               type="text"
-              inputMode="numeric"
-              value={formatDisplayValue(value)}
+              value={localValue}
               onChange={handleInputChange}
               disabled={disabled}
-              className="w-full text-right bg-secondary-800/50 text-2xl font-bold 
-                       text-primary-400 rounded-lg px-4 py-2
-                       focus:outline-none focus:ring-2 focus:ring-gaming-primary
+              className="w-full px-4 py-2 bg-secondary-800/50 rounded-lg
+                       text-white placeholder-secondary-400 
+                       focus:outline-none focus:ring-2 focus:ring-primary-500
                        disabled:opacity-50 disabled:cursor-not-allowed"
+              placeholder="Enter bet amount"
             />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-secondary-400">
+            <div
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 
+                          text-sm text-secondary-400"
+            >
               GameX
-            </span>
+            </div>
           </div>
 
           <button
-            onClick={() => {
-              try {
-                const currentValue = BigInt(value);
-                const balance = BigInt(userBalance);
-                const increment = balance / BigInt(100);
-                const newValue = currentValue + increment;
-                onChange(newValue <= balance ? newValue : balance);
-              } catch (error) {
-                console.error("Error handling increment:", error);
-              }
-            }}
+            onClick={() => handleAdjustAmount(true)}
             disabled={disabled || BigInt(value) >= BigInt(userBalance)}
             className="w-10 h-10 rounded-lg bg-secondary-700/50 hover:bg-secondary-600/50 
                      flex items-center justify-center text-secondary-300
                      disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Increase amount"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
             </svg>
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="text-error-500 text-sm animate-fadeIn" role="alert">
+          {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-4 gap-4">
         {[
           { label: "25%", value: 25 },
           { label: "50%", value: 50 },
           { label: "75%", value: 75 },
-          { label: "MAX", value: 100 }
+          { label: "MAX", value: 100 },
         ].map(({ label, value: percentage }) => (
           <button
             key={percentage}
@@ -286,15 +383,57 @@ const BetInput = ({ value, onChange, min = "1", userBalance = "0", disabled }) =
           </button>
         ))}
       </div>
-
-      <div className="text-xs text-secondary-400 flex justify-between">
-        <span>Min: {formatDisplayValue(min)} GameX</span>
-        <span>Balance: {formatDisplayValue(userBalance)} GameX</span>
-      </div>
     </div>
   );
 };
 
+const NetworkWarning = () => (
+  <div className="bg-gaming-error/90 text-white px-4 py-2 text-center">
+    <p>Please switch to Amoy Testnet (Chain ID: 80002)</p>
+    <button
+      onClick={switchToAmoyNetwork}
+      className="mt-2 px-4 py-1 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
+    >
+      Switch Network
+    </button>
+  </div>
+);
+
+const switchToAmoyNetwork = async () => {
+  if (!window.ethereum) return;
+
+  try {
+    await window.ethereum.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: "0x13882" }], // 80002 in hex
+    });
+  } catch (switchError) {
+    // If the network is not added to MetaMask, add it
+    if (switchError.code === 4902) {
+      try {
+        await window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [
+            {
+              chainId: "0x13882",
+              chainName: "Polygon Amoy Testnet",
+              nativeCurrency: {
+                name: "MATIC",
+                symbol: "MATIC",
+                decimals: 18,
+              },
+              rpcUrls: ["https://rpc-amoy.polygon.technology"],
+              blockExplorerUrls: ["https://www.oklink.com/amoy"],
+            },
+          ],
+        });
+      } catch (addError) {
+        console.error("Error adding network:", addError);
+      }
+    }
+    console.error("Error switching network:", switchError);
+  }
+};
 // Enhanced Loading Spinner Component
 const LoadingSpinner = ({ message }) => (
   <div className="flex items-center justify-center space-x-3">
@@ -502,100 +641,181 @@ const NumberSelector = ({ value, onChange, disabled }) => {
 
 // Loading Dots Component
 const LoadingDots = () => (
-  <span className="flex items-center">
-    <span className="dot bg-primary-500"></span>
-    <span className="dot bg-primary-500"></span>
-    <span className="dot bg-primary-500"></span>
+  <span className="loading-dots">
+    <span className="dot">.</span>
+    <span className="dot">.</span>
+    <span className="dot">.</span>
   </span>
 );
+
+const RequestMonitor = ({ diceContract, requestId, onComplete }) => {
+  useEffect(() => {
+    if (!diceContract || !requestId) return;
+
+    const checkRequest = async () => {
+      try {
+        const isActive = await diceContract.isRequestActive(requestId);
+        if (!isActive) {
+          onComplete && onComplete();
+          return;
+        }
+        setTimeout(checkRequest, 2000);
+      } catch (error) {
+        console.error("Error monitoring request:", error);
+      }
+    };
+
+    checkRequest();
+  }, [diceContract, requestId]);
+
+  return null; // This is a monitoring component, no UI needed
+};
 
 // Enhanced Game History Component
 const GameHistory = ({ diceContract, account, onError }) => {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [historySize, setHistorySize] = useState(10);
+  const [stats, setStats] = useState({
+    totalGamesWon: 0,
+    totalGamesLost: 0,
+  });
 
+  // Filter games based on selected filter
   const filteredGames = useMemo(() => {
     if (filter === "all") return games;
-    if (filter === "wins") return games.filter(game => game.status === "WIN");
-    if (filter === "losses") return games.filter(game => game.status === "LOSS");
+    if (filter === "wins")
+      return games.filter((game) => game.chosenNumber === game.rolledNumber);
+    if (filter === "losses")
+      return games.filter((game) => game.chosenNumber !== game.rolledNumber);
     return games;
   }, [games, filter]);
 
+  // Fetch games and stats
+  const fetchGamesAndStats = async () => {
+    if (!diceContract || !account) {
+      setGames([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const [bets, playerStats] = await Promise.all([
+        diceContract.getPreviousBets(account),
+        diceContract.getPlayerStats(account),
+      ]);
+
+      // Process bets into readable format
+      const processedGames = bets.map((bet) => ({
+        chosenNumber: Number(bet.chosenNumber),
+        rolledNumber: Number(bet.rolledNumber),
+        amount: bet.amount.toString(),
+        timestamp: Number(bet.timestamp),
+        isWin: Number(bet.chosenNumber) === Number(bet.rolledNumber),
+      }));
+
+      setGames(processedGames);
+      setStats({
+        totalGamesWon: Number(playerStats.totalGamesWon),
+        totalGamesLost: Number(playerStats.totalGamesLost),
+      });
+    } catch (error) {
+      console.error("Error fetching game history:", error);
+      onError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle history size change
+  const handleHistorySizeChange = async (newSize) => {
+    try {
+      await diceContract.setHistorySize(newSize);
+      setHistorySize(newSize);
+      await fetchGamesAndStats(); // Refresh data after changing size
+    } catch (error) {
+      console.error("Error setting history size:", error);
+      onError(error);
+    }
+  };
+
   useEffect(() => {
-    const fetchGames = async () => {
-      if (!diceContract || !account) {
-        setGames([]);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        const bets = await diceContract.getPreviousBets(account);
-        
-        // Map contract data to component state
-        const processedGames = bets.map(bet => ({
-          chosenNumber: Number(bet.chosenNumber),
-          rolledNumber: Number(bet.rolledNumber),
-          amount: bet.amount.toString(),
-          timestamp: new Date(Number(bet.timestamp) * 1000),
-          status: Number(bet.chosenNumber) === Number(bet.rolledNumber) ? "WIN" : "LOSS"
-        }));
-
-        setGames(processedGames);
-      } catch (error) {
-        console.error("Error fetching game history:", error);
-        onError(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchGames();
-    // Poll for updates every 10 seconds
-    const interval = setInterval(fetchGames, 10000);
+    fetchGamesAndStats();
+    const interval = setInterval(fetchGamesAndStats, 10000);
     return () => clearInterval(interval);
   }, [diceContract, account]);
 
   return (
     <div className="glass-panel p-6 rounded-2xl space-y-6">
-      <div className="flex justify-between items-center mb-6">
+      {/* Header with Stats */}
+      <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-white/90">Game History</h2>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setFilter("all")}
-            className={`px-3 py-1 rounded-lg ${
-              filter === "all"
-                ? "bg-gaming-primary text-white"
-                : "bg-gaming-primary/20 text-gaming-primary"
-            } text-sm hover:bg-gaming-primary/30 transition-colors`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setFilter("wins")}
-            className={`px-3 py-1 rounded-lg ${
-              filter === "wins"
-                ? "bg-gaming-success text-white"
-                : "bg-gaming-success/20 text-gaming-success"
-            } text-sm hover:bg-gaming-success/30 transition-colors`}
-          >
-            Wins
-          </button>
-          <button
-            onClick={() => setFilter("losses")}
-            className={`px-3 py-1 rounded-lg ${
-              filter === "losses"
-                ? "bg-gaming-error text-white"
-                : "bg-gaming-error/20 text-gaming-error"
-            } text-sm hover:bg-gaming-error/30 transition-colors`}
-          >
-            Losses
-          </button>
+        <div className="flex items-center gap-4">
+          <div className="text-sm">
+            <span className="text-gaming-success">
+              Wins: {stats.totalGamesWon}
+            </span>
+            <span className="mx-2">|</span>
+            <span className="text-gaming-error">
+              Losses: {stats.totalGamesLost}
+            </span>
+          </div>
         </div>
       </div>
 
+      {/* History Size Selector */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-secondary-400">History Size:</span>
+        <select
+          value={historySize}
+          onChange={(e) => handleHistorySizeChange(Number(e.target.value))}
+          className="bg-gaming-primary/20 border border-gaming-primary/30 rounded-lg px-2 py-1 text-sm"
+        >
+          {[5, 10, 20, 50, 100].map((size) => (
+            <option key={size} value={size}>
+              {size}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Filters */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setFilter("all")}
+          className={`px-3 py-1 rounded-lg ${
+            filter === "all"
+              ? "bg-gaming-primary text-white"
+              : "bg-gaming-primary/20 text-gaming-primary"
+          } text-sm hover:bg-gaming-primary/30 transition-colors`}
+        >
+          All Games
+        </button>
+        <button
+          onClick={() => setFilter("wins")}
+          className={`px-3 py-1 rounded-lg ${
+            filter === "wins"
+              ? "bg-gaming-success text-white"
+              : "bg-gaming-success/20 text-gaming-success"
+          } text-sm hover:bg-gaming-success/30 transition-colors`}
+        >
+          Wins
+        </button>
+        <button
+          onClick={() => setFilter("losses")}
+          className={`px-3 py-1 rounded-lg ${
+            filter === "losses"
+              ? "bg-gaming-error text-white"
+              : "bg-gaming-error/20 text-gaming-error"
+          } text-sm hover:bg-gaming-error/30 transition-colors`}
+        >
+          Losses
+        </button>
+      </div>
+
+      {/* Game List */}
       {loading ? (
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
@@ -612,7 +832,11 @@ const GameHistory = ({ diceContract, account, onError }) => {
         <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar">
           <AnimatePresence>
             {filteredGames.map((game, index) => (
-              <GameHistoryItem key={index} game={game} index={index} />
+              <GameHistoryItem
+                key={`${game.timestamp}-${index}`}
+                game={game}
+                index={index}
+              />
             ))}
           </AnimatePresence>
         </div>
@@ -623,14 +847,14 @@ const GameHistory = ({ diceContract, account, onError }) => {
 
 const GameHistoryItem = ({ game, index }) => (
   <motion.div
-    initial={{ opacity: 0, x: -20 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: 20 }}
-    transition={{ delay: index * 0.1 }}
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -20 }}
+    transition={{ delay: index * 0.05 }}
     className={`
       relative p-4 rounded-xl border backdrop-blur-sm
       ${
-        game.status === "WIN"
+        game.isWin
           ? "border-gaming-success/20 bg-gaming-success/5"
           : "border-gaming-error/20 bg-gaming-error/5"
       }
@@ -638,28 +862,33 @@ const GameHistoryItem = ({ game, index }) => (
     `}
   >
     <div className="flex justify-between items-center">
-      <div>
+      <div className="space-y-1">
         <div className="text-lg font-semibold">
           {ethers.formatEther(game.amount)} GameX
         </div>
         <div className="text-sm text-secondary-400">
+          <span
+            className={game.isWin ? "text-gaming-success" : "text-gaming-error"}
+          >
+            {game.isWin ? "Won" : "Lost"}
+          </span>
+          <span className="mx-2">•</span>
           Rolled: {game.rolledNumber} | Chosen: {game.chosenNumber}
         </div>
       </div>
-      <div className="text-sm text-secondary-400">
-        {new Date(game.timestamp).toLocaleString()}
+      <div className="text-right">
+        <div className="text-sm text-secondary-400">
+          {new Date(game.timestamp * 1000).toLocaleString()}
+        </div>
+        <div className="text-xs text-secondary-500 mt-1">
+          {game.isWin
+            ? `Won ${ethers.formatEther(BigInt(game.amount) * 6n)} GameX`
+            : "No Payout"}
+        </div>
       </div>
     </div>
   </motion.div>
 );
-
-// Environment variables
-const DICE_CONTRACT_ADDRESS = process.env.REACT_APP_DICE_GAME_ADDRESS;
-const TOKEN_CONTRACT_ADDRESS = process.env.REACT_APP_TOKEN_ADDRESS;
-
-// Add console logs for debugging
-console.log("DICE_CONTRACT_ADDRESS:", DICE_CONTRACT_ADDRESS);
-console.log("TOKEN_CONTRACT_ADDRESS:", TOKEN_CONTRACT_ADDRESS);
 
 // Enhanced GameComponent with better state management and polling
 const GameComponent = ({
@@ -670,241 +899,221 @@ const GameComponent = ({
   addToast,
 }) => {
   const [chosenNumber, setChosenNumber] = useState(null);
-  const [betAmount, setBetAmount] = useState(
-    window.BigInt(ethers.parseEther("0.01").toString())
-  );
+  const [betAmount, setBetAmount] = useState(BigInt(1e18)); // 1 token default
+  const [isLoading, setIsLoading] = useState(false);
+  const [userBalance, setUserBalance] = useState("0");
   const [gameState, setGameState] = useState({
     isActive: false,
-    status: 0, // GameStatus enum
-    chosenNumber: 0,
-    amount: 0,
+    requestId: null,
+    status: "PENDING",
+    result: null,
     timestamp: 0,
-    requestId: 0,
-    requestFulfilled: false,
-    requestActive: false
-  });
-  const [loading, setLoading] = useState(false);
-  const [stats, setStats] = useState({
-    winRate: 0,
-    averageBet: 0,
-    totalGamesWon: 0,
-    totalGamesLost: 0
   });
 
-  // Function to fetch game status
-  const fetchGameStatus = async () => {
+  // Initialize and cleanup game state
+  useEffect(() => {
+    if (!diceContract || !account) return;
+
+    const init = async () => {
+      try {
+        await updateGameState();
+        await updateBalance();
+      } catch (error) {
+        console.error("Error initializing game:", error);
+        onError(error);
+      }
+    };
+
+    init();
+    const interval = setInterval(init, 5000); // Poll every 5 seconds
+    return () => clearInterval(interval);
+  }, [diceContract, account]);
+
+  // Update user balance
+  const updateBalance = async () => {
+    if (!tokenContract || !account) return;
     try {
-      const [isActive, status, chosenNumber, amount, timestamp] = 
+      const balance = await tokenContract.balanceOf(account);
+      setUserBalance(balance.toString());
+    } catch (error) {
+      console.error("Error updating balance:", error);
+    }
+  };
+
+  // Update game state
+  const updateGameState = async () => {
+    if (!diceContract || !account) return;
+    try {
+      const [isActive, status, chosenNum, amount, timestamp] =
         await diceContract.getGameStatus(account);
-      const [requestId, requestFulfilled, requestActive] = 
+
+      const [requestId, requestFulfilled, requestActive] =
         await diceContract.getCurrentRequestDetails(account);
-      
+
       setGameState({
         isActive,
-        status,
-        chosenNumber: Number(chosenNumber),
-        amount: amount.toString(),
+        requestId: requestId.toString(),
+        status: [
+          "PENDING",
+          "STARTED",
+          "COMPLETED_WIN",
+          "COMPLETED_LOSS",
+          "CANCELLED",
+        ][status],
+        result: status > 1 ? chosenNum : null,
         timestamp: Number(timestamp),
-        requestId,
-        requestFulfilled,
-        requestActive
       });
-    } catch (err) {
-      console.error("Error fetching game status:", err);
-    }
-  };
 
-  // Function to fetch player stats
-  const fetchPlayerStats = async () => {
-    try {
-      const [winRate, averageBet, totalGamesWon, totalGamesLost] = 
-        await diceContract.getPlayerStats(account);
-      
-      // Handle BigNumber conversions safely
-      setStats({
-        winRate: Number(winRate) / 100, // Convert basis points to percentage
-        averageBet: averageBet.toString(), // Keep as string to avoid overflow
-        totalGamesWon: Number(totalGamesWon),
-        totalGamesLost: Number(totalGamesLost)
-      });
-    } catch (err) {
-      console.error("Error fetching player stats:", err);
-      // Set default values on error
-      setStats({
-        winRate: 0,
-        averageBet: "0",
-        totalGamesWon: 0,
-        totalGamesLost: 0
-      });
-    }
-  };
-
-  // Enhanced handlePlay function
-  const handlePlay = async () => {
-    if (!validatePlay()) return;
-
-    setLoading(true);
-    try {
-      // Check allowance and approve if needed
-      const currentAllowance = await tokenContract.allowance(account, diceContract.address);
-      if (currentAllowance < betAmount) {
-        const approveTx = await tokenContract.approve(diceContract.address, betAmount);
-        await approveTx.wait();
-        addToast("Token approval successful!", "success");
+      // Start monitoring if there's an active request
+      if (isActive && requestActive && !requestFulfilled) {
+        startRequestMonitoring(requestId.toString());
       }
-
-      // Place bet and get requestId
-      const tx = await diceContract.playDice(chosenNumber, betAmount);
-      const receipt = await tx.wait();
-      
-      // Find RequestId event from transaction receipt
-      const requestId = receipt.events.find(e => e.event === "RequestSent")?.args?.requestId;
-      addToast("Bet placed successfully! Waiting for random number...", "success");
-
-      // Update game state
-      await fetchGameStatus();
-    } catch (err) {
-      addToast(err.message, "error");
-      onError(err);
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error("Error updating game state:", error);
     }
   };
 
-  // Function to resolve game
-  const handleResolve = async () => {
-    if (!gameState.requestFulfilled) {
-      addToast("Random number not ready yet", "error");
+  // Monitor VRF request
+  const startRequestMonitoring = (requestId) => {
+    const checkRequest = async () => {
+      try {
+        const isActive = await diceContract.isRequestActive(requestId);
+        if (!isActive) {
+          await updateGameState();
+          await updateBalance();
+          return;
+        }
+        setTimeout(checkRequest, 2000);
+      } catch (error) {
+        console.error("Error monitoring request:", error);
+      }
+    };
+    checkRequest();
+  };
+
+  // Handle bet placement
+  const handleBet = async () => {
+    if (!chosenNumber || betAmount <= 0) {
+      addToast("Please select a number and bet amount", "error");
       return;
     }
 
     try {
-      setLoading(true);
-      const tx = await diceContract.resolveGame();
-      await tx.wait();
-      addToast("Game resolved successfully!", "success");
-      
-      // Refresh game state and stats
-      await Promise.all([
-        fetchGameStatus(),
-        fetchPlayerStats()
-      ]);
-    } catch (err) {
-      addToast(err.message, "error");
-      onError(err);
+      setIsLoading(true);
+
+      // Check if user can start new game
+      const canStart = await diceContract.canStartNewGame(account);
+      if (!canStart) {
+        throw new Error("Cannot start new game - active game exists");
+      }
+
+      // Check balance
+      const balance = await tokenContract.balanceOf(account);
+      if (balance < betAmount) {
+        throw new Error("Insufficient balance");
+      }
+
+      // Check/Request token approval
+      const allowance = await tokenContract.allowance(
+        account,
+        diceContract.address
+      );
+      if (allowance < betAmount) {
+        addToast("Approving tokens...", "info");
+        const approveTx = await tokenContract.approve(
+          diceContract.address,
+          betAmount
+        );
+        await approveTx.wait();
+        addToast("Tokens approved!", "success");
+      }
+
+      // Place bet
+      addToast("Placing bet...", "info");
+      const tx = await diceContract.playDice(chosenNumber, betAmount);
+      const receipt = await tx.wait();
+
+      // Find requestId from events
+      const requestId = receipt.events
+        .find((e) => e.event === "RequestSent")
+        ?.args?.requestId.toString();
+
+      setGameState((prev) => ({
+        ...prev,
+        isActive: true,
+        requestId,
+        status: "STARTED",
+      }));
+
+      addToast("Bet placed! Waiting for result...", "success");
+      startRequestMonitoring(requestId);
+    } catch (error) {
+      console.error("Error placing bet:", error);
+      onError(error);
+      addToast(error.message, "error");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
-
-  // Validation function
-  const validatePlay = () => {
-    if (!chosenNumber) {
-      addToast("Please select a number", "error");
-      return false;
-    }
-    if (chosenNumber < 1 || chosenNumber > 6) {
-      addToast("Invalid number selected", "error");
-      return false;
-    }
-    if (!betAmount || betAmount <= 0) {
-      addToast("Invalid bet amount", "error");
-      return false;
-    }
-    if (gameState.isActive) {
-      addToast("You have an active game", "error");
-      return false;
-    }
-    return true;
-  };
-
-  // Polling effect for game state
-  useEffect(() => {
-    if (account && diceContract) {
-      fetchGameStatus();
-      fetchPlayerStats();
-      
-      const interval = setInterval(() => {
-        fetchGameStatus();
-      }, 5000);
-
-      return () => clearInterval(interval);
-    }
-  }, [account, diceContract]);
 
   return (
-    <div className="game-container space-y-8">
-      <div className="stats-panel grid grid-cols-2 gap-4">
-        <StatCard
-          title="Win Rate"
-          value={`${Number(stats.winRate).toFixed(2)}%`}
-          color={Number(stats.winRate) > 50 ? 'success' : 'primary'}
-        />
-        <StatCard
-          title="Average Bet"
-          value={`${ethers.formatEther(stats.averageBet || "0")} GameX`}
-        />
-        <StatCard
-          title="Games Won"
-          value={stats.totalGamesWon || 0}
-          color="success"
-        />
-        <StatCard
-          title="Games Lost"
-          value={stats.totalGamesLost || 0}
-          color="error"
-        />
+    <div className="space-y-8">
+      <NumberSelector
+        value={chosenNumber}
+        onChange={setChosenNumber}
+        disabled={isLoading || gameState.isActive}
+      />
+
+      <BetInput
+        value={betAmount}
+        onChange={setBetAmount}
+        min="1"
+        userBalance={userBalance}
+        disabled={isLoading || gameState.isActive}
+      />
+
+      <div className="flex justify-center">
+        <button
+          onClick={handleBet}
+          disabled={
+            isLoading || gameState.isActive || !chosenNumber || betAmount <= 0
+          }
+          className={`
+            px-8 py-4 rounded-xl text-lg font-bold
+            ${
+              isLoading || gameState.isActive
+                ? "bg-secondary-700 cursor-not-allowed"
+                : "bg-gaming-primary hover:bg-gaming-primary-dark"
+            }
+            transition-colors duration-200
+          `}
+        >
+          {isLoading
+            ? "Processing..."
+            : gameState.isActive
+            ? "Game in Progress"
+            : "Roll Dice"}
+        </button>
       </div>
 
-      <div className="game-controls space-y-6">
-        <NumberSelector
-          value={chosenNumber}
-          onChange={setChosenNumber}
-          disabled={loading || gameState.isActive}
-        />
+      <DiceVisualizer
+        chosenNumber={chosenNumber}
+        isRolling={gameState.status === "STARTED"}
+        result={gameState.result}
+      />
 
-        <BetInput
-          value={betAmount}
-          onChange={setBetAmount}
-          disabled={loading || gameState.isActive}
-        />
-
-        <div className="flex flex-col gap-4">
-          <button
-            onClick={handlePlay}
-            disabled={loading || gameState.isActive}
-            className="btn-gaming-primary"
-          >
-            {loading ? "Processing..." : "Place Bet"}
-          </button>
-
-          {gameState.isActive && (
-            <button
-              onClick={handleResolve}
-              disabled={loading || !gameState.requestFulfilled}
-              className="btn-gaming-secondary"
-            >
-              {loading ? "Processing..." : "Resolve Game"}
-            </button>
-          )}
+      {/* Game Status */}
+      {gameState.isActive && (
+        <div className="text-center space-y-2">
+          <StatusIndicator
+            status={gameState.status}
+            isActive={gameState.status === "STARTED"}
+          />
+          <p className="text-sm text-secondary-400">
+            Request ID: {gameState.requestId}
+          </p>
         </div>
-
-        {gameState.isActive && (
-          <div className="game-status-panel p-4 rounded-lg bg-gaming-surface">
-            <h3 className="text-lg font-bold mb-2">Current Game Status</h3>
-            <div className="space-y-2">
-              <p>Status: {['Pending', 'Started', 'Won', 'Lost', 'Cancelled'][gameState.status]}</p>
-              <p>Chosen Number: {gameState.chosenNumber}</p>
-              <p>Bet Amount: {ethers.formatEther(gameState.amount)} GameX</p>
-              {gameState.requestActive && !gameState.requestFulfilled && (
-                <p className="text-gaming-accent animate-pulse">
-                  Waiting for random number...
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 };
@@ -931,48 +1140,114 @@ const StatusIndicator = ({ status, isActive }) => (
 );
 
 // Enhanced GameStatus component
-const GameStatus = ({ diceContract, account, onError }) => {
-  const [gameState, setGameState] = useState(null);
-  const [loading, setLoading] = useState(true);
+const GameStatus = ({ diceContract, account, onStatusChange, onError }) => {
+  const [gameState, setGameState] = useState({
+    isActive: false,
+    status: "PENDING",
+    chosenNumber: 0,
+    amount: "0",
+    timestamp: 0,
+    hasPendingRequest: false,
+    result: null,
+    payout: "0",
+    lastUpdate: Date.now(),
+  });
+
+  const [monitoringActive, setMonitoringActive] = useState(true);
+
+  const checkStatus = useCallback(async () => {
+    if (!diceContract || !account) return;
+
+    try {
+      const [status, hasPending, currentGame] = await Promise.all([
+        diceContract.getGameStatus(account),
+        diceContract.hasPendingRequest(account),
+        diceContract.getCurrentGame(account),
+      ]);
+
+      const newStatus = {
+        isActive: status.isActive,
+        status: getStatusText(status.status),
+        chosenNumber: Number(status.chosenNumber),
+        amount: status.amount.toString(),
+        timestamp: Number(status.timestamp),
+        hasPendingRequest: hasPending,
+        result: Number(currentGame.result),
+        payout: currentGame.payout.toString(),
+        lastUpdate: Date.now(),
+      };
+
+      if (JSON.stringify(newStatus) !== JSON.stringify(gameState)) {
+        setGameState(newStatus);
+        onStatusChange?.(newStatus);
+
+        if (isGameCompleted(status.status)) {
+          setMonitoringActive(false);
+        }
+      }
+    } catch (error) {
+      console.error("Error checking game status:", error);
+      onError?.(error);
+      setMonitoringActive(false);
+    }
+  }, [diceContract, account, gameState, onStatusChange, onError]);
+
+  const getStatusText = (statusEnum) =>
+    ({
+      0: "PENDING",
+      1: "STARTED",
+      2: "COMPLETED_WIN",
+      3: "COMPLETED_LOSS",
+      4: "CANCELLED",
+    }[statusEnum] || "UNKNOWN");
+
+  const isGameCompleted = (statusEnum) =>
+    [2, 3, 4].includes(Number(statusEnum));
 
   useEffect(() => {
-    const fetchGameStatus = async () => {
-      if (!diceContract || !account) {
-        setLoading(false);
-        return;
-      }
+    setMonitoringActive(true);
+    setGameState((prev) => ({
+      ...prev,
+      isActive: false,
+      status: "PENDING",
+      lastUpdate: Date.now(),
+    }));
+  }, [account]);
 
-      try {
-        const [isActive, status, chosenNumber, amount, timestamp] = 
-          await diceContract.getGameStatus(account);
-        
-        setGameState({
-          isActive,
-          status: ['PENDING', 'STARTED', 'COMPLETED_WIN', 'COMPLETED_LOSS', 'CANCELLED'][status],
-          chosenNumber: Number(chosenNumber),
-          amount: amount.toString(),
-          timestamp: Number(timestamp)
-        });
-      } catch (err) {
-        console.error("Error fetching game status:", err);
-        onError(err);
-      } finally {
-        setLoading(false);
-      }
+  useEffect(() => {
+    if (!monitoringActive) return;
+
+    const checkInterval = async () => {
+      await checkStatus();
     };
 
-    fetchGameStatus();
-    const interval = setInterval(fetchGameStatus, 5000);
+    checkInterval();
+    const interval = setInterval(checkInterval, 3000);
+
     return () => clearInterval(interval);
-  }, [diceContract, account]);
+  }, [checkStatus, monitoringActive]);
 
-  if (loading) {
-    return <LoadingSpinner message="Loading game status..." />;
-  }
+  useEffect(() => {
+    if (!diceContract || !account) return;
 
-  if (!gameState) {
-    return null;
-  }
+    const filters = {
+      gameStarted: diceContract.filters.GameStarted(account),
+      gameCompleted: diceContract.filters.GameCompleted(account),
+      gameCancelled: diceContract.filters.GameCancelled(account),
+    };
+
+    const handleGameEvent = () => checkStatus();
+
+    Object.values(filters).forEach((filter) => {
+      diceContract.on(filter, handleGameEvent);
+    });
+
+    return () => {
+      Object.values(filters).forEach((filter) => {
+        diceContract.off(filter, handleGameEvent);
+      });
+    };
+  }, [diceContract, account, checkStatus]);
 
   return (
     <div className="glass-panel p-6 rounded-xl space-y-4">
@@ -980,21 +1255,18 @@ const GameStatus = ({ diceContract, account, onError }) => {
       <div className="grid grid-cols-2 gap-4">
         <StatCard
           title="Status"
-          value={gameState.status.replace('_', ' ')}
+          value={gameState.status.replace("_", " ")}
           color={
-            gameState.status === 'COMPLETED_WIN' 
-              ? 'success' 
-              : gameState.status === 'COMPLETED_LOSS' 
-                ? 'error' 
-                : 'primary'
+            gameState.status === "COMPLETED_WIN"
+              ? "success"
+              : gameState.status === "COMPLETED_LOSS"
+              ? "error"
+              : "primary"
           }
         />
         {gameState.isActive && (
           <>
-            <StatCard
-              title="Chosen Number"
-              value={gameState.chosenNumber}
-            />
+            <StatCard title="Chosen Number" value={gameState.chosenNumber} />
             <StatCard
               title="Bet Amount"
               value={`${ethers.formatEther(gameState.amount)} GameX`}
@@ -1003,6 +1275,22 @@ const GameStatus = ({ diceContract, account, onError }) => {
               title="Time"
               value={new Date(gameState.timestamp * 1000).toLocaleString()}
             />
+            {gameState.result > 0 && (
+              <StatCard
+                title="Result"
+                value={gameState.result}
+                color={
+                  gameState.status === "COMPLETED_WIN" ? "success" : "error"
+                }
+              />
+            )}
+            {gameState.payout !== "0" && (
+              <StatCard
+                title="Payout"
+                value={`${ethers.formatEther(gameState.payout)} GameX`}
+                color="success"
+              />
+            )}
           </>
         )}
       </div>
@@ -1013,10 +1301,15 @@ const GameStatus = ({ diceContract, account, onError }) => {
 // PlayerStats Component
 const PlayerStats = ({ diceContract, account, onError }) => {
   const [stats, setStats] = useState({
+    totalGamesWon: 0,
+    totalGamesLost: 0,
+    previousBets: [],
     winRate: 0,
     averageBet: "0",
-    totalGamesWon: 0,
-    totalGamesLost: 0
+    biggestWin: "0",
+    totalBets: "0",
+    totalWinnings: "0",
+    totalLosses: "0",
   });
 
   useEffect(() => {
@@ -1024,33 +1317,46 @@ const PlayerStats = ({ diceContract, account, onError }) => {
       if (!diceContract || !account) return;
 
       try {
-        const [winRate, averageBet, totalGamesWon, totalGamesLost] = 
-          await diceContract.getPlayerStats(account);
+        // Fetch all stats in parallel
+        const [playerStats, previousBets, userData] = await Promise.all([
+          diceContract.getPlayerStats(account),
+          diceContract.getPreviousBets(account),
+          diceContract.getUserData(account),
+        ]);
 
-        // Safely handle BigInt conversions
-        const formattedStats = {
-          // winRate comes in basis points (100 = 1%), so divide by 100
-          winRate: Number(winRate) / 100,
-          
-          // Keep averageBet as string to avoid overflow
-          averageBet: averageBet.toString(),
-          
-          // Convert game counts safely
+        // Calculate derived statistics
+        const [totalGamesWon, totalGamesLost] = playerStats;
+        const totalGames = totalGamesWon + totalGamesLost;
+        const winRate = totalGames > 0 ? (totalGamesWon * 100) / totalGames : 0;
+
+        // Find biggest win from previous bets
+        const biggestWin = previousBets.reduce((max, bet) => {
+          if (bet.chosenNumber.toString() === bet.rolledNumber.toString()) {
+            return bet.amount > max ? bet.amount : max;
+          }
+          return max;
+        }, BigInt(0));
+
+        // Calculate average bet
+        const averageBet =
+          previousBets.length > 0
+            ? (userData.totalBets / BigInt(previousBets.length)).toString()
+            : "0";
+
+        setStats({
           totalGamesWon: Number(totalGamesWon),
-          totalGamesLost: Number(totalGamesLost)
-        };
-
-        setStats(formattedStats);
+          totalGamesLost: Number(totalGamesLost),
+          previousBets,
+          winRate,
+          averageBet,
+          biggestWin: biggestWin.toString(),
+          totalBets: userData.totalBets.toString(),
+          totalWinnings: userData.totalWinnings.toString(),
+          totalLosses: userData.totalLosses.toString(),
+        });
       } catch (error) {
         console.error("Error fetching player stats:", error);
         onError(error);
-        // Set safe default values on error
-        setStats({
-          winRate: 0,
-          averageBet: "0",
-          totalGamesWon: 0,
-          totalGamesLost: 0
-        });
       }
     };
 
@@ -1062,64 +1368,78 @@ const PlayerStats = ({ diceContract, account, onError }) => {
 
   return (
     <div className="glass-panel p-6 rounded-xl">
-      <h2 className="text-2xl font-bold text-white/90 mb-6">Player Statistics</h2>
-      <div className="grid grid-cols-2 gap-4">
+      <h2 className="text-2xl font-bold text-white/90 mb-6">
+        Player Statistics
+      </h2>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <StatCard
           title="Win Rate"
           value={`${stats.winRate.toFixed(2)}%`}
-          color={stats.winRate > 50 ? 'success' : 'primary'}
+          color={stats.winRate > 50 ? "success" : "primary"}
+        />
+        <StatCard
+          title="Total Games Won"
+          value={stats.totalGamesWon}
+          color="success"
+        />
+        <StatCard
+          title="Total Games Lost"
+          value={stats.totalGamesLost}
+          color="error"
         />
         <StatCard
           title="Average Bet"
           value={`${ethers.formatEther(stats.averageBet)} GameX`}
         />
         <StatCard
-          title="Games Won"
-          value={stats.totalGamesWon}
+          title="Biggest Win"
+          value={`${ethers.formatEther(stats.biggestWin)} GameX`}
           color="success"
         />
         <StatCard
-          title="Games Lost"
-          value={stats.totalGamesLost}
-          color="error"
+          title="Total Wagered"
+          value={`${ethers.formatEther(stats.totalBets)} GameX`}
         />
       </div>
+
+      {/* Recent Bets History */}
+      {stats.previousBets.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold text-white/80 mb-4">
+            Recent Bets
+          </h3>
+          <div className="space-y-2">
+            {stats.previousBets.slice(-5).map((bet, index) => (
+              <div
+                key={index}
+                className={`flex items-center justify-between p-3 rounded-lg ${
+                  bet.chosenNumber.toString() === bet.rolledNumber.toString()
+                    ? "bg-gaming-success/10 border border-gaming-success/20"
+                    : "bg-gaming-error/10 border border-gaming-error/20"
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-secondary-400">
+                    {new Date(
+                      Number(bet.timestamp) * 1000
+                    ).toLocaleTimeString()}
+                  </span>
+                  <span>
+                    Rolled: {bet.rolledNumber.toString()} | Chosen:{" "}
+                    {bet.chosenNumber.toString()}
+                  </span>
+                </div>
+                <span className="font-medium">
+                  {ethers.formatEther(bet.amount)} GameX
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-
-const StatCard = ({ title, value, icon, color = "primary" }) => (
-  <div
-    className={`
-    p-4 rounded-xl border backdrop-blur-sm
-    ${
-      color === "success"
-        ? "border-gaming-success/20 bg-gaming-success/5"
-        : color === "error"
-        ? "border-gaming-error/20 bg-gaming-error/5"
-        : "border-gaming-primary/20 bg-gaming-primary/5"
-    }
-  `}
-  >
-    <div className="flex items-center gap-2 mb-2">
-      <span className="text-2xl">{icon}</span>
-      <span className="text-sm text-secondary-400">{title}</span>
-    </div>
-    <div className="text-lg font-bold">
-      <span
-        className={
-          color === "success"
-            ? "text-gaming-success"
-            : color === "error"
-            ? "text-gaming-error"
-            : "text-gaming-primary"
-        }
-      >
-        {value}
-      </span>
-    </div>
-  </div>
-);
 
 
 // AdminPanel Component
@@ -1363,75 +1683,392 @@ const steps = [
 ];
 
 // New Game Statistics Panel
-const GameStats = ({ gameData }) => {
-  return (
-    <div className="stats-panel glass-effect p-6 rounded-xl">
-      <h3 className="text-xl font-bold mb-4 text-primary-100">
-        Game Statistics
-      </h3>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <p className="text-secondary-400">Total Bets</p>
-          <p className="text-2xl font-bold text-primary-100">
-            {gameData.totalBets}
-          </p>
-        </div>
-        <div>
-          <p className="text-secondary-400">Total Volume</p>
-          <p className="text-2xl font-bold text-primary-100">
-            {ethers.formatEther(gameData.totalVolume)} GameX
-          </p>
-        </div>
-        <div>
-          <p className="text-secondary-400">Largest Win</p>
-          <p className="text-2xl font-bold text-success-500">
-            {ethers.formatEther(gameData.largestWin)} GameX
-          </p>
-        </div>
-        <div>
-          <p className="text-secondary-400">House Edge</p>
-          <p className="text-2xl font-bold text-primary-100">
-            {gameData.houseEdge}%
-          </p>
-        </div>
+const GameStats = ({ diceContract, account }) => {
+  const [stats, setStats] = useState({
+    totalGames: 0,
+    totalBets: "0",
+    totalWinnings: "0",
+    totalLosses: "0",
+    winRate: 0,
+    biggestWin: "0",
+    lastPlayed: 0,
+    recentResults: []
+  });
+
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!diceContract || !account) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // Fetch user data from contract
+        const [gameData, previousBets] = await Promise.all([
+          diceContract.getUserData(account),
+          diceContract.getPreviousBets(account)
+        ]);
+
+        // Calculate win rate
+        const gamesWon = previousBets.filter(
+          bet => bet.chosenNumber.toString() === bet.rolledNumber.toString()
+        ).length;
+        const winRate = previousBets.length > 0 
+          ? (gamesWon / previousBets.length) * 100 
+          : 0;
+
+        // Find biggest win
+        const biggestWin = previousBets.reduce((max, bet) => {
+          if (bet.chosenNumber.toString() === bet.rolledNumber.toString()) {
+            return bet.amount > max ? bet.amount : max;
+          }
+          return max;
+        }, BigInt(0));
+
+        setStats({
+          totalGames: Number(gameData.totalGames),
+          totalBets: gameData.totalBets.toString(),
+          totalWinnings: gameData.totalWinnings.toString(),
+          totalLosses: gameData.totalLosses.toString(),
+          winRate: Number(winRate.toFixed(2)),
+          biggestWin: biggestWin.toString(),
+          lastPlayed: Number(gameData.lastPlayed),
+          recentResults: previousBets.slice(-5).reverse() // Get last 5 results
+        });
+      } catch (error) {
+        console.error("Error fetching game stats:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStats();
+    const interval = setInterval(fetchStats, 10000); // Update every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [diceContract, account]);
+
+  if (isLoading) {
+    return (
+      <div className="glass-panel p-6 rounded-xl animate-pulse">
+        <div className="h-48 bg-secondary-800/50 rounded-xl"></div>
       </div>
+    );
+  }
+
+  return (
+    <div className="glass-panel p-6 rounded-xl space-y-6">
+      <h2 className="text-2xl font-bold text-white/90">Game Statistics</h2>
+      
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Main Stats */}
+        <StatCard
+          title="Total Games"
+          value={stats.totalGames.toLocaleString()}
+          icon="🎲"
+        />
+        <StatCard
+          title="Win Rate"
+          value={`${stats.winRate}%`}
+          icon="📈"
+          color={stats.winRate > 50 ? "success" : "primary"}
+        />
+        <StatCard
+          title="Total Wagered"
+          value={`${ethers.formatEther(stats.totalBets)} GameX`}
+          icon="💰"
+        />
+        <StatCard
+          title="Biggest Win"
+          value={`${ethers.formatEther(stats.biggestWin)} GameX`}
+          icon="🏆"
+          color="success"
+        />
+      </div>
+
+      {/* Profit/Loss Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <StatCard
+          title="Total Winnings"
+          value={`${ethers.formatEther(stats.totalWinnings)} GameX`}
+          icon="✨"
+          color="success"
+        />
+        <StatCard
+          title="Total Losses"
+          value={`${ethers.formatEther(stats.totalLosses)} GameX`}
+          icon="📉"
+          color="error"
+        />
+      </div>
+
+      {/* Recent Results */}
+      {stats.recentResults.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-white/80">Recent Results</h3>
+          <div className="grid gap-2">
+            {stats.recentResults.map((result, index) => (
+              <div
+                key={index}
+                className={`flex items-center justify-between p-3 rounded-lg
+                  ${
+                    result.chosenNumber.toString() === result.rolledNumber.toString()
+                      ? "bg-gaming-success/10 border border-gaming-success/20"
+                      : "bg-gaming-error/10 border border-gaming-error/20"
+                  }`}
+              >
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-secondary-400">
+                    {new Date(Number(result.timestamp) * 1000).toLocaleTimeString()}
+                  </span>
+                  <span>
+                    Rolled: {result.rolledNumber.toString()} | 
+                    Chosen: {result.chosenNumber.toString()}
+                  </span>
+                </div>
+                <span className="font-medium">
+                  {ethers.formatEther(result.amount)} GameX
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Last Played */}
+      {stats.lastPlayed > 0 && (
+        <div className="text-sm text-secondary-400 text-right">
+          Last played: {new Date(stats.lastPlayed * 1000).toLocaleString()}
+        </div>
+      )}
     </div>
   );
 };
 
+// Helper StatCard component (can be moved to a separate file)
+const StatCard = ({ title, value, icon, color = "primary" }) => (
+  <div
+    className={`
+      p-4 rounded-xl border backdrop-blur-sm
+      ${
+        color === "success"
+          ? "border-gaming-success/20 bg-gaming-success/5"
+          : color === "error"
+          ? "border-gaming-error/20 bg-gaming-error/5"
+          : "border-gaming-primary/20 bg-gaming-primary/5"
+      }
+    `}
+  >
+    <div className="flex items-center gap-2 mb-2">
+      <span className="text-2xl">{icon}</span>
+      <span className="text-sm text-secondary-400">{title}</span>
+    </div>
+    <div className="text-lg font-bold">
+      <span
+        className={
+          color === "success"
+            ? "text-gaming-success"
+            : color === "error"
+            ? "text-gaming-error"
+            : "text-gaming-primary"
+        }
+      >
+        {value}
+      </span>
+    </div>
+  </div>
+);
 
 
 // New Game Controls Component
-const GameControls = ({ onRoll, isRolling, canRoll }) => {
-  return (
-    <div className="flex flex-col items-center space-y-6 mt-12">
-      <button
-        onClick={onRoll}
-        disabled={!canRoll || isRolling}
-        className={`
-          w-full sm:w-auto px-8 py-4 rounded-xl font-bold text-lg
-          transition-all duration-300 transform
-          ${
-            canRoll && !isRolling
-              ? "bg-primary-500 hover:bg-primary-400 hover:scale-105"
-              : "bg-secondary-700 cursor-not-allowed opacity-50"
-          }
-          ${isRolling ? "animate-pulse" : ""}
-        `}
-      >
-        {isRolling ? (
-          <div className="flex items-center space-x-2">
-            <span>Rolling</span>
-            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-          </div>
-        ) : (
-          "Roll Dice"
-        )}
-      </button>
+const GameControls = ({ 
+  diceContract, 
+  tokenContract, 
+  account, 
+  chosenNumber, 
+  betAmount, 
+  isRolling,
+  onError,
+  addToast,
+  disabled
+}) => {
+  const [gameState, setGameState] = useState({
+    canPlay: false,
+    isProcessing: false,
+    requestId: null,
+    needsResolution: false
+  });
 
-      {!canRoll && (
+  // Check if player can start a new game
+  useEffect(() => {
+    const checkGameState = async () => {
+      if (!diceContract || !account) return;
+
+      try {
+        const [canStart, currentRequest] = await Promise.all([
+          diceContract.canStartNewGame(account),
+          diceContract.getCurrentRequestDetails(account)
+        ]);
+
+        setGameState(prev => ({
+          ...prev,
+          canPlay: canStart,
+          needsResolution: currentRequest.requestFulfilled && !currentRequest.requestActive,
+          requestId: currentRequest.requestId
+        }));
+      } catch (error) {
+        console.error("Error checking game state:", error);
+        onError(error);
+      }
+    };
+
+    checkGameState();
+    const interval = setInterval(checkGameState, 5000);
+    return () => clearInterval(interval);
+  }, [diceContract, account]);
+
+  // Handle placing bet
+  const handleRoll = async () => {
+    if (!diceContract || !account || !chosenNumber || !betAmount) return;
+
+    try {
+      setGameState(prev => ({ ...prev, isProcessing: true }));
+      addToast("Initiating game...", "info");
+
+      // Check allowance and approve if needed
+      const allowance = await tokenContract.allowance(account, diceContract.address);
+      if (allowance < betAmount) {
+        addToast("Approving tokens...", "info");
+        const approveTx = await tokenContract.approve(diceContract.address, betAmount);
+        await approveTx.wait();
+        addToast("Tokens approved!", "success");
+      }
+
+      // Place bet
+      addToast("Placing bet...", "info");
+      const tx = await diceContract.playDice(chosenNumber, betAmount);
+      const receipt = await tx.wait();
+
+      // Find requestId from events
+      const requestId = receipt.events
+        .find(e => e.event === "RequestSent")
+        ?.args?.requestId.toString();
+
+      if (requestId) {
+        setGameState(prev => ({ 
+          ...prev, 
+          requestId,
+          isProcessing: false,
+          canPlay: false 
+        }));
+        addToast("Bet placed! Waiting for result...", "success");
+      }
+    } catch (error) {
+      console.error("Error placing bet:", error);
+      onError(error);
+      setGameState(prev => ({ ...prev, isProcessing: false }));
+    }
+  };
+
+  // Handle resolving game
+  const handleResolve = async () => {
+    if (!diceContract || !account) return;
+
+    try {
+      setGameState(prev => ({ ...prev, isProcessing: true }));
+      addToast("Resolving game...", "info");
+
+      const tx = await diceContract.resolveGame();
+      await tx.wait();
+
+      setGameState(prev => ({ 
+        ...prev, 
+        isProcessing: false,
+        needsResolution: false,
+        requestId: null
+      }));
+      addToast("Game resolved!", "success");
+    } catch (error) {
+      console.error("Error resolving game:", error);
+      onError(error);
+      setGameState(prev => ({ ...prev, isProcessing: false }));
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center space-y-6">
+      {/* Game Status */}
+      {gameState.requestId && (
+        <div className="text-sm text-secondary-400">
+          Request ID: {gameState.requestId}
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="flex gap-4">
+        {gameState.needsResolution ? (
+          <button
+            onClick={handleResolve}
+            disabled={gameState.isProcessing}
+            className={`
+              px-8 py-4 rounded-xl font-bold text-lg
+              ${gameState.isProcessing
+                ? "bg-secondary-700 cursor-not-allowed opacity-50"
+                : "bg-gaming-success hover:bg-gaming-success/80"}
+              transition-all duration-300 transform hover:scale-105
+            `}
+          >
+            {gameState.isProcessing ? (
+              <div className="flex items-center space-x-2">
+                <span>Resolving</span>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+              </div>
+            ) : (
+              "Resolve Game"
+            )}
+          </button>
+        ) : (
+          <button
+            onClick={handleRoll}
+            disabled={
+              disabled ||
+              gameState.isProcessing ||
+              !gameState.canPlay ||
+              !chosenNumber ||
+              !betAmount
+            }
+            className={`
+              px-8 py-4 rounded-xl font-bold text-lg
+              ${disabled || gameState.isProcessing || !gameState.canPlay
+                ? "bg-secondary-700 cursor-not-allowed opacity-50"
+                : "bg-gaming-primary hover:bg-gaming-primary/80"}
+              transition-all duration-300 transform hover:scale-105
+            `}
+          >
+            {gameState.isProcessing ? (
+              <div className="flex items-center space-x-2">
+                <span>Rolling</span>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+              </div>
+            ) : (
+              "Roll Dice"
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Status Messages */}
+      {!gameState.canPlay && !gameState.needsResolution && (
         <p className="text-error-400 text-sm">
-          Please connect your wallet and select a number to roll
+          {!account
+            ? "Please connect your wallet"
+            : !chosenNumber
+            ? "Please select a number"
+            : !betAmount
+            ? "Please enter bet amount"
+            : "Game in progress"}
         </p>
       )}
     </div>
@@ -1493,183 +2130,223 @@ const Navbar = ({ account, connectWallet, loadingStates, isAdmin }) => (
 
 // Main App Component
 function App() {
-  // State management
+  // State Management
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
-  const [diceContract, setDiceContract] = useState(null);
-  const [tokenContract, setTokenContract] = useState(null);
+  const [contracts, setContracts] = useState({
+    dice: null,
+    token: null,
+  });
   const [account, setAccount] = useState("");
+  const [chainId, setChainId] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState("");
+  const [toasts, setToasts] = useState([]);
   const [loadingStates, setLoadingStates] = useState({
     provider: true,
     contracts: true,
     gameData: true,
+    wallet: false,
+    transaction: false,
   });
-  const [isCheckingAdmin, setIsCheckingAdmin] = useState(false);
-  const [toasts, setToasts] = useState([]);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
 
-  // Error handling utility
-  const handleError = (error) => {
-    console.error("Error details:", error);
+  // Enhanced Error Handling
+  const handleError = useCallback((error, context = "") => {
+    console.error(`Error in ${context}:`, error);
+    let errorMessage = "An unknown error occurred";
+
     if (error.code === 4001) {
-      return setError("Transaction rejected by user");
+      errorMessage = "Transaction rejected by user";
     } else if (error.code === -32603) {
-      return setError("Internal JSON-RPC error");
-    } else if (error.message.includes("insufficient funds")) {
-      return setError("Insufficient token balance");
-    } else if (error.message.includes("ERC20: insufficient allowance")) {
-      return setError("Token approval needed");
+      errorMessage =
+        "Internal JSON-RPC error. Please check your wallet connection.";
+    } else if (error.message?.includes("insufficient funds")) {
+      errorMessage = "Insufficient token balance for this operation";
+    } else if (error.message?.includes("ERC20: insufficient allowance")) {
+      errorMessage = "Please approve token usage before proceeding";
+    } else if (error.message?.includes("user rejected")) {
+      errorMessage = "Action cancelled by user";
+    } else if (error.message) {
+      errorMessage = error.message;
     }
-    setError(error.message);
-  };
 
-  // Provider initialization
-  const initializeProvider = async () => {
-    try {
-      if (!window.ethereum) {
-        throw new Error("No Web3 provider detected. Please install MetaMask!");
-      }
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      setProvider(provider);
-      setSigner(signer);
-      setLoadingStates((prev) => ({ ...prev, provider: false }));
-      return { provider, signer };
-    } catch (err) {
-      handleError(err);
-      setLoadingStates((prev) => ({ ...prev, provider: false }));
-      return null;
+    setError(errorMessage);
+    addToast(errorMessage, "error");
+  }, []);
+
+  // Network Validation
+  const validateNetwork = useCallback(async (provider) => {
+  try {
+    const network = await provider.getNetwork();
+    const currentChainId = Number(network.chainId); // Ensure it's a number
+    setChainId(currentChainId);
+
+    if (!SUPPORTED_CHAIN_IDS.includes(currentChainId)) {
+      throw new Error("Please switch to Amoy Testnet (Chain ID: 80002)");
     }
-  };
 
-  // Contract initialization
-  const initializeContracts = async (signer) => {
-    try {
-      if (!DICE_CONTRACT_ADDRESS || !TOKEN_CONTRACT_ADDRESS) {
-        throw new Error(
-          "Contract addresses not found in environment variables"
+    return currentChainId;
+  } catch (error) {
+    throw error;
+  }
+}, []);
+
+// Update the handleChainChanged function
+const handleChainChanged = async (newChainId) => {
+  const chainIdDec = parseInt(newChainId, 16);
+  setChainId(chainIdDec);
+
+  if (!SUPPORTED_CHAIN_IDS.includes(chainIdDec)) {
+    addToast("Please switch to Amoy Testnet (Chain ID: 80002)", "error");
+    await switchToAmoyNetwork();
+    return;
+  }
+
+  window.location.reload();
+};
+  // Contract Initialization
+  const initializeContracts = useCallback(
+    async (signer, chainId) => {
+      try {
+        if (!DICE_CONTRACT_ADDRESS || !TOKEN_CONTRACT_ADDRESS) {
+          throw new Error(
+            "Contract addresses not found in environment variables"
+          );
+        }
+
+        const diceContract = new ethers.Contract(
+          DICE_CONTRACT_ADDRESS,
+          DiceABI.abi,
+          signer
         );
+        const tokenContract = new ethers.Contract(
+          TOKEN_CONTRACT_ADDRESS,
+          TokenABI.abi,
+          signer
+        );
+
+        setContracts({
+          dice: diceContract,
+          token: tokenContract,
+        });
+
+        return { diceContract, tokenContract };
+      } catch (err) {
+        handleError(err, "initializeContracts");
+        return null;
       }
+    },
+    [handleError]
+  );
 
-      const diceContract = new ethers.Contract(
-        DICE_CONTRACT_ADDRESS,
-        DiceABI.abi,
-        signer
-      );
-      const tokenContract = new ethers.Contract(
-        TOKEN_CONTRACT_ADDRESS,
-        TokenABI.abi,
-        signer
-      );
-
-      setDiceContract(diceContract);
-      setTokenContract(tokenContract);
-      setLoadingStates((prev) => ({ ...prev, contracts: false }));
-      return { diceContract, tokenContract };
-    } catch (err) {
-      handleError(err);
-      setLoadingStates((prev) => ({ ...prev, contracts: false }));
-      return null;
-    }
-  };
-
-  // Add missing checkAdminStatus function
-  const checkAdminStatus = async (accountAddress) => {
-    if (!tokenContract || !accountAddress) return;
-
-    setIsCheckingAdmin(true);
-    try {
-      const ADMIN_ROLE = await tokenContract.DEFAULT_ADMIN_ROLE();
-      const hasRole = await tokenContract.hasRole(ADMIN_ROLE, accountAddress);
-      setIsAdmin(hasRole);
-    } catch (err) {
-      console.error("Error checking admin status:", err);
-      setIsAdmin(false);
-    } finally {
-      setIsCheckingAdmin(false);
-    }
-  };
-
-  // Update connectWallet function to handle errors better
+  // Wallet Connection
   const connectWallet = async () => {
     setLoadingStates((prev) => ({ ...prev, wallet: true }));
     setLoadingMessage("Connecting to wallet...");
+
     try {
       if (!window.ethereum) {
-        throw new Error("Please install MetaMask!");
+        throw new Error("Please install MetaMask to use this application");
       }
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      await validateNetwork(provider);
 
       const accounts = await window.ethereum.request({
         method: "eth_requestAccounts",
       });
 
-      const providerData = await initializeProvider();
-      if (!providerData) {
-        throw new Error("Failed to initialize provider");
-      }
+      const signer = await provider.getSigner();
+      setProvider(provider);
+      setSigner(signer);
 
-      const contractsData = await initializeContracts(providerData.signer);
+      const contractsData = await initializeContracts(signer);
       if (!contractsData) {
         throw new Error("Failed to initialize contracts");
       }
 
       await handleAccountsChanged(accounts);
+      addToast("Wallet connected successfully!", "success");
     } catch (err) {
-      handleError(err);
+      handleError(err, "connectWallet");
     } finally {
       setLoadingStates((prev) => ({ ...prev, wallet: false }));
       setLoadingMessage("");
     }
   };
 
-  // Update handleAccountsChanged to be more robust
+  // Account Change Handler
   const handleAccountsChanged = async (accounts) => {
     if (accounts.length === 0) {
-      setError("Please connect to MetaMask.");
       setAccount("");
       setIsAdmin(false);
+      addToast("Please connect your wallet", "warning");
     } else {
       const newAccount = accounts[0];
       setAccount(newAccount);
-      if (tokenContract) {
-        await checkAdminStatus(newAccount);
+
+      if (contracts.token) {
+        try {
+          const ADMIN_ROLE = await contracts.token.DEFAULT_ADMIN_ROLE();
+          const hasRole = await contracts.token.hasRole(ADMIN_ROLE, newAccount);
+          setIsAdmin(hasRole);
+        } catch (err) {
+          console.error("Error checking admin status:", err);
+          setIsAdmin(false);
+        }
       }
     }
   };
 
-  // Chain change handler
-  const handleChainChanged = () => {
-    window.location.reload();
-  };
+  // Network Change Handler
+  
 
-  // Update initialization useEffect
+  // Toast Management
+  const addToast = useCallback((message, type = "info") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    }, 5000);
+  }, []);
+
+  const removeToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  }, []);
+
+  // Initialization Effect
   useEffect(() => {
     const init = async () => {
       try {
-        const providerData = await initializeProvider();
-        if (!providerData) return;
-
-        const contractsData = await initializeContracts(providerData.signer);
-        if (!contractsData) return;
-
         if (window.ethereum) {
+          const provider = new ethers.BrowserProvider(window.ethereum);
+          const chainId = await validateNetwork(provider);
+          const signer = await provider.getSigner();
+
+          setProvider(provider);
+          setSigner(signer);
+
+          const contractsData = await initializeContracts(signer, chainId);
+          if (!contractsData) return;
+
           const accounts = await window.ethereum.request({
             method: "eth_accounts",
           });
+
           if (accounts.length > 0) {
             await handleAccountsChanged(accounts);
           }
         }
       } catch (err) {
-        handleError(err);
+        handleError(err, "initialization");
       } finally {
         setLoadingStates({
           provider: false,
           contracts: false,
           gameData: false,
+          wallet: false,
+          transaction: false,
         });
       }
     };
@@ -1688,53 +2365,14 @@ function App() {
         window.ethereum.removeListener("chainChanged", handleChainChanged);
       };
     }
-  }, []);
+  }, [handleError, initializeContracts, validateNetwork]);
 
-  // Close mobile menu when screen size changes to desktop
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 640) {
-        setMobileMenuOpen(false);
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
-  }, []);
-
-  // Close mobile menu when route changes
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, []);
-
-  // Loading state check
+  // Loading State Check
   if (Object.values(loadingStates).some((state) => state)) {
-    return (
-      <div className="min-h-screen bg-secondary-900 flex items-center justify-center">
-        <div className="card animate-pulse p-8 max-w-md w-full">
-          <h2 className="text-2xl font-display text-primary-400 mb-4">
-            Loading...
-          </h2>
-          {loadingStates.provider && (
-            <p className="text-secondary-300 mb-2">
-              Connecting to Web3 provider...
-            </p>
-          )}
-          {loadingStates.contracts && (
-            <p className="text-secondary-300 mb-2">Initializing contracts...</p>
-          )}
-          {loadingStates.gameData && (
-            <p className="text-secondary-300 mb-2">Loading game data...</p>
-          )}
-        </div>
-      </div>
-    );
+    return <LoadingOverlay message={loadingMessage} />;
   }
 
-  // Error state check
+  // Error State Check
   if (error) {
     return (
       <div className="min-h-screen bg-secondary-900 flex items-center justify-center">
@@ -1752,30 +2390,23 @@ function App() {
     );
   }
 
-  const addToast = (message, type = "info") => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((toast) => toast.id !== id));
-    }, 3000);
-  };
-
-  const removeToast = (id) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  };
-
   return (
     <Router>
       <div className="min-h-screen bg-secondary-900">
-        {/* Add loading overlay */}
+        {/* Network Warning */}
+        {chainId && !SUPPORTED_CHAIN_IDS.includes(chainId) && (
+          <NetworkWarning supportedNetworks={SUPPORTED_CHAIN_IDS} />
+        )}
+
+        {/* Loading Overlay */}
         {Object.values(loadingStates).some((state) => state) && (
           <LoadingOverlay message={loadingMessage} />
         )}
 
-        <Navbar 
+        <Navbar
           account={account}
+          chainId={chainId}
           connectWallet={connectWallet}
-          loadingStates={loadingStates}
           isAdmin={isAdmin}
         />
 
@@ -1787,25 +2418,28 @@ function App() {
               element={
                 <div className="space-y-12">
                   <GameComponent
-                    diceContract={diceContract}
-                    tokenContract={tokenContract}
+                    diceContract={contracts.dice}
+                    tokenContract={contracts.token}
+                    account={account}
+                    onError={handleError}
+                    addToast={addToast}
+                    setLoadingStates={setLoadingStates}
+                    setLoadingMessage={setLoadingMessage}
+                  />
+                  <GameStatus
+                    diceContract={contracts.dice}
                     account={account}
                     onError={handleError}
                     addToast={addToast}
                   />
-                  <GameStatus
-                    diceContract={diceContract}
-                    account={account}
-                    onError={handleError}
-                  />
                   <div className="grid md:grid-cols-2 gap-12">
                     <PlayerStats
-                      diceContract={diceContract}
+                      diceContract={contracts.dice}
                       account={account}
                       onError={handleError}
                     />
                     <GameHistory
-                      diceContract={diceContract}
+                      diceContract={contracts.dice}
                       account={account}
                       onError={handleError}
                     />
@@ -1816,18 +2450,13 @@ function App() {
             <Route
               path="/admin"
               element={
-                isCheckingAdmin ? (
-                  <div className="card animate-pulse p-8">
-                    <h2 className="text-2xl font-display text-primary-400">
-                      Verifying admin status...
-                    </h2>
-                  </div>
-                ) : isAdmin ? (
+                isAdmin ? (
                   <AdminPage
-                    diceContract={diceContract}
-                    tokenContract={tokenContract}
+                    diceContract={contracts.dice}
+                    tokenContract={contracts.token}
                     account={account}
                     onError={handleError}
+                    addToast={addToast}
                   />
                 ) : (
                   <Navigate to="/" replace />
@@ -1836,16 +2465,26 @@ function App() {
             />
           </Routes>
         </main>
-      </div>
-      <div className="toast-container">
-        {toasts.map((toast) => (
-          <Toast
-            key={toast.id}
-            message={toast.message}
-            type={toast.type}
-            onClose={() => removeToast(toast.id)}
-          />
-        ))}
+
+        {/* Toasts */}
+        <AnimatePresence>
+          <div className="fixed bottom-4 right-4 space-y-2 z-50">
+            {toasts.map((toast) => (
+              <motion.div
+                key={toast.id}
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+              >
+                <Toast
+                  message={toast.message}
+                  type={toast.type}
+                  onClose={() => removeToast(toast.id)}
+                />
+              </motion.div>
+            ))}
+          </div>
+        </AnimatePresence>
       </div>
     </Router>
   );
