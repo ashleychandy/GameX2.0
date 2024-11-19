@@ -1361,139 +1361,336 @@ const StatusIndicator = ({ status, isActive }) => (
   </div>
 );
 
-// Home Component
+// Icons Component
+const Icons = {
+  Dice: ({ className }) => (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      viewBox="0 0 24 24" 
+      fill="currentColor" 
+      className={className}
+    >
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+      <path d="M6.5 9L10 5.5 13.5 9 10 12.5z"/>
+    </svg>
+  ),
+  
+  Roulette: ({ className }) => (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      viewBox="0 0 24 24" 
+      fill="currentColor" 
+      className={className}
+    >
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  ),
+  
+  MetaMask: ({ className }) => (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      viewBox="0 0 24 24" 
+      fill="currentColor" 
+      className={className}
+    >
+      <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM12 15.75h.008v.008H12v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+    </svg>
+  )
+};
+
+
+// Game Card Component
+const GameCard = ({ game }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5 }}
+    className="game-card relative"
+  >
+    <div className="flex justify-between items-center mb-4">
+      <div className="flex items-center gap-4">
+        <div className="p-4 rounded-xl bg-gaming-primary/10">{game.icon}</div>
+        <h3 className="text-2xl font-bold font-display">{game.title}</h3>
+      </div>
+      <span
+        className={`status-${game.status === "Live" ? "success" : "warning"}`}
+      >
+        {game.status}
+      </span>
+    </div>
+    <p className="text-secondary-300 font-sans">{game.description}</p>
+    <Link
+      to={game.link}
+      className={`gaming-button w-full text-center mt-6 ${
+        game.status !== "Live" && "opacity-50 cursor-not-allowed"
+      }`}
+      onClick={(e) => game.status !== "Live" && e.preventDefault()}
+    >
+      {game.status === "Live" ? "Play Now" : "Coming Soon"}
+    </Link>
+  </motion.div>
+);
+
+// Token Card Component
+const TokenCard = ({ icon: Icon, title, description, buttonText, onClick }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5 }}
+    className="glass-card-hover p-8 space-y-6"
+  >
+    <div className="h-12 w-12 rounded-xl bg-gaming-primary/10 flex items-center justify-center">
+      <Icon className="w-6 h-6" />
+    </div>
+    <div>
+      <h3 className="text-xl font-semibold font-display mb-2">{title}</h3>
+      <p className="text-secondary-300 font-sans">{description}</p>
+    </div>
+    <button onClick={onClick} className="gaming-button w-full">
+      {buttonText}
+    </button>
+  </motion.div>
+);
+
 const Home = () => {
+  const games = [
+    {
+      title: "Dice Game",
+      description:
+        "Roll the dice and win up to 6x your bet with our provably fair game",
+      icon: <Icons.Dice className="w-8 h-8" />,
+      status: "Live",
+      link: "/dice",
+      features: ["Provably Fair", "Instant Payouts", "Low House Edge"],
+    },
+    {
+      title: "Roulette",
+      description:
+        "Experience the thrill of blockchain roulette with multiple betting options",
+      icon: <Icons.Roulette className="w-8 h-8" />,
+      status: "Coming Soon",
+      link: "#",
+      features: ["Multiple Betting Options", "European Style", "Live Results"],
+    },
+  ];
+
+  const addTokenToMetaMask = async () => {
+    try {
+      if (!window.ethereum) {
+        throw new Error("MetaMask is not installed");
+      }
+
+      const tokenAddress = process.env.REACT_APP_TOKEN_ADDRESS;
+      if (!tokenAddress) {
+        throw new Error("Token address not configured");
+      }
+
+      // Create a contract instance to get the actual symbol
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const tokenContract = new ethers.Contract(
+        tokenAddress,
+        TokenABI.abi,
+        provider
+      );
+      const symbol = await tokenContract.symbol();
+
+      const wasAdded = await window.ethereum.request({
+        method: "wallet_watchAsset",
+        params: {
+          type: "ERC20",
+          options: {
+            address: tokenAddress,
+            symbol: symbol, // Use the actual symbol from the contract
+            decimals: 18,
+            // image field removed since we don't have a token image
+          },
+        },
+      });
+
+      if (wasAdded) {
+        console.log("Token was added to MetaMask");
+      }
+    } catch (error) {
+      console.error("Error adding token to MetaMask:", error.message);
+      // Optionally add user feedback here
+      alert("Failed to add token to MetaMask: " + error.message);
+    }
+  };
+
   return (
-    <div className="min-h-screen">
-      {/* Hero Section with Animated Background */}
-      <section className="relative h-screen flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-gaming-primary/20 to-gaming-accent/20" />
-        <div className="responsive-container relative z-10 text-center">
-          <div className="animate-fade-in-up">
-            <h1 className="text-6xl md:text-7xl font-bold mb-6 text-gradient-gaming">
-              GameX
+    <div className="min-h-screen bg-secondary-900">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center"
+          >
+            <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
+              Welcome to <span className="text-gradient">GameX</span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-300 mb-8">
-              The Future of Decentralized Gaming
+            <p className="text-xl text-secondary-300 mb-8 max-w-2xl mx-auto">
+              Experience the future of gaming with blockchain technology.
+              Provably fair games, instant payouts, and complete transparency.
             </p>
-            <div className="flex gap-4 justify-center">
-              <Link
-                to="/dice"
-                className="btn-gaming hover:scale-105 transform transition-all"
+            <div className="flex flex-wrap justify-center gap-4">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="btn-gaming"
+                onClick={addTokenToMetaMask}
               >
-                Play Now
+                <Icons.MetaMask className="w-5 h-5 mr-2 inline-block" />
+                Add GameX to MetaMask
+              </motion.button>
+              <Link to="/dice">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="btn-gaming bg-secondary-700 hover:bg-secondary-600"
+                >
+                  Play Now
+                </motion.button>
               </Link>
             </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Games Section */}
+      <section className="py-16 bg-secondary-800/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-white text-center mb-12">
+            Our Games
+          </h2>
+          <div className="grid md:grid-cols-2 gap-8">
+            {games.map((game, index) => (
+              <motion.div
+                key={game.title}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.2 }}
+                className="game-card"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-4">
+                    {game.icon}
+                    <h3 className="text-xl font-semibold text-white">
+                      {game.title}
+                    </h3>
+                  </div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm ${
+                      game.status === "Live"
+                        ? "bg-gaming-success/20 text-gaming-success"
+                        : "bg-gaming-warning/20 text-gaming-warning"
+                    }`}
+                  >
+                    {game.status}
+                  </span>
+                </div>
+                <p className="text-secondary-300 mb-4">{game.description}</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {game.features.map((feature) => (
+                    <span
+                      key={feature}
+                      className="px-3 py-1 rounded-full text-sm bg-secondary-700 text-secondary-300"
+                    >
+                      {feature}
+                    </span>
+                  ))}
+                </div>
+                <Link to={game.link}>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`w-full btn-gaming ${
+                      game.status !== "Live"
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
+                    }`}
+                    disabled={game.status !== "Live"}
+                  >
+                    {game.status === "Live" ? "Play Now" : "Coming Soon"}
+                  </motion.button>
+                </Link>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="py-20 bg-secondary-900/50">
-        <div className="responsive-container">
-          <h2 className="text-4xl font-bold text-center mb-16 text-gradient-gaming">
-            Why Choose GameToken?
+      {/* Features Section */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-white text-center mb-12">
+            Why Choose GameX?
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <div
-                key={index}
-                className="glass-effect p-6 rounded-xl hover:transform hover:scale-105 
-                  transition-all duration-300"
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                title: "Provably Fair",
+                description:
+                  "All games use verifiable random numbers through Chainlink VRF",
+                icon: "🎲",
+              },
+              {
+                title: "Instant Payouts",
+                description: "Winnings are automatically sent to your wallet",
+                icon: "⚡",
+              },
+              {
+                title: "Low House Edge",
+                description: "Competitive odds and transparent house edge",
+                icon: "💎",
+              },
+            ].map((feature, index) => (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.2 }}
+                className="stat-card"
               >
-                <div className="text-3xl mb-4 text-gaming-accent">
-                  {feature.icon}
-                </div>
-                <h3 className="text-xl font-bold mb-3 text-primary-100">
+                <div className="text-3xl mb-2">{feature.icon}</div>
+                <h3 className="text-xl font-semibold text-white">
                   {feature.title}
                 </h3>
-                <p className="text-gray-400">{feature.description}</p>
-              </div>
+                <p className="text-secondary-300">{feature.description}</p>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Games Showcase */}
-      <section className="py-20">
-        <div className="responsive-container">
-          <h2 className="text-4xl font-bold text-center mb-16 text-gradient-gaming">
-            Available Games
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div
-              className="glass-effect rounded-xl p-8 hover:transform hover:scale-105 
-              transition-all duration-300"
-            >
-              <div className="flex justify-between items-start mb-6">
-                <h3 className="text-2xl font-bold text-primary-100">
-                  Dice Game
-                </h3>
-                <span
-                  className="px-3 py-1 bg-gaming-primary/20 text-gaming-primary 
-                  rounded-full text-sm"
-                >
-                  Live
-                </span>
-              </div>
-              <p className="text-gray-400 mb-6">
-                Test your luck with our provably fair dice game. Roll to win up
-                to 6x your stake!
-              </p>
-              <Link to="/dice" className="btn-gaming inline-block">
-                Play Now
-              </Link>
-            </div>
-            <div
-              className="glass-effect rounded-xl p-8 hover:transform hover:scale-105 
-              transition-all duration-300"
-            >
-              <div className="flex justify-between items-start mb-6">
-                <h3 className="text-2xl font-bold text-primary-100">
-                  Coming Soon
-                </h3>
-                <span
-                  className="px-3 py-1 bg-gaming-accent/20 text-gaming-accent 
-                  rounded-full text-sm"
-                >
-                  Soon
-                </span>
-              </div>
-              <div className="space-y-4 text-gray-400">
-                <p>More exciting games are on the way:</p>
-                <ul className="list-disc list-inside space-y-2">
-                  <li>Coin Flip</li>
-                  <li>Lottery</li>
-                  <li>Card Games</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Getting Started Steps */}
-      <section className="py-20 bg-secondary-900/50">
-        <div className="responsive-container">
-          <h2 className="text-4xl font-bold text-center mb-16 text-gradient-gaming">
-            Get Started
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {steps.map((step, index) => (
-              <div key={index} className="glass-effect p-8 rounded-xl relative">
-                <div
-                  className="absolute -top-6 -left-6 w-12 h-12 rounded-full 
-                  bg-gaming-primary flex items-center justify-center text-2xl font-bold"
-                >
-                  {index + 1}
-                </div>
-                <h3 className="text-xl font-bold mb-4 text-primary-100">
-                  {step.title}
-                </h3>
-                <p className="text-gray-400">{step.description}</p>
-              </div>
-            ))}
-          </div>
+      {/* CTA Section */}
+      <section className="py-16 bg-gaming-primary/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <h2 className="text-3xl font-bold text-white mb-6">
+              Ready to Start Playing?
+            </h2>
+            <p className="text-xl text-secondary-300 mb-8 max-w-2xl mx-auto">
+              Join the future of gaming today and experience provably fair
+              gameplay with instant payouts.
+            </p>
+            <Link to="/dice">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="btn-gaming"
+              >
+                Start Playing Now
+              </motion.button>
+            </Link>
+          </motion.div>
         </div>
       </section>
     </div>
