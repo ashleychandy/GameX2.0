@@ -42,58 +42,32 @@ console.log("DICE_CONTRACT_ADDRESS:", DICE_CONTRACT_ADDRESS);
 console.log("TOKEN_CONTRACT_ADDRESS:", TOKEN_CONTRACT_ADDRESS);
 
 // Enhanced Toast Component
-const Toast = ({ message, type, onClose }) => (
-  <div
-    className={`fixed bottom-4 right-4 flex items-center min-w-[300px] p-4 
-    rounded-lg shadow-xl transform transition-all duration-300 ease-in-out
-    ${
-      type === "success"
-        ? "bg-success-500"
-        : type === "error"
-        ? "bg-error-500"
-        : "bg-primary-500"
-    }
-    animate-slide-up z-50`}
-  >
-    <div className="flex-1 text-white">
-      <div className="flex items-center space-x-2">
-        {type === "success" && (
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M5 13l4 4L19 7"
-            />
-          </svg>
-        )}
-        {type === "error" && (
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        )}
-        <span className="font-medium">{message}</span>
-      </div>
-    </div>
-    <button
-      onClick={onClose}
-      className="ml-4 text-white hover:text-gray-200 transition-colors"
-    >
+const Toast = ({ message, type, onClose }) => {
+  const bgColor =
+    {
+      success: "bg-success-500",
+      error: "bg-error-500",
+      warning: "bg-warning-500",
+      info: "bg-primary-500",
+    }[type] || "bg-primary-500";
+
+  const Icon = {
+    success: (
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          d="M5 13l4 4L19 7"
+        />
+      </svg>
+    ),
+    error: (
       <svg
         className="w-5 h-5"
         fill="none"
@@ -107,46 +81,127 @@ const Toast = ({ message, type, onClose }) => (
           d="M6 18L18 6M6 6l12 12"
         />
       </svg>
-    </button>
-  </div>
+    ),
+    warning: (
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+        />
+      </svg>
+    ),
+    info: (
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+    ),
+  }[type];
+
+  return (
+    <div
+      className={`fixed bottom-4 right-4 flex items-center min-w-[300px] p-4 
+      rounded-lg shadow-xl transform transition-all duration-300 ease-in-out
+      ${bgColor} animate-slide-up z-50`}
+      role="alert"
+      aria-live="assertive"
+    >
+      <div className="flex-1 text-white">
+        <div className="flex items-center space-x-2">
+          {Icon}
+          <span className="font-medium">{message}</span>
+        </div>
+      </div>
+      <button
+        onClick={onClose}
+        className="ml-4 text-white hover:text-gray-200 transition-colors"
+        aria-label="Close notification"
+      >
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+    </div>
+  );
+};
+
+const Navbar = ({ account, connectWallet, loadingStates, isAdmin }) => (
+  <nav className="glass-effect sticky top-0 z-50 border-b border-secondary-700/50">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="flex justify-between items-center h-20">
+        <div className="flex items-center space-x-8">
+          <Link to="/" className="text-2xl font-bold text-gaming-primary">
+            GameX
+          </Link>
+          <div className="hidden md:flex items-center space-x-6">
+            <Link to="/" className="nav-link">
+              Home
+            </Link>
+            <Link to="/dice" className="nav-link">
+              Play Dice
+            </Link>
+            {isAdmin && (
+              <Link to="/admin" className="nav-link">
+                Admin
+              </Link>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center space-x-4">
+          {account ? (
+            <div className="glass-effect px-6 py-3 rounded-lg text-sm">
+              <span className="text-primary-400">Connected:</span>{" "}
+              <span className="text-secondary-300">
+                {account.slice(0, 6)}...{account.slice(-4)}
+              </span>
+            </div>
+          ) : (
+            <button
+              onClick={connectWallet}
+              className="btn-gaming"
+              disabled={loadingStates.wallet}
+            >
+              {loadingStates.wallet ? (
+                <span className="flex items-center">
+                  Connecting
+                  <LoadingDots />
+                </span>
+              ) : (
+                "Connect Wallet"
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  </nav>
 );
-
-// // Number Selector Component with Dice Visual
-// const DiceSelector = ({ value, onChange }) => {
-//   return (
-//     <div className="grid grid-cols-3 gap-4 sm:grid-cols-6 my-6">
-//       {[1, 2, 3, 4, 5, 6].map((num) => (
-//         <button
-//           key={num}
-//           onClick={() => onChange(num)}
-//           className={`relative group h-16 w-16 rounded-xl transition-all duration-300
-//             ${Number(value) === num
-//               ? 'bg-primary-500 shadow-glow scale-110'
-//               : 'bg-secondary-800 hover:bg-secondary-700'}`}
-//         >
-//           <div className={`grid grid-cols-3 gap-1 p-2 h-full
-//             ${Number(value) === num ? 'dice-face-selected' : 'dice-face'}`}>
-//             {[...Array(num)].map((_, i) => (
-//               <span key={i} className={`rounded-full
-//                 ${Number(value) === num
-//                   ? 'bg-white'
-//                   : 'bg-secondary-400 group-hover:bg-secondary-300'}
-//                 transition-colors duration-300`}
-//               />
-//             ))}
-//           </div>
-//           <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2
-//             opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-//             <span className="text-sm text-primary-400">Select {num}</span>
-//           </div>
-//         </button>
-//       ))}
-//     </div>
-//   );
-// };
-
-// Enhanced Bet Slider with Preset Amounts
-
 const BetInput = ({
   value,
   onChange,
@@ -435,18 +490,6 @@ const switchToAmoyNetwork = async () => {
   }
 };
 // Enhanced Loading Spinner Component
-const LoadingSpinner = ({ message }) => (
-  <div className="flex items-center justify-center space-x-3">
-    <div className="relative">
-      <div className="w-8 h-8 border-4 border-primary-200 rounded-full"></div>
-      <div
-        className="absolute top-0 left-0 w-8 h-8 border-4 border-primary-500 rounded-full 
-        border-t-transparent animate-spin"
-      ></div>
-    </div>
-    <span className="text-primary-100 font-medium">{message}</span>
-  </div>
-);
 
 // Enhanced Loading Overlay Component
 const LoadingOverlay = ({ message }) => (
@@ -641,34 +684,87 @@ const NumberSelector = ({ value, onChange, disabled }) => {
 
 // Loading Dots Component
 const LoadingDots = () => (
-  <span className="loading-dots">
-    <span className="dot">.</span>
-    <span className="dot">.</span>
-    <span className="dot">.</span>
+  <span
+    className="loading-dots inline-flex space-x-1"
+    role="status"
+    aria-label="Loading"
+  >
+    {[1, 2, 3].map((i) => (
+      <span
+        key={i}
+        className="dot w-2 h-2 bg-current rounded-full animate-pulse"
+        style={{ animationDelay: `${i * 150}ms` }}
+      />
+    ))}
   </span>
 );
 
-const RequestMonitor = ({ diceContract, requestId, onComplete }) => {
+const LoadingSpinner = ({ size = "medium", light = false }) => {
+  const sizeClasses = {
+    small: "w-4 h-4",
+    medium: "w-8 h-8",
+    large: "w-12 h-12",
+  }[size];
+
+  return (
+    <div
+      className={`inline-block ${sizeClasses} animate-spin rounded-full border-2 
+      border-current border-t-transparent text-gaming-primary`}
+      role="status"
+      aria-label="Loading"
+    >
+      <span className="sr-only">Loading...</span>
+    </div>
+  );
+};
+
+const RequestMonitor = ({ diceContract, requestId, onComplete, onError }) => {
+  const [attempts, setAttempts] = useState(0);
+  const MAX_ATTEMPTS = 30; // 1 minute maximum (2s * 30)
+
   useEffect(() => {
     if (!diceContract || !requestId) return;
 
+    let timeoutId;
+
     const checkRequest = async () => {
       try {
-        const isActive = await diceContract.isRequestActive(requestId);
+        const [isActive, requestDetails] = await Promise.all([
+          diceContract.isRequestActive(requestId),
+          diceContract.getPlayerForRequest(requestId),
+        ]);
+
         if (!isActive) {
           onComplete && onComplete();
           return;
         }
-        setTimeout(checkRequest, 2000);
+
+        if (attempts >= MAX_ATTEMPTS) {
+          onError && onError(new Error("Request monitoring timed out"));
+          return;
+        }
+
+        setAttempts((prev) => prev + 1);
+        timeoutId = setTimeout(checkRequest, 2000);
       } catch (error) {
         console.error("Error monitoring request:", error);
+        onError && onError(error);
       }
     };
 
     checkRequest();
-  }, [diceContract, requestId]);
 
-  return null; // This is a monitoring component, no UI needed
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [diceContract, requestId, attempts, onComplete, onError]);
+
+  // Optional: Return a progress indicator
+  return attempts > 0 ? (
+    <div className="text-sm text-secondary-400">
+      Monitoring request... {((attempts / MAX_ATTEMPTS) * 100).toFixed(0)}%
+    </div>
+  ) : null;
 };
 
 // Enhanced Game History Component
@@ -890,8 +986,6 @@ const GameHistoryItem = ({ game, index }) => (
   </motion.div>
 );
 
-;
-
 const StatusIndicator = ({ status, isActive }) => (
   <div
     className={`relative flex items-center gap-2 ${
@@ -910,75 +1004,6 @@ const StatusIndicator = ({ status, isActive }) => (
       }`}
     />
     <span className="text-sm font-medium">{status.replace("_", " ")}</span>
-  </div>
-);
-
-
-
-// AdminPanel Component
-const AdminPanel = ({ diceContract, tokenContract, onError }) => {
-  const [historySize, setHistorySize] = useState("");
-  const [playerAddress, setPlayerAddress] = useState("");
-
-  const handlePause = async () => {
-    await diceContract.pause();
-  };
-
-  const handleUnpause = async () => {
-    await diceContract.unpause();
-  };
-
-  const handleSetHistorySize = async () => {
-    await diceContract.setHistorySize(historySize);
-  };
-
-  const handleRecoverStuckGame = async () => {
-    await diceContract.recoverStuckGame(playerAddress);
-  };
-
-  const handleForceStopGame = async () => {
-    await diceContract.forceStopGame(playerAddress);
-  };
-
-  return (
-    <div className="admin-panel">
-      <h3>Admin Panel</h3>
-      <div>
-        <button onClick={handlePause}>Pause</button>
-        <button onClick={handleUnpause}>Unpause</button>
-        <div>
-          <input
-            type="number"
-            value={historySize}
-            onChange={(e) => setHistorySize(e.target.value)}
-            placeholder="New history size"
-          />
-          <button onClick={handleSetHistorySize}>Set History Size</button>
-        </div>
-        <div>
-          <input
-            type="text"
-            value={playerAddress}
-            onChange={(e) => setPlayerAddress(e.target.value)}
-            placeholder="Player address"
-          />
-          <button onClick={handleRecoverStuckGame}>Recover Stuck Game</button>
-          <button onClick={handleForceStopGame}>Force Stop Game</button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// AdminPage Component
-const AdminPage = ({ diceContract, tokenContract, account, onError }) => (
-  <div className="admin-page">
-    <h2>Admin Dashboard</h2>
-    <AdminPanel
-      diceContract={diceContract}
-      tokenContract={tokenContract}
-      onError={onError}
-    />
   </div>
 );
 
@@ -1435,7 +1460,6 @@ const StatCard = ({ title, value, icon, color = "primary" }) => (
   </div>
 );
 
-
 // New Game Controls Component
 const GameControls = ({
   diceContract,
@@ -1446,7 +1470,7 @@ const GameControls = ({
   onError,
   addToast,
   onGameStateChange,
-  onBalanceChange
+  onBalanceChange,
 }) => {
   const [gameState, setGameState] = useState({
     isActive: false,
@@ -1455,71 +1479,40 @@ const GameControls = ({
     result: null,
     timestamp: 0,
     needsResolution: false,
-    canPlay: false,
-    isProcessing: false
+    canPlay: true,
+    isProcessing: false,
   });
 
-  // Initialize and cleanup game state
-  useEffect(() => {
-    if (!diceContract || !account) return;
-
-    const init = async () => {
-      try {
-        await updateGameState();
-        await updateBalance();
-      } catch (error) {
-        console.error("Error initializing game:", error);
-        onError(error);
-      }
-    };
-
-    init();
-    const interval = setInterval(init, 5000); // Poll every 5 seconds
-    return () => clearInterval(interval);
-  }, [diceContract, account]);
-
-  // Update user balance
-  const updateBalance = async () => {
-    if (!tokenContract || !account) return;
-    try {
-      const balance = await tokenContract.balanceOf(account);
-      onBalanceChange(balance.toString());
-    } catch (error) {
-      console.error("Error updating balance:", error);
-      onError(error);
-    }
-  };
-
   // Update game state
-  const updateGameState = async () => {
+  const updateGameState = useCallback(async () => {
     if (!diceContract || !account) return;
     try {
-      // Get current game status
-      const [isActive, status, chosenNum, amount, timestamp] = 
-        await diceContract.getGameStatus(account);
-
-      // Get request details
-      const [requestId, requestFulfilled, requestActive] = 
-        await diceContract.getCurrentRequestDetails(account);
-
-      // Check if player can start new game
-      const canPlay = await diceContract.canStartNewGame(account);
+      // Get game status and request details in parallel
+      const [
+        [isActive, status, chosenNum, amount, timestamp],
+        [requestId, requestFulfilled, requestActive],
+        canPlay,
+      ] = await Promise.all([
+        diceContract.getGameStatus(account),
+        diceContract.getCurrentRequestDetails(account),
+        diceContract.canStartNewGame(account),
+      ]);
 
       const newGameState = {
         isActive,
         requestId: requestId.toString(),
         status: [
           "PENDING",
-          "STARTED", 
+          "STARTED",
           "COMPLETED_WIN",
           "COMPLETED_LOSS",
-          "CANCELLED"
+          "CANCELLED",
         ][status],
         result: status > 1 ? chosenNum : null,
         timestamp: Number(timestamp),
         needsResolution: requestFulfilled && !requestActive,
         canPlay,
-        isProcessing: false
+        isProcessing: false,
       };
 
       setGameState(newGameState);
@@ -1533,246 +1526,662 @@ const GameControls = ({
       console.error("Error updating game state:", error);
       onError(error);
     }
-  };
+  }, [diceContract, account, onError, onGameStateChange]);
 
   // Monitor VRF request
-  const startRequestMonitoring = (requestId) => {
-    const checkRequest = async () => {
-      try {
-        const isActive = await diceContract.isRequestActive(requestId);
-        if (!isActive) {
-          await updateGameState();
-          await updateBalance();
-          return;
+  const startRequestMonitoring = useCallback(
+    (requestId) => {
+      const checkRequest = async () => {
+        try {
+          const isActive = await diceContract.isRequestActive(requestId);
+          if (!isActive) {
+            await updateGameState();
+            await updateBalance();
+            return;
+          }
+          setTimeout(checkRequest, 2000);
+        } catch (error) {
+          console.error("Error monitoring request:", error);
+          onError(error);
         }
-        setTimeout(checkRequest, 2000);
-      } catch (error) {
-        console.error("Error monitoring request:", error);
-        onError(error);
-      }
-    };
-    checkRequest();
-  };
+      };
+      checkRequest();
+    },
+    [diceContract, updateGameState, onError]
+  );
 
-  // Handle bet placement
-  const handleBet = async () => {
-    if (!chosenNumber || betAmount <= 0) {
-      addToast("Please select a number and bet amount", "error");
-      return;
+  // Update token balance
+  const updateBalance = useCallback(async () => {
+    if (!tokenContract || !account) return;
+    try {
+      const balance = await tokenContract.balanceOf(account);
+      onBalanceChange(balance);
+    } catch (error) {
+      console.error("Error updating balance:", error);
+      onError(error);
     }
+  }, [tokenContract, account, onBalanceChange, onError]);
+
+  // Place bet
+  const placeBet = async () => {
+    if (!diceContract || !tokenContract || !account) return;
+    if (gameState.isProcessing) return;
 
     try {
-      setGameState(prev => ({ ...prev, isProcessing: true }));
-      addToast("Initiating game...", "info");
+      setGameState((prev) => ({ ...prev, isProcessing: true }));
 
-      // Check if user can start new game
-      const canStart = await diceContract.canStartNewGame(account);
-      if (!canStart) {
-        throw new Error("Cannot start new game - active game exists");
-      }
-
-      // Check balance
-      const balance = await tokenContract.balanceOf(account);
-      if (balance < betAmount) {
-        throw new Error("Insufficient balance");
-      }
-
-      // Check/Request token approval
-      const allowance = await tokenContract.allowance(account, diceContract.address);
+      // Check allowance
+      const allowance = await tokenContract.allowance(
+        account,
+        diceContract.address
+      );
       if (allowance < betAmount) {
-        addToast("Approving tokens...", "info");
-        const approveTx = await tokenContract.approve(diceContract.address, betAmount);
+        // Approve tokens if needed
+        const approveTx = await tokenContract.approve(
+          diceContract.address,
+          betAmount
+        );
         await approveTx.wait();
-        addToast("Tokens approved!", "success");
+        addToast("Token approval successful", "success");
       }
 
-      // Place bet
-      addToast("Placing bet...", "info");
+      // Place the bet
       const tx = await diceContract.playDice(chosenNumber, betAmount);
-      const receipt = await tx.wait();
+      await tx.wait();
 
-      // Find requestId from events
-      const requestId = receipt.events
-        .find(e => e.event === "RequestSent")
-        ?.args?.requestId.toString();
-
-      if (requestId) {
-        setGameState(prev => ({
-          ...prev,
-          isActive: true,
-          requestId,
-          status: "STARTED",
-          isProcessing: false,
-          canPlay: false
-        }));
-        addToast("Bet placed! Waiting for result...", "success");
-        startRequestMonitoring(requestId);
-      }
+      addToast("Bet placed successfully!", "success");
+      await updateGameState();
+      await updateBalance();
     } catch (error) {
       console.error("Error placing bet:", error);
       onError(error);
-      setGameState(prev => ({ ...prev, isProcessing: false }));
-      addToast(error.message, "error");
+    } finally {
+      setGameState((prev) => ({ ...prev, isProcessing: false }));
     }
   };
 
-  // Handle resolving game
-  const handleResolve = async () => {
+  // Resolve game
+  const resolveGame = async () => {
     if (!diceContract || !account) return;
+    if (gameState.isProcessing) return;
 
     try {
-      setGameState(prev => ({ ...prev, isProcessing: true }));
-      addToast("Resolving game...", "info");
-
+      setGameState((prev) => ({ ...prev, isProcessing: true }));
       const tx = await diceContract.resolveGame();
       await tx.wait();
 
+      addToast("Game resolved successfully!", "success");
       await updateGameState();
       await updateBalance();
-
-      addToast("Game resolved!", "success");
     } catch (error) {
       console.error("Error resolving game:", error);
       onError(error);
-      setGameState(prev => ({ ...prev, isProcessing: false }));
-      addToast(error.message, "error");
+    } finally {
+      setGameState((prev) => ({ ...prev, isProcessing: false }));
     }
   };
 
+  // Initial state update
+  useEffect(() => {
+    updateGameState();
+    updateBalance();
+  }, [updateGameState, updateBalance]);
+
   return (
-    <div className="flex flex-col items-center space-y-6">
+    <div className="space-y-4">
       {/* Game Status */}
-      {gameState.requestId && (
-        <div className="text-sm text-secondary-400">
-          Request ID: {gameState.requestId}
-        </div>
-      )}
+      <div className="text-lg font-semibold">
+        Status: {gameState.status}
+        {gameState.result && ` (Result: ${gameState.result})`}
+      </div>
 
       {/* Action Buttons */}
-      <div className="flex gap-4">
-        {gameState.needsResolution ? (
+      <div className="space-x-4">
+        {/* Place Bet Button */}
+        <button
+          className={`btn btn-primary ${
+            !gameState.canPlay || gameState.isProcessing
+              ? "opacity-50 cursor-not-allowed"
+              : ""
+          }`}
+          onClick={placeBet}
+          disabled={!gameState.canPlay || gameState.isProcessing}
+        >
+          {gameState.isProcessing ? "Processing..." : "Place Bet"}
+        </button>
+
+        {/* Resolve Game Button */}
+        {gameState.needsResolution && (
           <button
-            onClick={handleResolve}
+            className={`btn btn-secondary ${
+              gameState.isProcessing ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+            onClick={resolveGame}
             disabled={gameState.isProcessing}
-            className={`
-              px-8 py-4 rounded-xl font-bold text-lg
-              ${gameState.isProcessing
-                ? "bg-secondary-700 cursor-not-allowed opacity-50"
-                : "bg-gaming-success hover:bg-gaming-success/80"}
-              transition-all duration-300 transform hover:scale-105
-            `}
           >
-            {gameState.isProcessing ? (
-              <div className="flex items-center space-x-2">
-                <span>Resolving</span>
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-              </div>
-            ) : (
-              "Resolve Game"
-            )}
-          </button>
-        ) : (
-          <button
-            onClick={handleBet}
-            disabled={
-              gameState.isProcessing ||
-              !gameState.canPlay ||
-              !chosenNumber ||
-              !betAmount
-            }
-            className={`
-              px-8 py-4 rounded-xl font-bold text-lg
-              ${gameState.isProcessing || !gameState.canPlay
-                ? "bg-secondary-700 cursor-not-allowed opacity-50"
-                : "bg-gaming-primary hover:bg-gaming-primary/80"}
-              transition-all duration-300 transform hover:scale-105
-            `}
-          >
-            {gameState.isProcessing ? (
-              <div className="flex items-center space-x-2">
-                <span>Rolling</span>
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-              </div>
-            ) : (
-              "Roll Dice"
-            )}
+            {gameState.isProcessing ? "Processing..." : "Resolve Game"}
           </button>
         )}
       </div>
 
-      {/* Status Messages */}
-      {!gameState.canPlay && !gameState.needsResolution && (
-        <p className="text-error-400 text-sm">
-          {!account
-            ? "Please connect your wallet"
-            : !chosenNumber
-            ? "Please select a number"
-            : !betAmount
-            ? "Please enter bet amount"
-            : "Game in progress"}
-        </p>
+      {/* Processing Indicator */}
+      {gameState.isProcessing && (
+        <div className="text-sm text-gray-500">Transaction in progress...</div>
       )}
     </div>
   );
 };
 
+const DicePage = ({
+  contracts,
+  account,
+  onError,
+  addToast,
+  setLoadingStates,
+  setLoadingMessage,
+}) => {
+  // Game State
+  const [gameState, setGameState] = useState({
+    isActive: false,
+    isProcessing: false,
+    canPlay: false,
+    needsResolution: false,
+    requestId: null,
+    lastResult: null,
+    isRolling: false,
+  });
 
-// Define Navbar component at the top of the file, before the App component
-const Navbar = ({ account, connectWallet, loadingStates, isAdmin }) => (
-  <nav className="glass-effect sticky top-0 z-50 border-b border-secondary-700/50">
+  // User Input State
+  const [chosenNumber, setChosenNumber] = useState(null);
+  const [betAmount, setBetAmount] = useState(BigInt(0));
+  const [userBalance, setUserBalance] = useState(BigInt(0));
+  const [allowance, setAllowance] = useState(BigInt(0));
+
+  // Bet History
+  const [betHistory, setBetHistory] = useState([]);
+
+  // Update user balance and allowance
+  const updateBalance = useCallback(async () => {
+    if (!contracts.token || !account) return;
+
+    try {
+      const [balance, tokenAllowance] = await Promise.all([
+        contracts.token.balanceOf(account),
+        contracts.token.allowance(account, contracts.dice.target),
+      ]);
+
+      setUserBalance(balance);
+      setAllowance(tokenAllowance);
+    } catch (error) {
+      console.error("Error updating balance:", error);
+    }
+  }, [contracts.token, contracts.dice, account]);
+
+  // Update game state
+  const updateGameState = useCallback(async () => {
+    if (!contracts.dice || !account) return;
+
+    try {
+      const [gameStatus, requestDetails, canPlay] = await Promise.all([
+        contracts.dice.getGameStatus(account),
+        contracts.dice.getCurrentRequestDetails(account),
+        contracts.dice.canStartNewGame(account),
+      ]);
+
+      const [isActive, status, chosenNumber, amount, timestamp] = gameStatus;
+      const [requestId, requestFulfilled, requestActive] = requestDetails;
+
+      setGameState((prev) => ({
+        ...prev,
+        isActive,
+        needsResolution: requestFulfilled && !requestActive,
+        requestId: requestId.toString(),
+        lastResult: status > 1 ? chosenNumber : null,
+        canPlay: canPlay && !isActive,
+      }));
+    } catch (error) {
+      console.error("Error updating game state:", error);
+    }
+  }, [contracts.dice, account]);
+
+  // Update bet history
+  const updateBetHistory = useCallback(async () => {
+    if (!contracts.dice || !account) return;
+
+    try {
+      const history = await contracts.dice.getPreviousBets(account);
+      setBetHistory(history);
+    } catch (error) {
+      console.error("Error updating bet history:", error);
+    }
+  }, [contracts.dice, account]);
+
+  // Initialize component
+  useEffect(() => {
+    const init = async () => {
+      await Promise.all([
+        updateBalance(),
+        updateGameState(),
+        updateBetHistory(),
+      ]);
+    };
+
+    init();
+
+    // Set up event listeners
+    if (contracts.dice) {
+      // Add event listeners here if needed
+    }
+
+    return () => {
+      // Clean up event listeners if needed
+    };
+  }, [updateBalance, updateGameState, updateBetHistory, contracts.dice]);
+
+  // Handle number selection
+  const handleNumberSelect = (number) => {
+    setChosenNumber(number);
+  };
+
+  // Handle bet amount change
+  const handleBetAmountChange = (amount) => {
+    setBetAmount(amount);
+  };
+
+  // Handle approve tokens
+  const handleApprove = async () => {
+    if (!contracts.token || !account) return;
+
+    setLoadingStates((prev) => ({ ...prev, approving: true }));
+    setLoadingMessage("Approving tokens...");
+
+    try {
+      const tx = await contracts.token.approve(
+        contracts.dice.target,
+        betAmount
+      );
+      await tx.wait();
+      await updateBalance();
+      addToast("Tokens approved successfully!", "success");
+    } catch (error) {
+      onError(error, "approve");
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, approving: false }));
+      setLoadingMessage("");
+    }
+  };
+
+  // Handle place bet
+  const handlePlaceBet = async () => {
+    if (!contracts.dice || !account || !chosenNumber) return;
+
+    setLoadingStates((prev) => ({ ...prev, betting: true }));
+    setLoadingMessage("Placing bet...");
+
+    try {
+      const tx = await contracts.dice.playDice(chosenNumber, betAmount);
+      await tx.wait();
+
+      setGameState((prev) => ({
+        ...prev,
+        isActive: true,
+        isProcessing: true,
+        canPlay: false,
+      }));
+
+      await Promise.all([updateBalance(), updateGameState()]);
+      addToast("Bet placed successfully!", "success");
+    } catch (error) {
+      onError(error, "placeBet");
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, betting: false }));
+      setLoadingMessage("");
+    }
+  };
+
+  // Handle resolve game
+  const handleResolveGame = async () => {
+    if (!contracts.dice || !account) return;
+
+    setLoadingStates((prev) => ({ ...prev, resolving: true }));
+    setLoadingMessage("Resolving game...");
+
+    try {
+      const tx = await contracts.dice.resolveGame();
+      await tx.wait();
+
+      await Promise.all([
+        updateBalance(),
+        updateGameState(),
+        updateBetHistory(),
+      ]);
+
+      addToast("Game resolved successfully!", "success");
+    } catch (error) {
+      onError(error, "resolveGame");
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, resolving: false }));
+      setLoadingMessage("");
+    }
+  };
+
+  return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="flex justify-between items-center h-20">
-        <div className="flex items-center space-x-8">
-          <Link to="/" className="text-2xl font-bold text-gaming-primary">
-            GameX
-          </Link>
-          <div className="hidden md:flex items-center space-x-6">
-            <Link to="/" className="nav-link">
-              Home
-            </Link>
-            <Link to="/dice" className="nav-link">
-              Play Dice
-            </Link>
-            {isAdmin && (
-              <Link to="/admin" className="nav-link">
-                Admin
-              </Link>
+      <div className="space-y-8">
+        {/* Game Status */}
+        <div className="glass-effect p-6 rounded-lg">
+          <h2 className="text-xl font-bold mb-4">Game Status</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p>Active Game: {gameState.isActive ? "Yes" : "No"}</p>
+              <p>Can Play: {gameState.canPlay ? "Yes" : "No"}</p>
+              <p>
+                Needs Resolution: {gameState.needsResolution ? "Yes" : "No"}
+              </p>
+            </div>
+            <div>
+              <p>
+                Balance: {ethers.formatEther(userBalance.toString())} Tokens
+              </p>
+              <p>
+                Allowance: {ethers.formatEther(allowance.toString())} Tokens
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Game Controls */}
+        <div className="glass-effect p-6 rounded-lg">
+          <h2 className="text-xl font-bold mb-4">Place Your Bet</h2>
+
+          {/* Number Selection */}
+          <div className="mb-6">
+            <h3 className="text-lg mb-2">Choose a Number (1-6)</h3>
+            <div className="grid grid-cols-6 gap-2">
+              {[1, 2, 3, 4, 5, 6].map((number) => (
+                <button
+                  key={number}
+                  onClick={() => handleNumberSelect(number)}
+                  className={`p-4 rounded-lg ${
+                    chosenNumber === number
+                      ? "bg-primary-500"
+                      : "bg-secondary-700"
+                  } hover:bg-primary-600 transition-colors`}
+                  disabled={!gameState.canPlay}
+                >
+                  {number}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Bet Amount */}
+          <div className="mb-6">
+            <h3 className="text-lg mb-2">Bet Amount</h3>
+            <BetInput
+              value={betAmount}
+              onChange={handleBetAmountChange}
+              userBalance={userBalance.toString()}
+              disabled={!gameState.canPlay}
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex space-x-4">
+            {allowance < betAmount && (
+              <button
+                onClick={handleApprove}
+                className="btn-gaming"
+                disabled={!gameState.canPlay}
+              >
+                Approve Tokens
+              </button>
+            )}
+            <button
+              onClick={handlePlaceBet}
+              className="btn-gaming"
+              disabled={
+                !gameState.canPlay ||
+                !chosenNumber ||
+                betAmount <= BigInt(0) ||
+                allowance < betAmount
+              }
+            >
+              Place Bet
+            </button>
+            {gameState.needsResolution && (
+              <button onClick={handleResolveGame} className="btn-gaming">
+                Resolve Game
+              </button>
             )}
           </div>
         </div>
-        <div className="flex items-center space-x-4">
-          {account ? (
-            <div className="glass-effect px-6 py-3 rounded-lg text-sm">
-              <span className="text-primary-400">Connected:</span>{" "}
-              <span className="text-secondary-300">
-                {account.slice(0, 6)}...{account.slice(-4)}
-              </span>
-            </div>
-          ) : (
-            <button
-              onClick={connectWallet}
-              className="btn-gaming"
-              disabled={loadingStates.wallet}
-            >
-              {loadingStates.wallet ? (
-                <span className="flex items-center">
-                  Connecting
-                  <LoadingDots />
-                </span>
-              ) : (
-                "Connect Wallet"
-              )}
-            </button>
-          )}
+
+        {/* Bet History */}
+        <div className="glass-effect p-6 rounded-lg">
+          <h2 className="text-xl font-bold mb-4">Bet History</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr>
+                  <th className="text-left p-2">Chosen</th>
+                  <th className="text-left p-2">Rolled</th>
+                  <th className="text-left p-2">Amount</th>
+                  <th className="text-left p-2">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {betHistory.map((bet, index) => (
+                  <tr key={index}>
+                    <td className="p-2">{bet.chosenNumber.toString()}</td>
+                    <td className="p-2">{bet.rolledNumber.toString()}</td>
+                    <td className="p-2">
+                      {ethers.formatEther(bet.amount.toString())}
+                    </td>
+                    <td className="p-2">
+                      {new Date(Number(bet.timestamp) * 1000).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
-  </nav>
-);
+  );
+};
+
+function AdminPage({
+  diceContract,
+  tokenContract,
+  account,
+  onError,
+  addToast,
+}) {
+  const [isPaused, setIsPaused] = useState(false);
+  const [minters, setMinters] = useState([]);
+  const [burners, setBurners] = useState([]);
+  const [newAddress, setNewAddress] = useState("");
+  const [selectedRole, setSelectedRole] = useState("MINTER_ROLE");
+  const [activeGames, setActiveGames] = useState([]);
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        // Check if game is paused
+        const paused = await diceContract.paused();
+        setIsPaused(paused);
+
+        // Get minters and burners
+        const { minters: m, burners: b } =
+          await tokenContract.getMinterBurnerAddresses();
+        setMinters(m);
+        setBurners(b);
+      } catch (err) {
+        onError(err, "admin initialization");
+      }
+    };
+
+    init();
+  }, [diceContract, tokenContract]);
+
+  const handlePauseToggle = async () => {
+    try {
+      if (isPaused) {
+        await diceContract.unpause();
+        addToast("Game unpaused successfully", "success");
+      } else {
+        await diceContract.pause();
+        addToast("Game paused successfully", "success");
+      }
+      setIsPaused(!isPaused);
+    } catch (err) {
+      onError(err, "pause toggle");
+    }
+  };
+
+  const handleRoleManagement = async (action) => {
+    try {
+      if (!ethers.isAddress(newAddress)) {
+        addToast("Invalid address", "error");
+        return;
+      }
+
+      const role = await tokenContract[selectedRole]();
+
+      if (action === "grant") {
+        await tokenContract.grantRole(role, newAddress);
+        addToast(`${selectedRole} granted successfully`, "success");
+      } else {
+        await tokenContract.revokeRole(role, newAddress);
+        addToast(`${selectedRole} revoked successfully`, "success");
+      }
+
+      // Refresh lists
+      const { minters: m, burners: b } =
+        await tokenContract.getMinterBurnerAddresses();
+      setMinters(m);
+      setBurners(b);
+    } catch (err) {
+      onError(err, "role management");
+    }
+  };
+
+  const handleForceStopGame = async (playerAddress) => {
+    try {
+      await diceContract.forceStopGame(playerAddress);
+      addToast("Game stopped successfully", "success");
+      // Refresh active games list
+    } catch (err) {
+      onError(err, "force stop game");
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+
+      {/* Game Control */}
+      <section className="glass-effect p-6 rounded-lg">
+        <h2 className="text-xl font-semibold mb-4">Game Control</h2>
+        <button
+          onClick={handlePauseToggle}
+          className={`btn-gaming ${
+            isPaused ? "bg-success-600" : "bg-error-600"
+          }`}
+        >
+          {isPaused ? "Unpause Game" : "Pause Game"}
+        </button>
+      </section>
+
+      {/* Role Management */}
+      <section className="glass-effect p-6 rounded-lg">
+        <h2 className="text-xl font-semibold mb-4">Role Management</h2>
+        <div className="space-y-4">
+          <div className="flex gap-4">
+            <input
+              type="text"
+              value={newAddress}
+              onChange={(e) => setNewAddress(e.target.value)}
+              placeholder="Enter address"
+              className="input-gaming flex-1"
+            />
+            <select
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value)}
+              className="select-gaming"
+            >
+              <option value="MINTER_ROLE">Minter</option>
+              <option value="BURNER_ROLE">Burner</option>
+            </select>
+            <button
+              onClick={() => handleRoleManagement("grant")}
+              className="btn-gaming bg-success-600"
+            >
+              Grant
+            </button>
+            <button
+              onClick={() => handleRoleManagement("revoke")}
+              className="btn-gaming bg-error-600"
+            >
+              Revoke
+            </button>
+          </div>
+
+          {/* Role Lists */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <h3 className="font-medium mb-2">Minters</h3>
+              <ul className="space-y-2">
+                {minters.map((address) => (
+                  <li key={address} className="text-sm text-gray-300">
+                    {address}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-medium mb-2">Burners</h3>
+              <ul className="space-y-2">
+                {burners.map((address) => (
+                  <li key={address} className="text-sm text-gray-300">
+                    {address}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Active Games */}
+      <section className="glass-effect p-6 rounded-lg">
+        <h2 className="text-xl font-semibold mb-4">Active Games</h2>
+        <div className="space-y-4">
+          {activeGames.map((game) => (
+            <div
+              key={game.player}
+              className="flex justify-between items-center"
+            >
+              <span>{game.player}</span>
+              <button
+                onClick={() => handleForceStopGame(game.player)}
+                className="btn-gaming bg-error-600"
+              >
+                Force Stop
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
 
 // Main App Component
 function App() {
-  // State Management
+  // Core States
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contracts, setContracts] = useState({
@@ -1784,20 +2193,22 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState("");
   const [toasts, setToasts] = useState([]);
+
+  // Loading States
   const [loadingStates, setLoadingStates] = useState({
     provider: true,
     contracts: true,
-    gameData: true,
     wallet: false,
     transaction: false,
   });
   const [loadingMessage, setLoadingMessage] = useState("");
 
-  // Enhanced Error Handling
+  // Error Handler
   const handleError = useCallback((error, context = "") => {
     console.error(`Error in ${context}:`, error);
     let errorMessage = "An unknown error occurred";
 
+    // Contract-specific error handling
     if (error.code === 4001) {
       errorMessage = "Transaction rejected by user";
     } else if (error.code === -32603) {
@@ -1807,8 +2218,6 @@ function App() {
       errorMessage = "Insufficient token balance for this operation";
     } else if (error.message?.includes("ERC20: insufficient allowance")) {
       errorMessage = "Please approve token usage before proceeding";
-    } else if (error.message?.includes("user rejected")) {
-      errorMessage = "Action cancelled by user";
     } else if (error.message) {
       errorMessage = error.message;
     }
@@ -1819,37 +2228,24 @@ function App() {
 
   // Network Validation
   const validateNetwork = useCallback(async (provider) => {
-  try {
-    const network = await provider.getNetwork();
-    const currentChainId = Number(network.chainId); // Ensure it's a number
-    setChainId(currentChainId);
+    try {
+      const network = await provider.getNetwork();
+      const currentChainId = Number(network.chainId);
+      setChainId(currentChainId);
 
-    if (!SUPPORTED_CHAIN_IDS.includes(currentChainId)) {
-      throw new Error("Please switch to Amoy Testnet (Chain ID: 80002)");
+      if (!SUPPORTED_CHAIN_IDS.includes(currentChainId)) {
+        throw new Error("Please switch to Amoy Testnet (Chain ID: 80002)");
+      }
+
+      return currentChainId;
+    } catch (error) {
+      throw error;
     }
+  }, []);
 
-    return currentChainId;
-  } catch (error) {
-    throw error;
-  }
-}, []);
-
-// Update the handleChainChanged function
-const handleChainChanged = async (newChainId) => {
-  const chainIdDec = parseInt(newChainId, 16);
-  setChainId(chainIdDec);
-
-  if (!SUPPORTED_CHAIN_IDS.includes(chainIdDec)) {
-    addToast("Please switch to Amoy Testnet (Chain ID: 80002)", "error");
-    await switchToAmoyNetwork();
-    return;
-  }
-
-  window.location.reload();
-};
   // Contract Initialization
   const initializeContracts = useCallback(
-    async (signer, chainId) => {
+    async (signer) => {
       try {
         if (!DICE_CONTRACT_ADDRESS || !TOKEN_CONTRACT_ADDRESS) {
           throw new Error(
@@ -1919,6 +2315,7 @@ const handleChainChanged = async (newChainId) => {
   };
 
   // Account Change Handler
+  // Update the handleAccountsChanged function
   const handleAccountsChanged = async (accounts) => {
     if (accounts.length === 0) {
       setAccount("");
@@ -1930,9 +2327,22 @@ const handleChainChanged = async (newChainId) => {
 
       if (contracts.token) {
         try {
-          const ADMIN_ROLE = await contracts.token.DEFAULT_ADMIN_ROLE();
-          const hasRole = await contracts.token.hasRole(ADMIN_ROLE, newAccount);
-          setIsAdmin(hasRole);
+          // Check for both DEFAULT_ADMIN_ROLE and owner status
+          const DEFAULT_ADMIN_ROLE = await contracts.token.DEFAULT_ADMIN_ROLE();
+          const hasAdminRole = await contracts.token.hasRole(
+            DEFAULT_ADMIN_ROLE,
+            newAccount
+          );
+          const isOwner = await contracts.dice.isOwner(newAccount);
+
+          setIsAdmin(hasAdminRole || isOwner);
+
+          console.log("Admin check:", {
+            account: newAccount,
+            hasAdminRole,
+            isOwner,
+            isAdmin: hasAdminRole || isOwner,
+          });
         } catch (err) {
           console.error("Error checking admin status:", err);
           setIsAdmin(false);
@@ -1941,8 +2351,41 @@ const handleChainChanged = async (newChainId) => {
     }
   };
 
-  // Network Change Handler
-  
+  // Add this useEffect to recheck admin status when contracts are initialized
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (contracts.token && contracts.dice && account) {
+        try {
+          const DEFAULT_ADMIN_ROLE = await contracts.token.DEFAULT_ADMIN_ROLE();
+          const hasAdminRole = await contracts.token.hasRole(
+            DEFAULT_ADMIN_ROLE,
+            account
+          );
+          const isOwner = await contracts.dice.isOwner(account);
+          setIsAdmin(hasAdminRole || isOwner);
+        } catch (err) {
+          console.error("Error checking admin status:", err);
+          setIsAdmin(false);
+        }
+      }
+    };
+
+    checkAdminStatus();
+  }, [contracts.token, contracts.dice, account]);
+
+  // Chain Change Handler
+  const handleChainChanged = async (newChainId) => {
+    const chainIdDec = parseInt(newChainId, 16);
+    setChainId(chainIdDec);
+
+    if (!SUPPORTED_CHAIN_IDS.includes(chainIdDec)) {
+      addToast("Please switch to Amoy Testnet (Chain ID: 80002)", "error");
+      await switchToAmoyNetwork();
+      return;
+    }
+
+    window.location.reload();
+  };
 
   // Toast Management
   const addToast = useCallback((message, type = "info") => {
@@ -1969,7 +2412,7 @@ const handleChainChanged = async (newChainId) => {
           setProvider(provider);
           setSigner(signer);
 
-          const contractsData = await initializeContracts(signer, chainId);
+          const contractsData = await initializeContracts(signer);
           if (!contractsData) return;
 
           const accounts = await window.ethereum.request({
@@ -1983,13 +2426,11 @@ const handleChainChanged = async (newChainId) => {
       } catch (err) {
         handleError(err, "initialization");
       } finally {
-        setLoadingStates({
+        setLoadingStates((prev) => ({
+          ...prev,
           provider: false,
           contracts: false,
-          gameData: false,
-          wallet: false,
-          transaction: false,
-        });
+        }));
       }
     };
 
@@ -2009,27 +2450,9 @@ const handleChainChanged = async (newChainId) => {
     }
   }, [handleError, initializeContracts, validateNetwork]);
 
-  // Loading State Check
+  // Loading Check
   if (Object.values(loadingStates).some((state) => state)) {
     return <LoadingOverlay message={loadingMessage} />;
-  }
-
-  // Error State Check
-  if (error) {
-    return (
-      <div className="min-h-screen bg-secondary-900 flex items-center justify-center">
-        <div className="card border-error-500 p-8 max-w-md w-full">
-          <h2 className="text-2xl font-display text-error-500 mb-4">Error</h2>
-          <p className="text-secondary-300 mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="btn-error w-full"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -2037,18 +2460,13 @@ const handleChainChanged = async (newChainId) => {
       <div className="min-h-screen bg-secondary-900">
         {/* Network Warning */}
         {chainId && !SUPPORTED_CHAIN_IDS.includes(chainId) && (
-          <NetworkWarning supportedNetworks={SUPPORTED_CHAIN_IDS} />
-        )}
-
-        {/* Loading Overlay */}
-        {Object.values(loadingStates).some((state) => state) && (
-          <LoadingOverlay message={loadingMessage} />
+          <NetworkWarning />
         )}
 
         <Navbar
           account={account}
-          chainId={chainId}
           connectWallet={connectWallet}
+          loadingStates={loadingStates}
           isAdmin={isAdmin}
         />
 
@@ -2058,35 +2476,14 @@ const handleChainChanged = async (newChainId) => {
             <Route
               path="/dice"
               element={
-                <div className="space-y-12">
-                  <GameComponent
-                    diceContract={contracts.dice}
-                    tokenContract={contracts.token}
-                    account={account}
-                    onError={handleError}
-                    addToast={addToast}
-                    setLoadingStates={setLoadingStates}
-                    setLoadingMessage={setLoadingMessage}
-                  />
-                  <GameStatus
-                    diceContract={contracts.dice}
-                    account={account}
-                    onError={handleError}
-                    addToast={addToast}
-                  />
-                  <div className="grid md:grid-cols-2 gap-12">
-                    <PlayerStats
-                      diceContract={contracts.dice}
-                      account={account}
-                      onError={handleError}
-                    />
-                    <GameHistory
-                      diceContract={contracts.dice}
-                      account={account}
-                      onError={handleError}
-                    />
-                  </div>
-                </div>
+                <DicePage
+                  contracts={contracts}
+                  account={account}
+                  onError={handleError}
+                  addToast={addToast}
+                  setLoadingStates={setLoadingStates}
+                  setLoadingMessage={setLoadingMessage}
+                />
               }
             />
             <Route
