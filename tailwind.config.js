@@ -1,4 +1,5 @@
 const defaultTheme = require('tailwindcss/defaultTheme')
+const plugin = require('tailwindcss/plugin')
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -6,6 +7,7 @@ module.exports = {
     "./src/**/*.{js,jsx,ts,tsx}",
     "./public/index.html"
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -21,7 +23,8 @@ module.exports = {
           600: '#4f46e5',
           700: '#4338ca',
           800: '#3730a3',
-          900: '#312e81'
+          900: '#312e81',
+          950: '#1e1b4b'
         },
         secondary: {
           DEFAULT: '#1f2937',
@@ -33,48 +36,8 @@ module.exports = {
           600: '#4b5563',
           700: '#374151',
           800: '#1f2937',
-          900: '#111827'
-        },
-        accent: {
-          DEFAULT: '#8b5cf6',
-          light: '#a78bfa',
-          dark: '#7c3aed',
-          100: '#ede9fe',
-          500: '#8b5cf6',
-          900: '#4c1d95'
-        },
-        success: {
-          DEFAULT: '#10b981',
-          light: '#34d399',
-          dark: '#059669',
-          100: '#d1fae5',
-          300: '#6ee7b7',
-          400: '#34d399',
-          500: '#10b981',
-          600: '#059669',
-          700: '#047857'
-        },
-        error: {
-          DEFAULT: '#ef4444',
-          light: '#f87171',
-          dark: '#dc2626',
-          100: '#fee2e2',
-          300: '#fca5a5',
-          400: '#f87171',
-          500: '#ef4444',
-          600: '#dc2626',
-          700: '#b91c1c'
-        },
-        warning: {
-          DEFAULT: '#f59e0b',
-          light: '#fbbf24',
-          dark: '#d97706',
-          100: '#fef3c7'
-        },
-        text: {
-          primary: '#f3f4f6',
-          secondary: '#9ca3af',
-          dark: '#1f2937'
+          900: '#111827',
+          950: '#0a0f1a'
         },
         gaming: {
           primary: '#FF4655',
@@ -84,37 +47,52 @@ module.exports = {
           success: '#10B981',
           error: '#EF4444',
           warning: '#F59E0B',
-          info: '#3B82F6'
+          info: '#3B82F6',
+          muted: '#64748B',
+          highlight: '#FB923C'
+        },
+        gradient: {
+          'gaming-start': '#FF4655',
+          'gaming-end': '#FF7F50',
+          'dark-start': '#0F172A',
+          'dark-end': '#020617'
         }
       },
       fontFamily: {
         sans: ['Inter', ...defaultTheme.fontFamily.sans],
         display: ['Lexend', 'sans-serif'],
-        mono: ['Fira Code', 'monospace']
+        mono: ['Fira Code', 'monospace'],
+        gaming: ['Lexend', 'sans-serif']
       },
       boxShadow: {
         'glow': '0 0 15px rgba(255, 70, 85, 0.3)',
         'glow-primary': '0 0 15px rgba(99, 102, 241, 0.5)',
         'glow-primary-lg': '0 0 25px rgba(99, 102, 241, 0.6)',
-        'glow-success': '0 0 15px rgba(16, 185, 129, 0.5)',
-        'glow-error': '0 0 15px rgba(239, 68, 68, 0.5)',
-        'neon': '0 0 5px theme(colors.gaming.primary), 0 0 20px theme(colors.gaming.primary)',
-        'neon-success': '0 0 5px theme(colors.gaming.success), 0 0 20px theme(colors.gaming.success)',
-        'neon-error': '0 0 5px theme(colors.gaming.error), 0 0 20px theme(colors.gaming.error)',
-        'glass': '0 0 15px rgba(255, 255, 255, 0.1)'
+        'gaming': '0 0 20px rgba(255, 70, 85, 0.4)',
+        'gaming-lg': '0 0 30px rgba(255, 70, 85, 0.5)',
+        'gaming-xl': '0 0 40px rgba(255, 70, 85, 0.6)',
+        'gaming-2xl': '0 0 50px rgba(255, 70, 85, 0.7)',
+        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+        'glass-sm': '0 4px 16px 0 rgba(31, 38, 135, 0.37)',
+        'glass-lg': '0 12px 48px 0 rgba(31, 38, 135, 0.37)'
+      },
+      backgroundImage: {
+        'gradient-gaming': 'linear-gradient(to right, var(--gaming-primary), var(--gaming-accent))',
+        'gradient-gaming-vertical': 'linear-gradient(to bottom, var(--gaming-primary), var(--gaming-accent))',
+        'gradient-dark': 'linear-gradient(to right, var(--gaming-dark), var(--gaming-darker))',
+        'gradient-radial-gaming': 'radial-gradient(circle at center, var(--gaming-primary), var(--gaming-accent))',
+        'mesh-pattern': 'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0 0h20v20H0V0zm10 10h10v10H10V10zM0 10h10v10H0V10z\' fill=\'%23FF4655\' fill-opacity=\'0.05\'/%3E%3C/svg%3E")'
       },
       animation: {
         'gradient-shift': 'gradient 3s ease infinite',
         'value-change': 'valueChange 0.3s ease-out',
-        'pulse-subtle': 'pulseSoft 2s ease-in-out infinite',
-        'dice-roll': 'dice-roll 1s ease-out',
-        'number-pop': 'number-pop 0.3s ease-out',
-        'glow-pulse': 'glow-pulse 2s infinite',
-        'float': 'float 3s ease-in-out infinite',
-        'slide-up': 'slideUp 0.5s ease-out',
-        'slide-down': 'slideDown 0.5s ease-out',
-        'fade-in': 'fadeIn 0.3s ease-out',
-        'bounce-subtle': 'bounceSoft 2s infinite'
+        'gaming-pulse': 'gamingPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'gaming-float': 'gamingFloat 3s ease-in-out infinite',
+        'gaming-spin': 'gamingSpin 1s linear infinite',
+        'gaming-bounce': 'gamingBounce 1s infinite',
+        'gaming-shake': 'gamingShake 0.5s infinite',
+        'matrix-rain': 'matrixRain 20s linear infinite',
+        'glitch': 'glitch 1s infinite'
       },
       keyframes: {
         gradient: {
@@ -125,68 +103,45 @@ module.exports = {
           '0%': { transform: 'scale(0.95)', opacity: '0.8' },
           '100%': { transform: 'scale(1)', opacity: '1' }
         },
-        pulseSoft: {
-          '0%, 100%': { opacity: '0.6' },
-          '50%': { opacity: '0.3' }
+        gamingPulse: {
+          '0%, 100%': {
+            opacity: '1',
+            transform: 'scale(1)',
+            boxShadow: '0 0 20px rgba(255, 70, 85, 0.4)'
+          },
+          '50%': {
+            opacity: '0.8',
+            transform: 'scale(1.05)',
+            boxShadow: '0 0 30px rgba(255, 70, 85, 0.6)'
+          }
         },
-        diceRoll: {
-          '0%': { transform: 'rotate(0deg) scale(1)' },
-          '50%': { transform: 'rotate(180deg) scale(1.2)' },
-          '100%': { transform: 'rotate(360deg) scale(1)' }
-        },
-        numberPop: {
-          '0%': { transform: 'scale(1)' },
-          '50%': { transform: 'scale(1.2)' },
-          '100%': { transform: 'scale(1)' }
-        },
-        glowPulse: {
-          '0%, 100%': { opacity: '0.6', boxShadow: '0 0 15px rgba(255, 70, 85, 0.3)' },
-          '50%': { opacity: '0.3', boxShadow: '0 0 25px rgba(255, 70, 85, 0.5)' }
-        },
-        float: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-10px)' }
-        },
-        slideUp: {
-          '0%': { transform: 'translateY(20px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' }
-        },
-        slideDown: {
-          '0%': { transform: 'translateY(-20px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' }
-        },
-        fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' }
-        },
-        bounceSoft: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-5px)' }
+        glitch: {
+          '0%, 100%': { transform: 'translate(0)' },
+          '20%': { transform: 'translate(-2px, 2px)' },
+          '40%': { transform: 'translate(-2px, -2px)' },
+          '60%': { transform: 'translate(2px, 2px)' },
+          '80%': { transform: 'translate(2px, -2px)' }
         }
-      },
-      backgroundImage: {
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
-        'gradient-gaming': 'linear-gradient(to right, var(--gaming-primary), var(--gaming-accent))'
-      },
-      spacing: {
-        '128': '32rem',
-        '144': '36rem'
-      },
-      borderRadius: {
-        '4xl': '2rem',
-        '5xl': '2.5rem'
-      },
-      scale: {
-        '175': '1.75',
-        '200': '2'
       }
     }
   },
   plugins: [
     require('@tailwindcss/typography'),
     require('@tailwindcss/forms'),
-    require('@tailwindcss/aspect-ratio')
+    require('@tailwindcss/aspect-ratio'),
+    plugin(({ addUtilities }) => {
+      addUtilities({
+        '.text-shadow-gaming': {
+          'text-shadow': '0 0 10px rgba(255, 70, 85, 0.5)'
+        },
+        '.gaming-border-gradient': {
+          'border-image': 'linear-gradient(to right, #FF4655, #FF7F50) 1'
+        },
+        '.backdrop-gaming': {
+          'backdrop-filter': 'blur(16px) brightness(0.9)'
+        }
+      })
+    })
   ]
 }
 

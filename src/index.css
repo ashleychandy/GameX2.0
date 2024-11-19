@@ -1,6 +1,6 @@
-@import url('https://rsms.me/inter/inter.css');
-@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap');
+@import url("https://rsms.me/inter/inter.css");
+@import url("https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -8,223 +8,185 @@
 
 @layer base {
   :root {
-    --primary: #6366f1;
-    --primary-dark: #4f46e5;
-    --secondary: #1f2937;
-    --secondary-dark: #111827;
-    --accent: #8b5cf6;
-    --success: #10b981;
-    --error: #ef4444;
-    --warning: #f59e0b;
-    --text-primary: #f3f4f6;
-    --text-secondary: #9ca3af;
+    --gaming-primary: 255, 70, 85;
+    --gaming-accent: 255, 127, 80;
+    --gaming-success: 16, 185, 129;
+    --gaming-error: 239, 68, 68;
+    --gaming-warning: 245, 158, 11;
+    --gaming-info: 59, 130, 246;
+
+    --shadow-color: 0deg 0% 0%;
+    --shadow-elevation-low: 0px 0.5px 0.6px hsl(var(--shadow-color) / 0.14),
+      0px 0.8px 1px -1.2px hsl(var(--shadow-color) / 0.14),
+      0px 2px 2.4px -2.5px hsl(var(--shadow-color) / 0.14);
+    --shadow-elevation-medium: 0px 0.5px 0.6px hsl(var(--shadow-color) / 0.13),
+      0px 1.6px 1.9px -0.8px hsl(var(--shadow-color) / 0.13),
+      0px 4px 4.8px -1.7px hsl(var(--shadow-color) / 0.13),
+      0px 10px 12px -2.5px hsl(var(--shadow-color) / 0.13);
   }
 
   body {
-    @apply bg-gradient-to-br from-secondary-800 to-secondary-900 text-text-primary font-sans min-h-screen;
+    @apply bg-gradient-to-br from-secondary-900 to-secondary-900/95 
+           text-white font-sans min-h-screen antialiased
+           selection:bg-gaming-primary/30 selection:text-white;
   }
 
-  /* Scrollbar Styling */
+  /* Enhanced Scrollbar */
   ::-webkit-scrollbar {
     @apply w-2;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-secondary-800;
+    @apply bg-secondary-800/50 rounded-full;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-gaming-primary/50 rounded-full hover:bg-gaming-primary transition-colors duration-200;
+    @apply bg-gaming-primary/50 rounded-full hover:bg-gaming-primary 
+           transition-all duration-300;
   }
 }
 
 @layer components {
-  .responsive-container {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6;
+  /* Layout Components */
+  .page-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8;
   }
 
-  .glass-effect {
-    @apply bg-secondary-800/70 backdrop-blur-md border border-white/10 shadow-lg p-6 mb-6;
+  .section-container {
+    @apply space-y-6 mb-12;
   }
 
-  .card {
-    @apply bg-secondary-800/70 rounded-xl p-8 mb-8 border border-white/10 shadow-lg
-           hover:shadow-xl transition-all duration-300 relative overflow-hidden;
+  /* Enhanced Glass Effects */
+  .glass-panel {
+    @apply bg-secondary-900/60 backdrop-blur-xl border border-white/5
+           rounded-2xl shadow-xl transition-all duration-300
+           hover:shadow-2xl hover:border-white/10;
+  }
+
+  .glass-card {
+    @apply bg-secondary-800/40 backdrop-blur-md border border-white/10
+           rounded-xl p-6 shadow-lg transition-all duration-300
+           hover:shadow-xl hover:border-gaming-primary/20;
+  }
+
+  /* Button Variants */
+  .btn-base {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg
+           font-semibold transition-all duration-300 disabled:opacity-50
+           disabled:cursor-not-allowed focus:outline-none focus:ring-2
+           focus:ring-offset-2 focus:ring-offset-secondary-900;
   }
 
   .btn-gaming {
-    @apply bg-gradient-to-r from-gaming-primary to-gaming-accent 
-           text-white py-3 px-6 rounded-lg font-semibold cursor-pointer 
-           transition-all duration-300 hover:shadow-glow
-           disabled:opacity-50 disabled:cursor-not-allowed
-           active:scale-95;
+    @apply btn-base bg-gradient-to-r from-gaming-primary to-gaming-accent
+           text-white hover:shadow-glow active:scale-95
+           focus:ring-gaming-primary;
   }
 
-  .btn-gaming-secondary {
-    @apply bg-secondary-800 text-gaming-primary border-2 border-gaming-primary
-           py-3 px-6 rounded-lg font-semibold cursor-pointer
-           transition-all duration-300 hover:bg-gaming-primary/10
-           disabled:opacity-50 disabled:cursor-not-allowed;
+  .btn-secondary {
+    @apply btn-base bg-secondary-800 text-white border border-secondary-700
+           hover:bg-secondary-700 focus:ring-secondary-600;
   }
 
-  .text-gradient-gaming {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-gaming-primary to-gaming-accent;
+  .btn-outline {
+    @apply btn-base border-2 border-gaming-primary text-gaming-primary
+           hover:bg-gaming-primary/10 focus:ring-gaming-primary;
   }
 
-  .animate-shimmer {
-    @apply relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full
-           before:animate-[shimmer_1.5s_infinite]
-           before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent;
-  }
-
-  .gaming-border {
-    @apply border-2 border-gaming-primary;
-  }
-
-  .gaming-glow {
-    @apply shadow-[0_0_15px_rgba(255,70,85,0.3)];
-  }
-
-  .grid-auto-fit {
-    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6;
-  }
-
+  /* Form Elements */
   .input-gaming {
-    @apply w-full px-4 py-2 bg-secondary-700 border border-secondary-600 
-           rounded-lg text-white placeholder-secondary-400
-           focus:border-gaming-primary focus:ring-1 focus:ring-gaming-primary
-           transition-all duration-200;
+    @apply w-full px-4 py-3 bg-secondary-800/80 rounded-lg
+           border border-secondary-700 text-white placeholder-secondary-400
+           focus:border-gaming-primary focus:ring-2 focus:ring-gaming-primary/50
+           transition-all duration-200 hover:border-gaming-primary/50;
   }
 
+  .select-gaming {
+    @apply input-gaming appearance-none bg-no-repeat bg-right
+           pr-10 cursor-pointer;
+  }
+
+  /* Card Variants */
+  .stat-card {
+    @apply glass-card flex flex-col space-y-2;
+  }
+
+  .feature-card {
+    @apply glass-card hover:scale-105 cursor-pointer;
+  }
+
+  /* Navigation */
   .nav-link {
-    @apply px-4 py-2 text-secondary-300 hover:text-white transition-colors duration-200
-           relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5
-           after:bg-gaming-primary after:scale-x-0 hover:after:scale-x-100
-           after:transition-transform after:duration-300;
+    @apply relative px-4 py-2 text-secondary-300 hover:text-white
+           transition-all duration-300 after:absolute after:bottom-0
+           after:left-0 after:w-full after:h-0.5 after:bg-gaming-primary
+           after:scale-x-0 hover:after:scale-x-100 after:transition-transform
+           after:duration-300;
   }
 
-  /* Game Status Indicators */
-  .status-indicator {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+  /* Status Indicators */
+  .status-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+           shadow-sm transition-all duration-300;
   }
 
-  .status-active {
-    @apply bg-success/20 text-success;
-  }
-
-  .status-pending {
-    @apply bg-warning/20 text-warning;
+  .status-success {
+    @apply status-badge bg-success-500/20 text-success-400
+           shadow-success/20 hover:shadow-success/30;
   }
 
   .status-error {
-    @apply bg-error/20 text-error;
+    @apply status-badge bg-error-500/20 text-error-400
+           shadow-error/20 hover:shadow-error/30;
   }
 
-  /* Loading Animations */
-  .loading-dots::after {
-    content: '...';
-    animation: dots 1.5s steps(4, end) infinite;
+  /* Loading States */
+  .loading-dots {
+    @apply inline-flex space-x-1;
   }
 
-  @keyframes dots {
-    0%, 20% { content: '.'; }
-    40% { content: '..'; }
-    60% { content: '...'; }
-    80%, 100% { content: ''; }
-  }
-
-  /* Toast Container */
-  .toast-container {
-    @apply fixed bottom-4 right-4 z-50 space-y-2;
-  }
-
-  /* Game History Table */
-  .game-table {
-    @apply w-full border-collapse;
-  }
-
-  .game-table th {
-    @apply px-4 py-2 text-left text-secondary-400 font-medium;
-  }
-
-  .game-table td {
-    @apply px-4 py-2 border-t border-secondary-700;
-  }
-
-  .game-table tr:hover {
-    @apply bg-secondary-700/30;
-  }
-
-  .custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: theme('colors.gaming.primary') theme('colors.secondary.800');
-  }
-
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: theme('colors.secondary.800');
-    border-radius: 3px;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: theme('colors.gaming.primary');
-    border-radius: 3px;
-  }
-
-  .glass-panel {
-    background: rgba(15, 23, 42, 0.6);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-  }
-
-  .stat-card {
-    @apply p-4 rounded-xl bg-secondary-800/40 border border-white/5;
+  .loading-dot {
+    @apply w-2 h-2 bg-current rounded-full animate-pulse;
   }
 }
 
 @layer utilities {
-  .tooltip {
-    @apply relative inline-block;
+  /* Text Effects */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r
+           from-gaming-primary to-gaming-accent;
   }
 
-  .tooltip-text {
-    @apply invisible absolute z-10 p-2 bg-secondary-900 text-sm text-white rounded-md 
-           shadow-lg opacity-0 transition-opacity duration-300 
-           -translate-y-full left-1/2 -translate-x-1/2 top-0 
-           whitespace-nowrap;
-  }
-
-  .tooltip:hover .tooltip-text {
-    @apply visible opacity-100;
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
 
   .text-shadow {
-    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   }
 
   .text-shadow-lg {
-    text-shadow: 0 4px 8px rgba(0,0,0,0.5);
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Animation Utilities */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-pulse-subtle {
+    animation: pulseSoft 2s ease-in-out infinite;
+  }
+
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite;
   }
 }
 
-/* Custom Animations */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
+/* Keyframe Animations */
 @keyframes float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -232,10 +194,46 @@
   }
 }
 
-.animate-float {
-  animation: float 3s ease-in-out infinite;
+@keyframes pulseSoft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
-.animate-fade-in-up {
-  animation: fadeInUp 0.5s ease-out forwards;
-} 
+@keyframes glow {
+  0%,
+  100% {
+    box-shadow: 0 0 15px rgba(var(--gaming-primary), 0.3);
+    border-color: rgba(var(--gaming-primary), 0.3);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(var(--gaming-primary), 0.5);
+    border-color: rgba(var(--gaming-primary), 0.5);
+  }
+}
+
+/* Media Queries */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .glass-card {
+    @apply p-8;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
