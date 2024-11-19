@@ -39,114 +39,62 @@ const TOKEN_CONTRACT_ADDRESS = process.env.REACT_APP_TOKEN_ADDRESS;
 const SUPPORTED_CHAIN_IDS = [80002];
 
 // Enhanced Toast Component
-const Toast = ({ message, type, onClose }) => {
-  const bgColor =
-    {
-      success: "bg-success-500",
-      error: "bg-error-500",
-      warning: "bg-warning-500",
-      info: "bg-primary-500",
-    }[type] || "bg-primary-500";
-
-  const Icon = {
-    success: (
-      <svg
-        className="w-5 h-5"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          d="M5 13l4 4L19 7"
-        />
-      </svg>
-    ),
-    error: (
-      <svg
-        className="w-5 h-5"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          d="M6 18L18 6M6 6l12 12"
-        />
-      </svg>
-    ),
-    warning: (
-      <svg
-        className="w-5 h-5"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-        />
-      </svg>
-    ),
-    info: (
-      <svg
-        className="w-5 h-5"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    ),
-  }[type];
-
-  return (
-    <div
-      className={`fixed bottom-4 right-4 flex items-center min-w-[300px] p-4 
-      rounded-lg shadow-xl transform transition-all duration-300 ease-in-out
-      ${bgColor} animate-slide-up z-50`}
-      role="alert"
-      aria-live="assertive"
-    >
-      <div className="flex-1 text-white">
-        <div className="flex items-center space-x-2">
-          {Icon}
-          <span className="font-medium">{message}</span>
+const Toast = ({ message, type, onClose }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 50 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: 20 }}
+    className={`fixed bottom-4 right-4 max-w-md w-full mx-4 p-4 rounded-xl shadow-xl 
+                backdrop-blur-md border transition-all duration-300 z-50
+                ${
+                  type === "success"
+                    ? "bg-gaming-success/10 border-gaming-success/30"
+                    : type === "error"
+                    ? "bg-gaming-error/10 border-gaming-error/30"
+                    : type === "warning"
+                    ? "bg-gaming-warning/10 border-gaming-warning/30"
+                    : "bg-gaming-info/10 border-gaming-info/30"
+                }`}
+  >
+    <div className="flex items-center justify-between">
+      <div className="flex items-center space-x-3">
+        <div
+          className={`p-2 rounded-full 
+                      ${
+                        type === "success"
+                          ? "bg-gaming-success/20"
+                          : type === "error"
+                          ? "bg-gaming-error/20"
+                          : type === "warning"
+                          ? "bg-gaming-warning/20"
+                          : "bg-gaming-info/20"
+                      }`}
+        >
+          {/* Icon based on type */}
         </div>
+        <p className="text-white/90 font-medium">{message}</p>
       </div>
       <button
         onClick={onClose}
-        className="ml-4 text-white hover:text-gray-200 transition-colors"
-        aria-label="Close notification"
+        className="text-white/60 hover:text-white/90 transition-colors"
       >
         <svg
           className="w-5 h-5"
           fill="none"
-          stroke="currentColor"
           viewBox="0 0 24 24"
+          stroke="currentColor"
         >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeWidth="2"
+            strokeWidth={2}
             d="M6 18L18 6M6 6l12 12"
           />
         </svg>
       </button>
     </div>
-  );
-};
+  </motion.div>
+);
 
 const Navbar = ({ account, connectWallet, loadingStates, isAdmin }) => (
   <nav className="glass-effect sticky top-0 z-50 border-b border-secondary-700/50">
@@ -250,15 +198,15 @@ const switchToAmoyNetwork = async () => {
 
 // Enhanced Loading Overlay Component
 const LoadingOverlay = ({ message }) => (
-  <div
-    className="fixed inset-0 bg-secondary-900/80 backdrop-blur-sm flex items-center 
-    justify-center z-50 transition-opacity duration-300"
-  >
-    <div
-      className="bg-secondary-800 p-6 rounded-xl shadow-xl border border-secondary-700
-      transform transition-all duration-300 ease-out"
-    >
-      <LoadingSpinner message={message} />
+  <div className="fixed inset-0 bg-secondary-900/90 backdrop-blur-lg flex items-center justify-center z-50">
+    <div className="bg-secondary-800/80 p-8 rounded-2xl shadow-xl border border-gaming-primary/20 max-w-md w-full mx-4">
+      <div className="flex flex-col items-center space-y-4">
+        <div className="relative w-16 h-16">
+          <div className="absolute inset-0 rounded-full border-4 border-gaming-primary/20 animate-spin"></div>
+          <div className="absolute inset-0 rounded-full border-4 border-gaming-primary border-t-transparent animate-spin-reverse"></div>
+        </div>
+        <p className="text-white/80 text-center font-medium">{message}</p>
+      </div>
     </div>
   </div>
 );
@@ -689,7 +637,7 @@ const DiceVisualizer = ({ chosenNumber, isRolling, result }) => {
     rolling: {
       rotate: [0, 360, 720, 1080],
       transition: {
-        duration: 2,
+        duration: 1.5,
         ease: "easeInOut",
         times: [0, 0.2, 0.5, 1],
       },
@@ -697,7 +645,7 @@ const DiceVisualizer = ({ chosenNumber, isRolling, result }) => {
     static: {
       rotate: 0,
       transition: {
-        duration: 0.5,
+        duration: 0.3,
         ease: "easeOut",
       },
     },
@@ -713,14 +661,17 @@ const DiceVisualizer = ({ chosenNumber, isRolling, result }) => {
   };
 
   const renderDots = (number) => {
+    // Ensure we have a valid number between 1-6
+    const validNumber = Math.max(1, Math.min(6, Number(number) || 1));
+
     return Array(9)
       .fill(null)
       .map((_, index) => (
         <div
           key={index}
-          className={`w-4 h-4 rounded-full transition-all duration-300
+          className={`w-2 h-2 rounded-full transition-all duration-200
           ${
-            dotPositions[number]?.includes(index)
+            dotPositions[validNumber]?.includes(index)
               ? "bg-white scale-100 opacity-100"
               : "bg-transparent scale-0 opacity-0"
           }`}
@@ -728,49 +679,48 @@ const DiceVisualizer = ({ chosenNumber, isRolling, result }) => {
       ));
   };
 
+  // Determine which number to display
+  const displayNumber = result || chosenNumber || 1;
+
   return (
-    <div className="relative w-full aspect-square max-w-[300px] mx-auto">
+    <div className="relative w-full max-w-[120px] mx-auto">
       <AnimatePresence mode="wait">
         <motion.div
-          key={isRolling ? "rolling" : result || chosenNumber}
+          key={isRolling ? "rolling" : displayNumber}
           variants={diceVariants}
           animate={isRolling ? "rolling" : "static"}
-          className="w-full h-full"
+          className="w-full aspect-square"
         >
-          <div className="dice-container relative w-full h-full">
-            {/* 3D Dice Face */}
+          <div className="dice-container">
             <div
               className={`
-              absolute inset-0 rounded-2xl bg-gaming-primary/20
-              backdrop-blur-lg border border-white/20
-              shadow-[0_0_15px_rgba(59,130,246,0.5)]
+              absolute inset-0 rounded-lg bg-gaming-primary/20
+              backdrop-blur-sm border border-white/10
+              shadow-[0_0_10px_rgba(59,130,246,0.3)]
               ${isRolling ? "animate-shake" : ""}
-              transform transition-all duration-300
+              transform transition-all duration-200
             `}
             >
-              <div className="grid grid-cols-3 grid-rows-3 gap-2 p-6 h-full">
-                {renderDots(result || chosenNumber || 1)}
+              <div className="grid grid-cols-3 grid-rows-3 gap-1 p-3 h-full">
+                {renderDots(displayNumber)}
               </div>
             </div>
 
-            {/* Reflection Effect */}
             <div
-              className="absolute inset-0 rounded-2xl bg-gradient-to-tr 
+              className="absolute inset-0 rounded-lg bg-gradient-to-tr 
               from-white/5 to-transparent pointer-events-none"
             />
           </div>
         </motion.div>
       </AnimatePresence>
-
-      {/* Result Overlay */}
       {result && !isRolling && (
         <motion.div
           initial={{ opacity: 0, scale: 0.5 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="absolute top-0 left-0 w-full h-full flex items-center justify-center"
+          className="absolute -bottom-8 left-0 w-full text-center"
         >
           <div
-            className={`text-4xl font-bold ${
+            className={`text-lg font-bold ${
               result === chosenNumber
                 ? "text-gaming-success animate-bounce"
                 : "text-gaming-error animate-shake"
@@ -1193,12 +1143,11 @@ const GameHistory = ({ diceContract, account, onError }) => {
 
     try {
       setLoading(true);
-      const [bets, playerStats] = await Promise.all([
-        diceContract.getPreviousBets(account),
-        diceContract.getPlayerStats(account),
-      ]);
 
-      // Process bets into readable format
+      // First get the bets
+      const bets = await diceContract.getPreviousBets(account);
+
+      // Process bets into readable format and calculate stats directly
       const processedGames = bets.map((bet) => ({
         chosenNumber: Number(bet.chosenNumber),
         rolledNumber: Number(bet.rolledNumber),
@@ -1207,13 +1156,23 @@ const GameHistory = ({ diceContract, account, onError }) => {
         isWin: Number(bet.chosenNumber) === Number(bet.rolledNumber),
       }));
 
+      // Calculate stats from processed games
+      const winsCount = processedGames.filter((game) => game.isWin).length;
+      const lossesCount = processedGames.length - winsCount;
+
       setGames(processedGames);
       setStats({
-        totalGamesWon: Number(playerStats.totalGamesWon),
-        totalGamesLost: Number(playerStats.totalGamesLost),
+        totalGamesWon: winsCount,
+        totalGamesLost: lossesCount,
       });
     } catch (error) {
       console.error("Error fetching game history:", error);
+      // Set empty state on error
+      setGames([]);
+      setStats({
+        totalGamesWon: 0,
+        totalGamesLost: 0,
+      });
       onError(error);
     } finally {
       setLoading(false);
@@ -1915,6 +1874,7 @@ const DicePage = ({
     requestId: null,
     lastResult: null,
     isRolling: false,
+    status: "PENDING",
   });
 
   // User Input State
@@ -1924,6 +1884,10 @@ const DicePage = ({
   const [allowance, setAllowance] = useState(BigInt(0));
   const [betHistory, setBetHistory] = useState([]);
   const [showStats, setShowStats] = useState(false);
+
+  // Animation States
+  const [showWinAnimation, setShowWinAnimation] = useState(false);
+  const [showLoseAnimation, setShowLoseAnimation] = useState(false);
 
   // Calculate potential winnings
   const potentialWinnings = useMemo(() => {
@@ -1959,88 +1923,116 @@ const DicePage = ({
         contracts.dice.canStartNewGame(account),
       ]);
 
-      const [isActive, status, chosenNumber, amount, timestamp] = gameStatus;
-      const [requestId, requestFulfilled, requestActive] = requestDetails;
-
       setGameState((prev) => ({
         ...prev,
-        isActive,
-        needsResolution: requestFulfilled && !requestActive,
-        requestId: requestId.toString(),
-        lastResult: status > 1 ? chosenNumber : null,
-        canPlay: canPlay && !isActive,
+        isActive: gameStatus.isActive,
+        status: [
+          "PENDING",
+          "STARTED",
+          "COMPLETED_WIN",
+          "COMPLETED_LOSS",
+          "CANCELLED",
+        ][Number(gameStatus.status)],
+        lastResult:
+          gameStatus.status > 1 ? Number(gameStatus.rolledNumber) : null,
+        requestId: requestDetails.requestId.toString(),
+        needsResolution:
+          requestDetails.requestFulfilled && !requestDetails.requestActive,
+        canPlay,
+        isProcessing: false,
       }));
     } catch (error) {
       console.error("Error updating game state:", error);
+      onError(error, "updateGameState");
     }
-  }, [contracts.dice, account]);
+  }, [contracts.dice, account, onError]);
 
   // Update bet history
   const updateBetHistory = useCallback(async () => {
     if (!contracts.dice || !account) return;
 
     try {
-      const history = await contracts.dice.getPreviousBets(account);
-      setBetHistory(history);
+      const bets = await contracts.dice.getPreviousBets(account);
+      const processedBets = bets.map((bet) => ({
+        chosenNumber: Number(bet.chosenNumber),
+        rolledNumber: Number(bet.rolledNumber),
+        amount: bet.amount.toString(),
+        timestamp: Number(bet.timestamp),
+        isWin: Number(bet.chosenNumber) === Number(bet.rolledNumber),
+      }));
+
+      setBetHistory(processedBets);
     } catch (error) {
       console.error("Error updating bet history:", error);
+      onError(error, "updateBetHistory");
     }
-  }, [contracts.dice, account]);
+  }, [contracts.dice, account, onError]);
 
-  // Initialize component
-  useEffect(() => {
-    const init = async () => {
+  // Handle game resolution
+  const handleGameResolution = useCallback(async () => {
+    if (!gameState.needsResolution) return;
+
+    try {
+      setLoadingStates((prev) => ({ ...prev, resolving: true }));
+      setLoadingMessage("Resolving game...");
+
+      const tx = await contracts.dice.resolveGame();
+      await tx.wait();
+
+      const gameStatus = await contracts.dice.getGameStatus(account);
+      const isWin = Number(gameStatus.status) === 2; // COMPLETED_WIN
+
+      if (isWin) {
+        setShowWinAnimation(true);
+        addToast("Congratulations! You won!", "success");
+      } else {
+        setShowLoseAnimation(true);
+        addToast("Better luck next time!", "error");
+      }
+
       await Promise.all([
         updateBalance(),
         updateGameState(),
         updateBetHistory(),
       ]);
-    };
-
-    init();
-  }, [updateBalance, updateGameState, updateBetHistory]);
-
-  // Handle number selection
-  const handleNumberSelect = (number) => {
-    setChosenNumber(number);
-  };
-
-  // Handle bet amount change
-  const handleBetAmountChange = (amount) => {
-    setBetAmount(amount);
-  };
-
-  // Handle approve tokens
-  const handleApprove = async () => {
-    if (!contracts.token || !account) return;
-
-    setLoadingStates((prev) => ({ ...prev, approving: true }));
-    setLoadingMessage("Approving tokens...");
-
-    try {
-      const tx = await contracts.token.approve(
-        contracts.dice.target,
-        betAmount
-      );
-      await tx.wait();
-      await updateBalance();
-      addToast("Tokens approved successfully!", "success");
     } catch (error) {
-      onError(error, "approve");
+      onError(error, "resolveGame");
     } finally {
-      setLoadingStates((prev) => ({ ...prev, approving: false }));
+      setLoadingStates((prev) => ({ ...prev, resolving: false }));
       setLoadingMessage("");
+      setGameState((prev) => ({ ...prev, isRolling: false }));
     }
-  };
+  }, [
+    gameState.needsResolution,
+    contracts.dice,
+    account,
+    updateBalance,
+    updateGameState,
+    updateBetHistory,
+    addToast,
+    onError,
+    setLoadingStates,
+    setLoadingMessage,
+  ]);
 
-  // Handle place bet
+  // Enhanced bet placement
   const handlePlaceBet = async () => {
     if (!contracts.dice || !account || !chosenNumber) return;
 
-    setLoadingStates((prev) => ({ ...prev, betting: true }));
-    setLoadingMessage("Placing bet...");
-
     try {
+      setLoadingStates((prev) => ({ ...prev, betting: true }));
+      setLoadingMessage("Placing bet...");
+
+      // First approve if needed
+      if (allowance < betAmount) {
+        const approveTx = await contracts.token.approve(
+          contracts.dice.target,
+          betAmount
+        );
+        await approveTx.wait();
+        addToast("Token approval successful", "success");
+      }
+
       const tx = await contracts.dice.playDice(chosenNumber, betAmount);
       await tx.wait();
 
@@ -2052,8 +2044,17 @@ const DicePage = ({
         isRolling: true,
       }));
 
-      await Promise.all([updateBalance(), updateGameState()]);
       addToast("Bet placed successfully!", "success");
+
+      // Start monitoring for game resolution
+      const monitorInterval = setInterval(async () => {
+        const status = await contracts.dice.getGameStatus(account);
+        if (Number(status.status) > 1) {
+          // Game completed
+          clearInterval(monitorInterval);
+          await handleGameResolution();
+        }
+      }, 2000);
     } catch (error) {
       onError(error, "placeBet");
     } finally {
@@ -2062,216 +2063,212 @@ const DicePage = ({
     }
   };
 
-  // Handle resolve game
-  const handleResolveGame = async () => {
-    if (!contracts.dice || !account) return;
-
-    setLoadingStates((prev) => ({ ...prev, resolving: true }));
-    setLoadingMessage("Resolving game...");
-
-    try {
-      const tx = await contracts.dice.resolveGame();
-      await tx.wait();
-
+  // Initialize and update game state
+  useEffect(() => {
+    const init = async () => {
       await Promise.all([
-        updateBalance(),
         updateGameState(),
         updateBetHistory(),
+        updateBalance(),
       ]);
+    };
 
-      addToast("Game resolved successfully!", "success");
-    } catch (error) {
-      onError(error, "resolveGame");
-    } finally {
-      setLoadingStates((prev) => ({ ...prev, resolving: false }));
-      setLoadingMessage("");
-      setGameState((prev) => ({ ...prev, isRolling: false }));
-    }
-  };
+    init();
+
+    // Set up polling interval for updates
+    const interval = setInterval(init, 10000); // Update every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [updateGameState, updateBetHistory, updateBalance]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="space-y-8">
-        {/* Game Status Panel */}
-        <div className="glass-effect p-6 rounded-2xl">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <StatusPanel gameState={gameState} />
+        {/* Game Header */}
+        <div className="text-center py-8">
+          <h1 className="text-4xl font-bold text-gradient-gaming mb-4">
+            Dice Game
+          </h1>
+          <p className="text-secondary-400">
+            Choose a number, place your bet, and test your luck!
+          </p>
+        </div>
+
+        {/* Game Status */}
+        <div className="glass-panel p-4">
+          <StatusIndicator
+            status={gameState.status}
+            isActive={gameState.isActive}
+          />
+        </div>
+
+        {/* Main Game Area */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Left Column - Game Controls */}
+          <div className="space-y-6">
+            <div className="glass-panel p-6">
+              <h2 className="text-2xl font-bold mb-6">Place Your Bet</h2>
+
+              {/* Number Selection */}
+              <NumberSelector
+                value={chosenNumber}
+                onChange={setChosenNumber}
+                disabled={!gameState.canPlay || gameState.isProcessing}
+              />
+
+              {/* Bet Amount Input */}
+              <div className="mt-6">
+                <BetInput
+                  value={betAmount}
+                  onChange={setBetAmount}
+                  userBalance={userBalance.toString()}
+                  disabled={!gameState.canPlay || gameState.isProcessing}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-6 flex gap-4">
+                <button
+                  onClick={handlePlaceBet}
+                  disabled={
+                    !gameState.canPlay ||
+                    !chosenNumber ||
+                    betAmount <= BigInt(0) ||
+                    allowance < betAmount ||
+                    gameState.isProcessing
+                  }
+                  className="btn-gaming flex-1"
+                >
+                  {gameState.isProcessing ? (
+                    <span className="flex items-center justify-center">
+                      <LoadingSpinner size="small" />
+                      <span className="ml-2">Processing...</span>
+                    </span>
+                  ) : (
+                    "Place Bet"
+                  )}
+                </button>
+
+                {gameState.needsResolution && (
+                  <button
+                    onClick={handleGameResolution}
+                    disabled={gameState.isProcessing}
+                    className="btn-gaming flex-1"
+                  >
+                    Resolve Game
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Balance Panel */}
             <BalancePanel
               userBalance={userBalance}
               allowance={allowance}
               potentialWinnings={potentialWinnings}
             />
           </div>
-        </div>
 
-        {/* Dice Visualization */}
-        <div className="glass-effect p-6 rounded-2xl">
-          <DiceVisualizer
-            chosenNumber={chosenNumber}
-            isRolling={gameState.isRolling}
-            result={gameState.lastResult}
-          />
-        </div>
-
-        {/* Game Controls */}
-        <div className="glass-effect p-6 rounded-2xl">
-          <h2
-            className="text-2xl font-bold mb-6 bg-clip-text text-transparent 
-                       bg-gradient-to-r from-gaming-primary to-gaming-accent"
-          >
-            Place Your Bet
-          </h2>
-
-          {/* Number Selection */}
-          <div className="mb-8">
-            <h3 className="text-lg font-medium mb-4">Choose Your Number</h3>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-              {[1, 2, 3, 4, 5, 6].map((number) => (
-                <motion.button
-                  key={number}
-                  onClick={() => handleNumberSelect(number)}
-                  className={`number-button ${
-                    chosenNumber === number ? "number-button-selected" : ""
-                  }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  disabled={!gameState.canPlay}
-                >
-                  <span>{number}</span>
-                </motion.button>
-              ))}
+          {/* Right Column - Game Visualization */}
+          <div className="space-y-6">
+            <div className="glass-panel p-6">
+              <DiceVisualizer
+                chosenNumber={chosenNumber}
+                isRolling={gameState.isRolling}
+                result={gameState.lastResult}
+              />
             </div>
-          </div>
 
-          {/* Bet Amount */}
-          <div className="mb-8">
-            <h3 className="text-lg font-medium mb-4">Bet Amount</h3>
-            <BetInput
-              value={betAmount}
-              onChange={handleBetAmountChange}
-              userBalance={userBalance.toString()}
-              disabled={!gameState.canPlay}
-            />
-          </div>
+            {/* Game Stats */}
+            <div className="glass-panel p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold">Statistics</h2>
+                <button
+                  onClick={() => setShowStats(!showStats)}
+                  className="btn-gaming"
+                >
+                  {showStats ? "Hide Stats" : "Show Stats"}
+                </button>
+              </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            {allowance < betAmount && (
-              <motion.button
-                onClick={handleApprove}
-                className="btn-gaming flex-1"
-                disabled={!gameState.canPlay}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                Approve Tokens
-              </motion.button>
-            )}
-
-            <motion.button
-              onClick={handlePlaceBet}
-              className="btn-gaming flex-1"
-              disabled={
-                !gameState.canPlay ||
-                !chosenNumber ||
-                betAmount <= BigInt(0) ||
-                allowance < betAmount
-              }
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              Place Bet
-            </motion.button>
-
-            {gameState.needsResolution && (
-              <motion.button
-                onClick={handleResolveGame}
-                className="btn-gaming flex-1"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                Resolve Game
-              </motion.button>
-            )}
+              <AnimatePresence>
+                {showStats && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                  >
+                    <GameStats
+                      diceContract={contracts.dice}
+                      account={account}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
 
         {/* Game History */}
-        <div className="glass-effect p-6 rounded-2xl">
-          <div className="flex justify-between items-center mb-6">
-            <h2
-              className="text-2xl font-bold bg-clip-text text-transparent 
-                         bg-gradient-to-r from-gaming-primary to-gaming-accent"
-            >
-              Betting History
-            </h2>
-            <button
-              onClick={() => setShowStats(!showStats)}
-              className="btn-secondary"
-            >
-              {showStats ? "Hide Stats" : "Show Stats"}
-            </button>
-          </div>
-
-          <AnimatePresence>
-            {showStats && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="mb-6"
-              >
-                <GameStats diceContract={contracts.dice} account={account} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr>
-                  <th className="text-left p-2">Chosen</th>
-                  <th className="text-left p-2">Rolled</th>
-                  <th className="text-left p-2">Amount</th>
-                  <th className="text-left p-2">Result</th>
-                  <th className="text-left p-2">Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {betHistory.map((bet, index) => (
-                  <motion.tr
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`border-b border-secondary-800/30
-                              ${
-                                bet.rolledNumber === bet.chosenNumber
-                                  ? "text-gaming-success"
-                                  : "text-gaming-error"
-                              }`}
-                  >
-                    <td className="p-2">{bet.chosenNumber.toString()}</td>
-                    <td className="p-2">{bet.rolledNumber.toString()}</td>
-                    <td className="p-2">
-                      {ethers.formatEther(bet.amount.toString())}
-                    </td>
-                    <td className="p-2">
-                      {bet.rolledNumber === bet.chosenNumber ? "WIN" : "LOSS"}
-                    </td>
-                    <td className="p-2">
-                      {new Date(Number(bet.timestamp) * 1000).toLocaleString()}
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <GameHistory
+          diceContract={contracts.dice}
+          account={account}
+          onError={onError}
+        />
       </div>
+
+      {/* Win/Lose Animations */}
+      <AnimatePresence>
+        {showWinAnimation && (
+          <WinAnimation onComplete={() => setShowWinAnimation(false)} />
+        )}
+        {showLoseAnimation && (
+          <LoseAnimation onComplete={() => setShowLoseAnimation(false)} />
+        )}
+      </AnimatePresence>
     </div>
   );
-  
 };
+
+// Win Animation Component
+const WinAnimation = ({ onComplete }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    onAnimationComplete={onComplete}
+    className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm"
+  >
+    <motion.div
+      initial={{ scale: 0 }}
+      animate={{ scale: 1 }}
+      exit={{ scale: 0 }}
+      className="text-6xl font-bold text-gaming-success"
+    >
+      Winner!
+    </motion.div>
+  </motion.div>
+);
+
+// Lose Animation Component
+const LoseAnimation = ({ onComplete }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    onAnimationComplete={onComplete}
+    className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm"
+  >
+    <motion.div
+      initial={{ scale: 0 }}
+      animate={{ scale: 1 }}
+      exit={{ scale: 0 }}
+      className="text-6xl font-bold text-gaming-error"
+    >
+      Try Again!
+    </motion.div>
+  </motion.div>
+);
 
 function AdminPage({
   diceContract,

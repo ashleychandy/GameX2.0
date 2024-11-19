@@ -100,12 +100,13 @@
 
   /* Game Elements */
   .dice-grid {
-    @apply grid grid-cols-3 gap-1 w-16 h-16 p-2 rounded-lg
-           bg-secondary-800 border-2 border-secondary-700;
+    @apply grid grid-cols-3 grid-rows-3 gap-1 p-3
+           h-full w-full;
   }
 
   .dice-dot {
-    @apply w-3 h-3 rounded-full bg-white;
+    @apply w-2.5 h-2.5 rounded-full bg-white 
+           transition-all duration-300;
   }
 
   .game-stat-card {
@@ -147,28 +148,23 @@
     @apply status-badge bg-gaming-warning/20 text-gaming-warning;
   }
 
-  .dice-container {
-    @apply relative w-full max-w-[300px] mx-auto 
-           aspect-w-1 aspect-h-1
-           transform transition-all duration-300 
-           hover:scale-105;
-  }
-
-  .dice-container:before {
-    content: "";
-    @apply block pb-[100%];
+    .dice-container {
+    @apply relative w-full max-w-[120px] mx-auto 
+           transform transition-all duration-200 
+           hover:scale-[1.02];
+    aspect-ratio: 1 / 1;
   }
 
   .dice-face {
-    @apply absolute inset-0 rounded-2xl 
+    @apply absolute inset-0 rounded-lg 
            bg-gradient-to-br from-gaming-primary/20 to-gaming-accent/20
-           backdrop-blur-xl border-2 border-white/10
-           shadow-[0_0_20px_rgba(255,70,85,0.3)]
-           transition-all duration-300;
+           backdrop-blur-sm border border-white/10
+           shadow-[0_0_10px_rgba(255,70,85,0.2)]
+           transition-all duration-200;
   }
 
   .dice-face:hover {
-    @apply border-white/20 shadow-[0_0_30px_rgba(255,70,85,0.5)];
+    @apply border-white/20 shadow-[0_0_20px_rgba(255,70,85,0.3)];
   }
 
   .number-button {
@@ -231,6 +227,43 @@
            border border-secondary-700/30
            hover:border-gaming-primary/30 hover:shadow-glow
            transition-all duration-300;
+  }
+
+  .glass-card-hover {
+    @apply transform transition-all duration-300
+           hover:scale-[1.02] hover:shadow-glow
+           active:scale-[0.98];
+  }
+  
+  .gaming-gradient {
+    @apply bg-gradient-to-r from-gaming-primary to-gaming-accent;
+  }
+  
+  .gaming-border {
+    @apply border border-white/10 hover:border-gaming-primary/30
+           transition-colors duration-300;
+  }
+  
+  .gaming-text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r
+           from-gaming-primary to-gaming-accent;
+  }
+  
+  .gaming-button {
+    @apply px-6 py-3 rounded-xl font-semibold
+           bg-gradient-to-r from-gaming-primary to-gaming-accent
+           text-white shadow-lg hover:shadow-glow
+           transform transition-all duration-300
+           hover:scale-105 active:scale-95
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .gaming-input {
+    @apply w-full px-4 py-3 bg-secondary-800/50
+           rounded-xl border border-secondary-700/50
+           text-white placeholder-secondary-400
+           focus:border-gaming-primary focus:ring-2
+           focus:ring-gaming-primary/50 transition-all duration-200;
   }
 }
 

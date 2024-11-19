@@ -82,6 +82,10 @@ module.exports = {
         'dice-shake': 'diceShake 0.5s ease-in-out',
         'number-pop': 'numberPop 0.3s ease-out',
         'result-fade': 'resultFade 0.5s ease-in-out',
+        'fade-in': 'fadeIn 0.3s ease-in-out',
+        'scale-in': 'scaleIn 0.3s ease-out',
+        'spin-reverse': 'spin 1s linear infinite reverse',
+        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
       },
       keyframes: {
         float: {
@@ -126,9 +130,29 @@ module.exports = {
           '0%': { opacity: '0', transform: 'scale(0.9)' },
           '100%': { opacity: '1', transform: 'scale(1)' },
         },
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        scaleIn: {
+          '0%': { transform: 'scale(0.95)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        shake: {
+          '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+          '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+          '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+          '40%, 60%': { transform: 'translate3d(4px, 0, 0)' },
+        },
       },
       backdropBlur: {
         xs: "2px",
+      },
+      aspectRatio: {
+        'square': '1',
+        'auto': 'auto',
+        '4/3': '4 / 3',
+        '16/9': '16 / 9',
       },
     },
   },
@@ -158,6 +182,15 @@ module.exports = {
           "@apply bg-secondary-900/60 backdrop-blur-lg": {},
           "@apply border border-secondary-700/50": {},
           "@apply rounded-xl shadow-glass": {},
+        },
+        '.stat-card': {
+          '@apply glass-panel p-4 flex flex-col space-y-2': {},
+          '@apply hover:scale-105 transition-transform duration-300': {},
+        },
+        '.game-card': {
+          '@apply glass-panel p-6 flex flex-col space-y-4': {},
+          '@apply hover:shadow-glow transition-all duration-300': {},
+          '@apply border border-gaming-primary/20': {},
         },
       }),
         addUtilities({
