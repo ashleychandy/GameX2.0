@@ -1117,7 +1117,6 @@ const GameHistory = ({ diceContract, account, onError }) => {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
-  const [historySize, setHistorySize] = useState(10);
   const [stats, setStats] = useState({
     totalGamesWon: 0,
     totalGamesLost: 0,
@@ -1148,13 +1147,15 @@ const GameHistory = ({ diceContract, account, onError }) => {
       const bets = await diceContract.getPreviousBets(account);
 
       // Process bets into readable format and calculate stats directly
-      const processedGames = bets.map((bet) => ({
-        chosenNumber: Number(bet.chosenNumber),
-        rolledNumber: Number(bet.rolledNumber),
-        amount: bet.amount.toString(),
-        timestamp: Number(bet.timestamp),
-        isWin: Number(bet.chosenNumber) === Number(bet.rolledNumber),
-      }));
+      const processedGames = bets
+        .map((bet) => ({
+          chosenNumber: Number(bet.chosenNumber),
+          rolledNumber: Number(bet.rolledNumber),
+          amount: bet.amount.toString(),
+          timestamp: Number(bet.timestamp),
+          isWin: Number(bet.chosenNumber) === Number(bet.rolledNumber),
+        }))
+        .reverse(); // Add reverse() here to show most recent games first
 
       // Calculate stats from processed games
       const winsCount = processedGames.filter((game) => game.isWin).length;
@@ -1167,7 +1168,6 @@ const GameHistory = ({ diceContract, account, onError }) => {
       });
     } catch (error) {
       console.error("Error fetching game history:", error);
-      // Set empty state on error
       setGames([]);
       setStats({
         totalGamesWon: 0,
@@ -1176,18 +1176,6 @@ const GameHistory = ({ diceContract, account, onError }) => {
       onError(error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Handle history size change
-  const handleHistorySizeChange = async (newSize) => {
-    try {
-      await diceContract.setHistorySize(newSize);
-      setHistorySize(newSize);
-      await fetchGamesAndStats(); // Refresh data after changing size
-    } catch (error) {
-      console.error("Error setting history size:", error);
-      onError(error);
     }
   };
 
@@ -1213,22 +1201,6 @@ const GameHistory = ({ diceContract, account, onError }) => {
             </span>
           </div>
         </div>
-      </div>
-
-      {/* History Size Selector */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-secondary-400">History Size:</span>
-        <select
-          value={historySize}
-          onChange={(e) => handleHistorySizeChange(Number(e.target.value))}
-          className="bg-gaming-primary/20 border border-gaming-primary/30 rounded-lg px-2 py-1 text-sm"
-        >
-          {[5, 10, 20, 50, 100].map((size) => (
-            <option key={size} value={size}>
-              {size}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* Filters */}
@@ -1364,41 +1336,40 @@ const StatusIndicator = ({ status, isActive }) => (
 // Icons Component
 const Icons = {
   Dice: ({ className }) => (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      viewBox="0 0 24 24" 
-      fill="currentColor" 
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
       className={className}
     >
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
-      <path d="M6.5 9L10 5.5 13.5 9 10 12.5z"/>
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
+      <path d="M6.5 9L10 5.5 13.5 9 10 12.5z" />
     </svg>
   ),
-  
+
   Roulette: ({ className }) => (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      viewBox="0 0 24 24" 
-      fill="currentColor" 
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
       className={className}
     >
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
-      <circle cx="12" cy="12" r="3"/>
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   ),
-  
+
   MetaMask: ({ className }) => (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      viewBox="0 0 24 24" 
-      fill="currentColor" 
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
       className={className}
     >
       <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM12 15.75h.008v.008H12v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
     </svg>
-  )
+  ),
 };
-
 
 // Game Card Component
 const GameCard = ({ game }) => (
@@ -2054,376 +2025,22 @@ const GameControls = ({
   );
 };
 
-const DicePage = ({
-  contracts,
-  account,
-  onError,
-  addToast,
-  setLoadingStates,
-  setLoadingMessage,
-}) => {
-  // Game State
-  const [gameState, setGameState] = useState({
-    isActive: false,
-    isProcessing: false,
-    canPlay: false,
-    needsResolution: false,
-    requestId: null,
-    lastResult: null,
-    isRolling: false,
-    status: "PENDING",
-  });
-
-  // User Input State
-  const [chosenNumber, setChosenNumber] = useState(null);
-  const [betAmount, setBetAmount] = useState(BigInt(0));
-  const [userBalance, setUserBalance] = useState(BigInt(0));
-  const [allowance, setAllowance] = useState(BigInt(0));
-  const [betHistory, setBetHistory] = useState([]);
-  const [showStats, setShowStats] = useState(false);
-
-  // Animation States
-  const [showWinAnimation, setShowWinAnimation] = useState(false);
-  const [showLoseAnimation, setShowLoseAnimation] = useState(false);
-
-  // Calculate potential winnings
-  const potentialWinnings = useMemo(() => {
-    if (!betAmount) return BigInt(0);
-    return betAmount * BigInt(6);
-  }, [betAmount]);
-
-  // Update user balance and allowance
-  const updateBalance = useCallback(async () => {
-    if (!contracts.token || !account) return;
-
-    try {
-      const [balance, tokenAllowance] = await Promise.all([
-        contracts.token.balanceOf(account),
-        contracts.token.allowance(account, contracts.dice.target),
-      ]);
-
-      setUserBalance(balance);
-      setAllowance(tokenAllowance);
-    } catch (error) {
-      console.error("Error updating balance:", error);
-    }
-  }, [contracts.token, contracts.dice, account]);
-
-  // Update game state
-  const updateGameState = useCallback(async () => {
-    if (!contracts.dice || !account) return;
-
-    try {
-      const [gameStatus, requestDetails, canPlay] = await Promise.all([
-        contracts.dice.getGameStatus(account),
-        contracts.dice.getCurrentRequestDetails(account),
-        contracts.dice.canStartNewGame(account),
-      ]);
-
-      setGameState((prev) => ({
-        ...prev,
-        isActive: gameStatus.isActive,
-        status: [
-          "PENDING",
-          "STARTED",
-          "COMPLETED_WIN",
-          "COMPLETED_LOSS",
-          "CANCELLED",
-        ][Number(gameStatus.status)],
-        lastResult:
-          gameStatus.status > 1 ? Number(gameStatus.rolledNumber) : null,
-        requestId: requestDetails.requestId.toString(),
-        needsResolution:
-          requestDetails.requestFulfilled && !requestDetails.requestActive,
-        canPlay,
-        isProcessing: false,
-      }));
-    } catch (error) {
-      console.error("Error updating game state:", error);
-      onError(error, "updateGameState");
-    }
-  }, [contracts.dice, account, onError]);
-
-  // Update bet history
-  const updateBetHistory = useCallback(async () => {
-    if (!contracts.dice || !account) return;
-
-    try {
-      const bets = await contracts.dice.getPreviousBets(account);
-      const processedBets = bets.map((bet) => ({
-        chosenNumber: Number(bet.chosenNumber),
-        rolledNumber: Number(bet.rolledNumber),
-        amount: bet.amount.toString(),
-        timestamp: Number(bet.timestamp),
-        isWin: Number(bet.chosenNumber) === Number(bet.rolledNumber),
-      }));
-
-      setBetHistory(processedBets);
-    } catch (error) {
-      console.error("Error updating bet history:", error);
-      onError(error, "updateBetHistory");
-    }
-  }, [contracts.dice, account, onError]);
-
-  // Handle game resolution
-  const handleGameResolution = useCallback(async () => {
-    if (!gameState.needsResolution) return;
-
-    try {
-      setLoadingStates((prev) => ({ ...prev, resolving: true }));
-      setLoadingMessage("Resolving game...");
-
-      const tx = await contracts.dice.resolveGame();
-      await tx.wait();
-
-      const gameStatus = await contracts.dice.getGameStatus(account);
-      const isWin = Number(gameStatus.status) === 2; // COMPLETED_WIN
-
-      if (isWin) {
-        setShowWinAnimation(true);
-        addToast("Congratulations! You won!", "success");
-      } else {
-        setShowLoseAnimation(true);
-        addToast("Better luck next time!", "error");
-      }
-
-      await Promise.all([
-        updateBalance(),
-        updateGameState(),
-        updateBetHistory(),
-      ]);
-    } catch (error) {
-      onError(error, "resolveGame");
-    } finally {
-      setLoadingStates((prev) => ({ ...prev, resolving: false }));
-      setLoadingMessage("");
-      setGameState((prev) => ({ ...prev, isRolling: false }));
-    }
-  }, [
-    gameState.needsResolution,
-    contracts.dice,
-    account,
-    updateBalance,
-    updateGameState,
-    updateBetHistory,
-    addToast,
-    onError,
-    setLoadingStates,
-    setLoadingMessage,
-  ]);
-
-  // Enhanced bet placement
-  const handlePlaceBet = async () => {
-    if (!contracts.dice || !account || !chosenNumber) return;
-
-    try {
-      setLoadingStates((prev) => ({ ...prev, betting: true }));
-      setLoadingMessage("Placing bet...");
-
-      // First approve if needed
-      if (allowance < betAmount) {
-        const approveTx = await contracts.token.approve(
-          contracts.dice.target,
-          betAmount
-        );
-        await approveTx.wait();
-        addToast("Token approval successful", "success");
-      }
-
-      const tx = await contracts.dice.playDice(chosenNumber, betAmount);
-      await tx.wait();
-
-      setGameState((prev) => ({
-        ...prev,
-        isActive: true,
-        isProcessing: true,
-        canPlay: false,
-        isRolling: true,
-      }));
-
-      addToast("Bet placed successfully!", "success");
-
-      // Start monitoring for game resolution
-      const monitorInterval = setInterval(async () => {
-        const status = await contracts.dice.getGameStatus(account);
-        if (Number(status.status) > 1) {
-          // Game completed
-          clearInterval(monitorInterval);
-          await handleGameResolution();
-        }
-      }, 2000);
-    } catch (error) {
-      onError(error, "placeBet");
-    } finally {
-      setLoadingStates((prev) => ({ ...prev, betting: false }));
-      setLoadingMessage("");
-    }
-  };
-
-  // Initialize and update game state
-  useEffect(() => {
-    const init = async () => {
-      await Promise.all([
-        updateGameState(),
-        updateBetHistory(),
-        updateBalance(),
-      ]);
-    };
-
-    init();
-
-    // Set up polling interval for updates
-    const interval = setInterval(init, 10000); // Update every 10 seconds
-
-    return () => clearInterval(interval);
-  }, [updateGameState, updateBetHistory, updateBalance]);
-
+const ApprovalButton = ({ onApprove, amount, isLoading }) => {
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="space-y-8">
-        {/* Game Header */}
-        <div className="text-center py-8">
-          <h1 className="text-4xl font-bold text-gradient-gaming mb-4">
-            Dice Game
-          </h1>
-          <p className="text-secondary-400">
-            Choose a number, place your bet, and test your luck!
-          </p>
+    <button
+      onClick={onApprove}
+      disabled={isLoading}
+      className="btn-gaming w-full mb-4"
+    >
+      {isLoading ? (
+        <div className="flex items-center justify-center">
+          <div className="animate-spin mr-2 h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+          <span>Approving...</span>
         </div>
-
-        {/* Game Status */}
-        <div className="glass-panel p-4">
-          <StatusIndicator
-            status={gameState.status}
-            isActive={gameState.isActive}
-          />
-        </div>
-
-        {/* Main Game Area */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Column - Game Controls */}
-          <div className="space-y-6">
-            <div className="glass-panel p-6">
-              <h2 className="text-2xl font-bold mb-6">Place Your Bet</h2>
-
-              {/* Number Selection */}
-              <NumberSelector
-                value={chosenNumber}
-                onChange={setChosenNumber}
-                disabled={!gameState.canPlay || gameState.isProcessing}
-              />
-
-              {/* Bet Amount Input */}
-              <div className="mt-6">
-                <BetInput
-                  value={betAmount}
-                  onChange={setBetAmount}
-                  userBalance={userBalance.toString()}
-                  disabled={!gameState.canPlay || gameState.isProcessing}
-                />
-              </div>
-
-              {/* Action Buttons */}
-              <div className="mt-6 flex gap-4">
-                <button
-                  onClick={handlePlaceBet}
-                  disabled={
-                    !gameState.canPlay ||
-                    !chosenNumber ||
-                    betAmount <= BigInt(0) ||
-                    allowance < betAmount ||
-                    gameState.isProcessing
-                  }
-                  className="btn-gaming flex-1"
-                >
-                  {gameState.isProcessing ? (
-                    <span className="flex items-center justify-center">
-                      <LoadingSpinner size="small" />
-                      <span className="ml-2">Processing...</span>
-                    </span>
-                  ) : (
-                    "Place Bet"
-                  )}
-                </button>
-
-                {gameState.needsResolution && (
-                  <button
-                    onClick={handleGameResolution}
-                    disabled={gameState.isProcessing}
-                    className="btn-gaming flex-1"
-                  >
-                    Resolve Game
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Balance Panel */}
-            <BalancePanel
-              userBalance={userBalance}
-              allowance={allowance}
-              potentialWinnings={potentialWinnings}
-            />
-          </div>
-
-          {/* Right Column - Game Visualization */}
-          <div className="space-y-6">
-            <div className="glass-panel p-6">
-              <DiceVisualizer
-                chosenNumber={chosenNumber}
-                isRolling={gameState.isRolling}
-                result={gameState.lastResult}
-              />
-            </div>
-
-            {/* Game Stats */}
-            <div className="glass-panel p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold">Statistics</h2>
-                <button
-                  onClick={() => setShowStats(!showStats)}
-                  className="btn-gaming"
-                >
-                  {showStats ? "Hide Stats" : "Show Stats"}
-                </button>
-              </div>
-
-              <AnimatePresence>
-                {showStats && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                  >
-                    <GameStats
-                      diceContract={contracts.dice}
-                      account={account}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-        </div>
-
-        {/* Game History */}
-        <GameHistory
-          diceContract={contracts.dice}
-          account={account}
-          onError={onError}
-        />
-      </div>
-
-      {/* Win/Lose Animations */}
-      <AnimatePresence>
-        {showWinAnimation && (
-          <WinAnimation onComplete={() => setShowWinAnimation(false)} />
-        )}
-        {showLoseAnimation && (
-          <LoseAnimation onComplete={() => setShowLoseAnimation(false)} />
-        )}
-      </AnimatePresence>
-    </div>
+      ) : (
+        `Approve ${amount} GameX tokens`
+      )}
+    </button>
   );
 };
 
@@ -2653,6 +2270,390 @@ function AdminPage({
     </div>
   );
 }
+
+const DicePage = ({
+  contracts,
+  account,
+  onError,
+  addToast,
+  setLoadingStates,
+  setLoadingMessage,
+}) => {
+  // Game State
+  const [gameState, setGameState] = useState({
+    isActive: false,
+    isProcessing: false,
+    canPlay: false,
+    needsResolution: false,
+    requestId: null,
+    lastResult: null,
+    isRolling: false,
+    status: "PENDING",
+  });
+
+  // User Input State
+  const [chosenNumber, setChosenNumber] = useState(null);
+  const [betAmount, setBetAmount] = useState(BigInt(0));
+  const [userBalance, setUserBalance] = useState(BigInt(0));
+  const [allowance, setAllowance] = useState(BigInt(0));
+  const [betHistory, setBetHistory] = useState([]);
+  const [showStats, setShowStats] = useState(false);
+
+  // Animation States
+  const [showWinAnimation, setShowWinAnimation] = useState(false);
+  const [showLoseAnimation, setShowLoseAnimation] = useState(false);
+
+  // Calculate potential winnings
+  const potentialWinnings = useMemo(() => {
+    if (!betAmount) return BigInt(0);
+    return betAmount * BigInt(6);
+  }, [betAmount]);
+
+  // Update user balance and allowance
+  const updateBalance = useCallback(async () => {
+    if (!contracts.token || !account) return;
+
+    try {
+      const [balance, tokenAllowance] = await Promise.all([
+        contracts.token.balanceOf(account),
+        contracts.token.allowance(account, contracts.dice.target),
+      ]);
+
+      setUserBalance(balance);
+      setAllowance(tokenAllowance);
+    } catch (error) {
+      console.error("Error updating balance:", error);
+    }
+  }, [contracts.token, contracts.dice, account]);
+
+  // Update game state
+  const updateGameState = useCallback(async () => {
+    if (!contracts.dice || !account) return;
+
+    try {
+      const [gameStatus, requestDetails, canPlay] = await Promise.all([
+        contracts.dice.getGameStatus(account),
+        contracts.dice.getCurrentRequestDetails(account),
+        contracts.dice.canStartNewGame(account),
+      ]);
+
+      setGameState((prev) => ({
+        ...prev,
+        isActive: gameStatus.isActive,
+        status: [
+          "PENDING",
+          "STARTED",
+          "COMPLETED_WIN",
+          "COMPLETED_LOSS",
+          "CANCELLED",
+        ][Number(gameStatus.status)],
+        lastResult:
+          gameStatus.status > 1 ? Number(gameStatus.rolledNumber) : null,
+        requestId: requestDetails.requestId.toString(),
+        needsResolution:
+          requestDetails.requestFulfilled && !requestDetails.requestActive,
+        canPlay,
+        isProcessing: false,
+      }));
+    } catch (error) {
+      console.error("Error updating game state:", error);
+      onError(error, "updateGameState");
+    }
+  }, [contracts.dice, account, onError]);
+
+  // Update bet history
+  const updateBetHistory = useCallback(async () => {
+    if (!contracts.dice || !account) return;
+
+    try {
+      const bets = await contracts.dice.getPreviousBets(account);
+      const processedBets = bets.map((bet) => ({
+        chosenNumber: Number(bet.chosenNumber),
+        rolledNumber: Number(bet.rolledNumber),
+        amount: bet.amount.toString(),
+        timestamp: Number(bet.timestamp),
+        isWin: Number(bet.chosenNumber) === Number(bet.rolledNumber),
+      }));
+
+      setBetHistory(processedBets);
+    } catch (error) {
+      console.error("Error updating bet history:", error);
+      onError(error, "updateBetHistory");
+    }
+  }, [contracts.dice, account, onError]);
+
+  // Handle game resolution
+  const handleGameResolution = useCallback(async () => {
+    if (!gameState.needsResolution) return;
+
+    try {
+      setLoadingStates((prev) => ({ ...prev, resolving: true }));
+      setLoadingMessage("Resolving game...");
+
+      const tx = await contracts.dice.resolveGame();
+      await tx.wait();
+
+      const gameStatus = await contracts.dice.getGameStatus(account);
+      const isWin = Number(gameStatus.status) === 2; // COMPLETED_WIN
+
+      if (isWin) {
+        setShowWinAnimation(true);
+        addToast("Congratulations! You won!", "success");
+      } else {
+        setShowLoseAnimation(true);
+        addToast("Better luck next time!", "error");
+      }
+
+      await Promise.all([
+        updateBalance(),
+        updateGameState(),
+        updateBetHistory(),
+      ]);
+    } catch (error) {
+      onError(error, "resolveGame");
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, resolving: false }));
+      setLoadingMessage("");
+      setGameState((prev) => ({ ...prev, isRolling: false }));
+    }
+  }, [
+    gameState.needsResolution,
+    contracts.dice,
+    account,
+    updateBalance,
+    updateGameState,
+    updateBetHistory,
+    addToast,
+    onError,
+    setLoadingStates,
+    setLoadingMessage,
+  ]);
+
+  // Enhanced bet placement
+  const handlePlaceBet = async () => {
+    if (!contracts.dice || !account || !chosenNumber) return;
+
+    try {
+      setLoadingStates((prev) => ({ ...prev, betting: true }));
+      setLoadingMessage("Placing bet...");
+
+      // First approve if needed
+      if (allowance < betAmount) {
+        // Get user's current token balance
+        const userBalance = await contracts.token.balanceOf(account);
+
+        const approveTx = await contracts.token.approve(
+          contracts.dice.target,
+          userBalance // Approve exactly what the user has
+        );
+        await approveTx.wait();
+        addToast("Token approval successful", "success");
+
+        // Update allowance state
+        setAllowance(userBalance);
+      }
+
+      const tx = await contracts.dice.playDice(chosenNumber, betAmount);
+      await tx.wait();
+
+      setGameState((prev) => ({
+        ...prev,
+        isActive: true,
+        isProcessing: true,
+        canPlay: false,
+        isRolling: true,
+      }));
+
+      addToast("Bet placed successfully!", "success");
+
+      // Start monitoring for game resolution
+      const monitorInterval = setInterval(async () => {
+        const status = await contracts.dice.getGameStatus(account);
+        if (Number(status.status) > 1) {
+          // Game completed
+          clearInterval(monitorInterval);
+          await handleGameResolution();
+        }
+      }, 2000);
+    } catch (error) {
+      onError(error, "placeBet");
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, betting: false }));
+      setLoadingMessage("");
+    }
+  };
+
+  // Initialize and update game state
+  useEffect(() => {
+    const init = async () => {
+      await Promise.all([
+        updateGameState(),
+        updateBetHistory(),
+        updateBalance(),
+      ]);
+    };
+
+    init();
+
+    // Set up polling interval for updates
+    const interval = setInterval(init, 10000); // Update every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [updateGameState, updateBetHistory, updateBalance]);
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="space-y-10">
+        {/* Game Header */}
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-gradient-gaming mb-4">
+            Dice Game
+          </h1>
+          <p className="text-secondary-400 text-lg">
+            Choose a number, place your bet, and test your luck!
+          </p>
+        </div>
+
+        {/* Game Status */}
+        <div className="glass-panel p-6">
+          <StatusIndicator
+            status={gameState.status}
+            isActive={gameState.isActive}
+          />
+        </div>
+
+        {/* Main Game Area */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Left Column - Game Controls */}
+          <div className="space-y-8">
+            <div className="glass-panel p-8">
+              <h2 className="text-2xl font-bold mb-8 text-white/90">
+                Place Your Bet
+              </h2>
+
+              {/* Number Selection */}
+              <div className="mb-8">
+                <NumberSelector
+                  value={chosenNumber}
+                  onChange={setChosenNumber}
+                  disabled={!gameState.canPlay || gameState.isProcessing}
+                />
+              </div>
+
+              {/* Bet Amount Input */}
+              <div className="mb-8">
+                <BetInput
+                  value={betAmount}
+                  onChange={setBetAmount}
+                  userBalance={userBalance.toString()}
+                  disabled={!gameState.canPlay || gameState.isProcessing}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-4">
+                <button
+                  onClick={handlePlaceBet}
+                  disabled={
+                    !gameState.canPlay ||
+                    !chosenNumber ||
+                    betAmount <= BigInt(0) ||
+                    allowance < betAmount ||
+                    gameState.isProcessing
+                  }
+                  className="btn-gaming flex-1 h-14"
+                >
+                  {gameState.isProcessing ? (
+                    <span className="flex items-center justify-center">
+                      <LoadingSpinner size="small" />
+                      <span className="ml-2">Processing...</span>
+                    </span>
+                  ) : (
+                    "Place Bet"
+                  )}
+                </button>
+
+                {gameState.needsResolution && (
+                  <button
+                    onClick={handleGameResolution}
+                    disabled={gameState.isProcessing}
+                    className="btn-gaming flex-1 h-14"
+                  >
+                    Resolve Game
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Balance Panel */}
+            <BalancePanel
+              userBalance={userBalance}
+              allowance={allowance}
+              potentialWinnings={potentialWinnings}
+            />
+          </div>
+
+          {/* Right Column - Game Visualization */}
+          <div className="space-y-8">
+            <div className="glass-panel p-8 flex items-center justify-center min-h-[400px]">
+              <DiceVisualizer
+                chosenNumber={chosenNumber}
+                isRolling={gameState.isRolling}
+                result={gameState.lastResult}
+              />
+            </div>
+
+            {/* Game Stats */}
+            <div className="glass-panel p-8">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-white/90">Statistics</h2>
+                <button
+                  onClick={() => setShowStats(!showStats)}
+                  className="btn-gaming px-4 py-2 text-sm"
+                >
+                  {showStats ? "Hide Stats" : "Show Stats"}
+                </button>
+              </div>
+
+              <AnimatePresence>
+                {showStats && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <GameStats
+                      diceContract={contracts.dice}
+                      account={account}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+
+        {/* Game History */}
+        <GameHistory
+          diceContract={contracts.dice}
+          account={account}
+          onError={onError}
+        />
+      </div>
+
+      {/* Win/Lose Animations */}
+      <AnimatePresence>
+        {showWinAnimation && (
+          <WinAnimation onComplete={() => setShowWinAnimation(false)} />
+        )}
+        {showLoseAnimation && (
+          <LoseAnimation onComplete={() => setShowLoseAnimation(false)} />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 // Main App Component
 function App() {
