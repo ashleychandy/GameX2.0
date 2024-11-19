@@ -2270,6 +2270,7 @@ const DicePage = ({
       </div>
     </div>
   );
+  
 };
 
 function AdminPage({
