@@ -37,9 +37,6 @@ ChartJS.register(
 const DICE_CONTRACT_ADDRESS = process.env.REACT_APP_DICE_GAME_ADDRESS;
 const TOKEN_CONTRACT_ADDRESS = process.env.REACT_APP_TOKEN_ADDRESS;
 const SUPPORTED_CHAIN_IDS = [80002];
-// Add console logs for debugging
-console.log("DICE_CONTRACT_ADDRESS:", DICE_CONTRACT_ADDRESS);
-console.log("TOKEN_CONTRACT_ADDRESS:", TOKEN_CONTRACT_ADDRESS);
 
 // Enhanced Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -202,6 +199,70 @@ const Navbar = ({ account, connectWallet, loadingStates, isAdmin }) => (
     </div>
   </nav>
 );
+
+const NetworkWarning = () => (
+  <div className="bg-gaming-error/90 text-white px-4 py-2 text-center">
+    <p>Please switch to Amoy Testnet (Chain ID: 80002)</p>
+    <button
+      onClick={switchToAmoyNetwork}
+      className="mt-2 px-4 py-1 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
+    >
+      Switch Network
+    </button>
+  </div>
+);
+
+const switchToAmoyNetwork = async () => {
+  if (!window.ethereum) return;
+
+  try {
+    await window.ethereum.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: "0x13882" }], // 80002 in hex
+    });
+  } catch (switchError) {
+    // If the network is not added to MetaMask, add it
+    if (switchError.code === 4902) {
+      try {
+        await window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [
+            {
+              chainId: "0x13882",
+              chainName: "Polygon Amoy Testnet",
+              nativeCurrency: {
+                name: "MATIC",
+                symbol: "MATIC",
+                decimals: 18,
+              },
+              rpcUrls: ["https://rpc-amoy.polygon.technology"],
+              blockExplorerUrls: ["https://www.oklink.com/amoy"],
+            },
+          ],
+        });
+      } catch (addError) {
+        console.error("Error adding network:", addError);
+      }
+    }
+    console.error("Error switching network:", switchError);
+  }
+};
+
+// Enhanced Loading Overlay Component
+const LoadingOverlay = ({ message }) => (
+  <div
+    className="fixed inset-0 bg-secondary-900/80 backdrop-blur-sm flex items-center 
+    justify-center z-50 transition-opacity duration-300"
+  >
+    <div
+      className="bg-secondary-800 p-6 rounded-xl shadow-xl border border-secondary-700
+      transform transition-all duration-300 ease-out"
+    >
+      <LoadingSpinner message={message} />
+    </div>
+  </div>
+);
+
 const BetInput = ({
   value,
   onChange,
@@ -442,69 +503,186 @@ const BetInput = ({
   );
 };
 
-const NetworkWarning = () => (
-  <div className="bg-gaming-error/90 text-white px-4 py-2 text-center">
-    <p>Please switch to Amoy Testnet (Chain ID: 80002)</p>
-    <button
-      onClick={switchToAmoyNetwork}
-      className="mt-2 px-4 py-1 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
-    >
-      Switch Network
-    </button>
-  </div>
-);
+const BalancePanel = ({ userBalance, allowance, potentialWinnings }) => {
+  const [showDetails, setShowDetails] = useState(false);
 
-const switchToAmoyNetwork = async () => {
-  if (!window.ethereum) return;
+  const balanceItems = [
+    {
+      label: "Token Balance",
+      value: ethers.formatEther(userBalance.toString()),
+      icon: (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      ),
+    },
+    {
+      label: "Token Allowance",
+      value: ethers.formatEther(allowance.toString()),
+      icon: (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      ),
+    },
+    {
+      label: "Potential Win",
+      value: ethers.formatEther(potentialWinnings.toString()),
+      icon: (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+          />
+        </svg>
+      ),
+    },
+  ];
 
-  try {
-    await window.ethereum.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId: "0x13882" }], // 80002 in hex
-    });
-  } catch (switchError) {
-    // If the network is not added to MetaMask, add it
-    if (switchError.code === 4902) {
-      try {
-        await window.ethereum.request({
-          method: "wallet_addEthereumChain",
-          params: [
-            {
-              chainId: "0x13882",
-              chainName: "Polygon Amoy Testnet",
-              nativeCurrency: {
-                name: "MATIC",
-                symbol: "MATIC",
-                decimals: 18,
-              },
-              rpcUrls: ["https://rpc-amoy.polygon.technology"],
-              blockExplorerUrls: ["https://www.oklink.com/amoy"],
-            },
-          ],
-        });
-      } catch (addError) {
-        console.error("Error adding network:", addError);
-      }
-    }
-    console.error("Error switching network:", switchError);
-  }
-};
-// Enhanced Loading Spinner Component
+  const formatValue = (value) => {
+    const formatted = parseFloat(value).toFixed(6);
+    return formatted.replace(/\.?0+$/, "");
+  };
 
-// Enhanced Loading Overlay Component
-const LoadingOverlay = ({ message }) => (
-  <div
-    className="fixed inset-0 bg-secondary-900/80 backdrop-blur-sm flex items-center 
-    justify-center z-50 transition-opacity duration-300"
-  >
-    <div
-      className="bg-secondary-800 p-6 rounded-xl shadow-xl border border-secondary-700
-      transform transition-all duration-300 ease-out"
-    >
-      <LoadingSpinner message={message} />
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2
+          className="text-2xl font-bold bg-clip-text text-transparent 
+                       bg-gradient-to-r from-gaming-primary to-gaming-accent"
+        >
+          Balance Info
+        </h2>
+        <button
+          onClick={() => setShowDetails(!showDetails)}
+          className="text-secondary-400 hover:text-white transition-colors"
+        >
+          <svg
+            className={`w-6 h-6 transform transition-transform duration-300
+                          ${showDetails ? "rotate-180" : ""}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        {balanceItems.map((item, index) => (
+          <motion.div
+            key={item.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className="balance-item"
+          >
+            <div
+              className="flex items-center justify-between p-4 rounded-xl
+                           bg-secondary-800/30 border border-secondary-700/30
+                           hover:border-gaming-primary/30 transition-all duration-300"
+            >
+              <div className="flex items-center space-x-3">
+                <div
+                  className="flex-shrink-0 w-10 h-10 rounded-lg
+                               bg-gaming-primary/10 text-gaming-primary
+                               flex items-center justify-center"
+                >
+                  {item.icon}
+                </div>
+                <div>
+                  <p className="text-sm text-secondary-400">{item.label}</p>
+                  <p className="font-medium text-white">
+                    {formatValue(item.value)}{" "}
+                    <span className="text-sm text-secondary-400">GameX</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      <AnimatePresence>
+        {showDetails && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="pt-4 space-y-4">
+              <div className="p-4 rounded-xl bg-secondary-800/30 border border-secondary-700/30">
+                <h3 className="text-lg font-medium mb-3">Balance Details</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-secondary-400">
+                      Available for Betting:
+                    </span>
+                    <span className="text-white">
+                      {formatValue(
+                        ethers.formatEther(
+                          userBalance > allowance ? allowance : userBalance
+                        )
+                      )}{" "}
+                      GameX
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-secondary-400">Win Multiplier:</span>
+                    <span className="text-gaming-success">6x</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-secondary-400">
+                      Max Potential Win:
+                    </span>
+                    <span className="text-gaming-primary">
+                      {formatValue(ethers.formatEther(userBalance * BigInt(6)))}{" "}
+                      GameX
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
-  </div>
-);
+  );
+};
 
 const DiceVisualizer = ({ chosenNumber, isRolling, result }) => {
   const diceVariants = {
@@ -678,6 +856,223 @@ const NumberSelector = ({ value, onChange, disabled }) => {
           Selected Number: {value}
         </motion.div>
       )}
+    </div>
+  );
+};
+
+const StatusPanel = ({ gameState }) => {
+  const statusItems = [
+    {
+      label: "Game Status",
+      value: gameState.isActive ? "Active" : "Inactive",
+      type: gameState.isActive ? "warning" : "success",
+      icon: gameState.isActive ? (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      ) : (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M5 13l4 4L19 7"
+          />
+        </svg>
+      ),
+    },
+    {
+      label: "Can Play",
+      value: gameState.canPlay ? "Yes" : "No",
+      type: gameState.canPlay ? "success" : "error",
+      icon: gameState.canPlay ? (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      ) : (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      ),
+    },
+    {
+      label: "Processing",
+      value: gameState.isProcessing ? "Yes" : "No",
+      type: gameState.isProcessing ? "warning" : "success",
+      icon: gameState.isProcessing ? (
+        <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+          />
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          />
+        </svg>
+      ) : (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M5 13l4 4L19 7"
+          />
+        </svg>
+      ),
+    },
+    {
+      label: "Needs Resolution",
+      value: gameState.needsResolution ? "Yes" : "No",
+      type: gameState.needsResolution ? "warning" : "success",
+      icon: gameState.needsResolution ? (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          />
+        </svg>
+      ) : (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M5 13l4 4L19 7"
+          />
+        </svg>
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <h2
+        className="text-2xl font-bold bg-clip-text text-transparent 
+                     bg-gradient-to-r from-gaming-primary to-gaming-accent"
+      >
+        Game Status
+      </h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {statusItems.map((item, index) => (
+          <motion.div
+            key={item.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className="status-item"
+          >
+            <div
+              className={`flex items-center justify-between p-4 rounded-xl
+                            bg-secondary-800/30 border border-secondary-700/30
+                            hover:border-gaming-primary/30 transition-all duration-300`}
+            >
+              <div className="flex items-center space-x-3">
+                <div
+                  className={`flex-shrink-0 w-10 h-10 rounded-lg
+                                flex items-center justify-center
+                                ${
+                                  item.type === "success"
+                                    ? "text-gaming-success"
+                                    : item.type === "warning"
+                                    ? "text-gaming-warning"
+                                    : "text-gaming-error"
+                                }`}
+                >
+                  {item.icon}
+                </div>
+                <div>
+                  <p className="text-sm text-secondary-400">{item.label}</p>
+                  <p
+                    className={`font-medium ${
+                      item.type === "success"
+                        ? "text-gaming-success"
+                        : item.type === "warning"
+                        ? "text-gaming-warning"
+                        : "text-gaming-error"
+                    }`}
+                  >
+                    {item.value}
+                  </p>
+                </div>
+              </div>
+              <div
+                className={`flex-shrink-0 w-2 h-2 rounded-full
+                              ${
+                                item.type === "success"
+                                  ? "bg-gaming-success"
+                                  : item.type === "warning"
+                                  ? "bg-gaming-warning"
+                                  : "bg-gaming-error"
+                              }`}
+              />
+            </div>
+          </motion.div>
+        ))}
+      </div>
     </div>
   );
 };
@@ -1183,194 +1578,69 @@ const steps = [
 // New Game Statistics Panel
 const GameStats = ({ diceContract, account }) => {
   const [stats, setStats] = useState({
-    // Game Status
-    currentGame: {
-      isActive: false,
-      status: "PENDING",
-      chosenNumber: 0,
-      amount: "0",
-      timestamp: 0,
-      payout: "0",
-      result: 0,
-    },
-    // Player Stats
-    totalGamesWon: 0,
-    totalGamesLost: 0,
-    totalBets: "0",
-    totalWinnings: "0",
-    totalLosses: "0",
-    winRate: 0,
-    biggestWin: "0",
-    averageBet: "0",
-    previousBets: [],
-    lastPlayed: 0,
+    totalGames: 0,
+    totalWinnings: BigInt(0),
+    biggestWin: BigInt(0),
   });
 
-  const [isLoading, setIsLoading] = useState(true);
+  const fetchStats = async () => {
+    if (!diceContract || !account) return;
+
+    try {
+      // Fetch all required data in parallel
+      const [userData, previousBets] = await Promise.all([
+        diceContract.getUserData(account),
+        diceContract.getPreviousBets(account),
+      ]);
+
+      // From getUserData we get:
+      // [currentGame, totalGames, totalBets, totalWinnings, totalLosses, lastPlayed]
+      const totalGames = Number(userData[1]); // gamesPlayed is at index 1
+      const totalWinnings = BigInt(userData[3]); // totalWinnings is at index 3
+
+      // Calculate biggest win from previous bets
+      const biggestWin = previousBets.reduce((max, bet) => {
+        // Check if bet was won by comparing chosenNumber with rolledNumber
+        if (Number(bet.chosenNumber) === Number(bet.rolledNumber)) {
+          // Winning amount is 6x the bet amount as per contract
+          const winAmount = BigInt(bet.amount) * BigInt(6);
+          return winAmount > max ? winAmount : max;
+        }
+        return max;
+      }, BigInt(0));
+
+      setStats({
+        totalGames,
+        totalWinnings,
+        biggestWin,
+      });
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+    }
+  };
 
   useEffect(() => {
-    const fetchStats = async () => {
-      if (!diceContract || !account) {
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        // Fetch all data in parallel
-        const [currentGame, playerStats, userData, previousBets] =
-          await Promise.all([
-            diceContract.getCurrentGame(account),
-            diceContract.getPlayerStats(account),
-            diceContract.getUserData(account),
-            diceContract.getPreviousBets(account),
-          ]);
-
-        // Calculate derived statistics
-        const [totalGamesWon, totalGamesLost] = playerStats;
-        const totalGames = totalGamesWon + totalGamesLost;
-        const winRate = totalGames > 0 ? (totalGamesWon * 100) / totalGames : 0;
-
-        // Calculate average bet
-        const averageBet =
-          previousBets.length > 0
-            ? (
-                BigInt(userData.totalBets) / BigInt(previousBets.length)
-              ).toString()
-            : "0";
-
-        // Find biggest win
-        const biggestWin = previousBets.reduce((max, bet) => {
-          if (bet.chosenNumber.toString() === bet.rolledNumber.toString()) {
-            return bet.amount > max ? bet.amount : max;
-          }
-          return max;
-        }, BigInt(0));
-
-        setStats({
-          currentGame: {
-            isActive: currentGame.isActive,
-            status: currentGame.status,
-            chosenNumber: Number(currentGame.chosenNumber),
-            amount: currentGame.amount.toString(),
-            timestamp: Number(currentGame.timestamp),
-            payout: currentGame.payout.toString(),
-            result: Number(currentGame.result),
-          },
-          totalGamesWon,
-          totalGamesLost,
-          totalBets: userData.totalBets.toString(),
-          totalWinnings: userData.totalWinnings.toString(),
-          totalLosses: userData.totalLosses.toString(),
-          winRate,
-          biggestWin: biggestWin.toString(),
-          averageBet,
-          previousBets: previousBets.slice(-5).reverse(),
-          lastPlayed: Number(userData.lastPlayed),
-        });
-      } catch (error) {
-        console.error("Error fetching game stats:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchStats();
     const interval = setInterval(fetchStats, 10000);
-
     return () => clearInterval(interval);
   }, [diceContract, account]);
 
-  if (isLoading) {
-    return (
-      <div className="glass-panel p-6 rounded-xl animate-pulse">
-        <div className="h-48 bg-secondary-800/50 rounded-xl"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="glass-panel p-6 rounded-xl space-y-6">
-      <h2 className="text-2xl font-bold text-white/90">Game Statistics</h2>
-
-      {/* Current Game Status */}
-      {stats.currentGame.isActive && (
-        <div className="bg-gaming-primary/10 border border-gaming-primary/20 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold text-white/80 mb-4">
-            Current Game
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <StatCard
-              title="Status"
-              value={stats.currentGame.status.replace("_", " ")}
-              color={
-                stats.currentGame.status === "COMPLETED_WIN"
-                  ? "success"
-                  : stats.currentGame.status === "COMPLETED_LOSS"
-                  ? "error"
-                  : "primary"
-              }
-            />
-            <StatCard
-              title="Chosen Number"
-              value={stats.currentGame.chosenNumber}
-            />
-            <StatCard
-              title="Bet Amount"
-              value={`${ethers.formatEther(stats.currentGame.amount)} GameX`}
-            />
-            {stats.currentGame.result > 0 && (
-              <StatCard title="Result" value={stats.currentGame.result} />
-            )}
-            {stats.currentGame.payout !== "0" && (
-              <StatCard
-                title="Payout"
-                value={`${ethers.formatEther(stats.currentGame.payout)} GameX`}
-                color="success"
-              />
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Overall Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div>
+      <div className="grid grid-cols-2 gap-4">
         <StatCard
           title="Total Games"
-          value={(stats.totalGamesWon + stats.totalGamesLost).toLocaleString()}
+          value={stats.totalGames.toString()}
           icon="🎲"
         />
-        <StatCard
-          title="Win Rate"
-          value={`${stats.winRate.toFixed(2)}%`}
-          icon="📈"
-          color={stats.winRate > 50 ? "success" : "primary"}
-        />
-        <StatCard
-          title="Total Wagered"
-          value={`${ethers.formatEther(stats.totalBets)} GameX`}
-          icon="💰"
-        />
-        <StatCard
-          title="Average Bet"
-          value={`${ethers.formatEther(stats.averageBet)} GameX`}
-          icon="⚖️"
-        />
-      </div>
-
-      {/* Profit/Loss Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard
           title="Total Winnings"
           value={`${ethers.formatEther(stats.totalWinnings)} GameX`}
           icon="✨"
           color="success"
         />
-        <StatCard
-          title="Total Losses"
-          value={`${ethers.formatEther(stats.totalLosses)} GameX`}
-          icon="📉"
-          color="error"
-        />
+      </div>
+      <div className="grid grid-cols-1 gap-4 mt-4">
         <StatCard
           title="Biggest Win"
           value={`${ethers.formatEther(stats.biggestWin)} GameX`}
@@ -1378,50 +1648,6 @@ const GameStats = ({ diceContract, account }) => {
           color="success"
         />
       </div>
-
-      {/* Recent Results */}
-      {stats.previousBets.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-white/80">
-            Recent Results
-          </h3>
-          <div className="grid gap-2">
-            {stats.previousBets.map((result, index) => (
-              <div
-                key={index}
-                className={`flex items-center justify-between p-3 rounded-lg ${
-                  result.chosenNumber.toString() ===
-                  result.rolledNumber.toString()
-                    ? "bg-gaming-success/10 border border-gaming-success/20"
-                    : "bg-gaming-error/10 border border-gaming-error/20"
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-secondary-400">
-                    {new Date(
-                      Number(result.timestamp) * 1000
-                    ).toLocaleTimeString()}
-                  </span>
-                  <span>
-                    Rolled: {result.rolledNumber.toString()} | Chosen:{" "}
-                    {result.chosenNumber.toString()}
-                  </span>
-                </div>
-                <span className="font-medium">
-                  {ethers.formatEther(result.amount)} GameX
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Last Played */}
-      {stats.lastPlayed > 0 && (
-        <div className="text-sm text-secondary-400 text-right">
-          Last played: {new Date(stats.lastPlayed * 1000).toLocaleString()}
-        </div>
-      )}
     </div>
   );
 };
@@ -1696,9 +1922,14 @@ const DicePage = ({
   const [betAmount, setBetAmount] = useState(BigInt(0));
   const [userBalance, setUserBalance] = useState(BigInt(0));
   const [allowance, setAllowance] = useState(BigInt(0));
-
-  // Bet History
   const [betHistory, setBetHistory] = useState([]);
+  const [showStats, setShowStats] = useState(false);
+
+  // Calculate potential winnings
+  const potentialWinnings = useMemo(() => {
+    if (!betAmount) return BigInt(0);
+    return betAmount * BigInt(6);
+  }, [betAmount]);
 
   // Update user balance and allowance
   const updateBalance = useCallback(async () => {
@@ -1767,16 +1998,7 @@ const DicePage = ({
     };
 
     init();
-
-    // Set up event listeners
-    if (contracts.dice) {
-      // Add event listeners here if needed
-    }
-
-    return () => {
-      // Clean up event listeners if needed
-    };
-  }, [updateBalance, updateGameState, updateBetHistory, contracts.dice]);
+  }, [updateBalance, updateGameState, updateBetHistory]);
 
   // Handle number selection
   const handleNumberSelect = (number) => {
@@ -1827,6 +2049,7 @@ const DicePage = ({
         isActive: true,
         isProcessing: true,
         canPlay: false,
+        isRolling: true,
       }));
 
       await Promise.all([updateBalance(), updateGameState()]);
@@ -1862,62 +2085,67 @@ const DicePage = ({
     } finally {
       setLoadingStates((prev) => ({ ...prev, resolving: false }));
       setLoadingMessage("");
+      setGameState((prev) => ({ ...prev, isRolling: false }));
     }
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="space-y-8">
-        {/* Game Status */}
-        <div className="glass-effect p-6 rounded-lg">
-          <h2 className="text-xl font-bold mb-4">Game Status</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p>Active Game: {gameState.isActive ? "Yes" : "No"}</p>
-              <p>Can Play: {gameState.canPlay ? "Yes" : "No"}</p>
-              <p>
-                Needs Resolution: {gameState.needsResolution ? "Yes" : "No"}
-              </p>
-            </div>
-            <div>
-              <p>
-                Balance: {ethers.formatEther(userBalance.toString())} Tokens
-              </p>
-              <p>
-                Allowance: {ethers.formatEther(allowance.toString())} Tokens
-              </p>
-            </div>
+        {/* Game Status Panel */}
+        <div className="glass-effect p-6 rounded-2xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <StatusPanel gameState={gameState} />
+            <BalancePanel
+              userBalance={userBalance}
+              allowance={allowance}
+              potentialWinnings={potentialWinnings}
+            />
           </div>
         </div>
 
+        {/* Dice Visualization */}
+        <div className="glass-effect p-6 rounded-2xl">
+          <DiceVisualizer
+            chosenNumber={chosenNumber}
+            isRolling={gameState.isRolling}
+            result={gameState.lastResult}
+          />
+        </div>
+
         {/* Game Controls */}
-        <div className="glass-effect p-6 rounded-lg">
-          <h2 className="text-xl font-bold mb-4">Place Your Bet</h2>
+        <div className="glass-effect p-6 rounded-2xl">
+          <h2
+            className="text-2xl font-bold mb-6 bg-clip-text text-transparent 
+                       bg-gradient-to-r from-gaming-primary to-gaming-accent"
+          >
+            Place Your Bet
+          </h2>
 
           {/* Number Selection */}
-          <div className="mb-6">
-            <h3 className="text-lg mb-2">Choose a Number (1-6)</h3>
-            <div className="grid grid-cols-6 gap-2">
+          <div className="mb-8">
+            <h3 className="text-lg font-medium mb-4">Choose Your Number</h3>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
               {[1, 2, 3, 4, 5, 6].map((number) => (
-                <button
+                <motion.button
                   key={number}
                   onClick={() => handleNumberSelect(number)}
-                  className={`p-4 rounded-lg ${
-                    chosenNumber === number
-                      ? "bg-primary-500"
-                      : "bg-secondary-700"
-                  } hover:bg-primary-600 transition-colors`}
+                  className={`number-button ${
+                    chosenNumber === number ? "number-button-selected" : ""
+                  }`}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   disabled={!gameState.canPlay}
                 >
-                  {number}
-                </button>
+                  <span>{number}</span>
+                </motion.button>
               ))}
             </div>
           </div>
 
           {/* Bet Amount */}
-          <div className="mb-6">
-            <h3 className="text-lg mb-2">Bet Amount</h3>
+          <div className="mb-8">
+            <h3 className="text-lg font-medium mb-4">Bet Amount</h3>
             <BetInput
               value={betAmount}
               onChange={handleBetAmountChange}
@@ -1927,39 +2155,77 @@ const DicePage = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex space-x-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             {allowance < betAmount && (
-              <button
+              <motion.button
                 onClick={handleApprove}
-                className="btn-gaming"
+                className="btn-gaming flex-1"
                 disabled={!gameState.canPlay}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 Approve Tokens
-              </button>
+              </motion.button>
             )}
-            <button
+
+            <motion.button
               onClick={handlePlaceBet}
-              className="btn-gaming"
+              className="btn-gaming flex-1"
               disabled={
                 !gameState.canPlay ||
                 !chosenNumber ||
                 betAmount <= BigInt(0) ||
                 allowance < betAmount
               }
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               Place Bet
-            </button>
+            </motion.button>
+
             {gameState.needsResolution && (
-              <button onClick={handleResolveGame} className="btn-gaming">
+              <motion.button
+                onClick={handleResolveGame}
+                className="btn-gaming flex-1"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
                 Resolve Game
-              </button>
+              </motion.button>
             )}
           </div>
         </div>
 
-        {/* Bet History */}
-        <div className="glass-effect p-6 rounded-lg">
-          <h2 className="text-xl font-bold mb-4">Bet History</h2>
+        {/* Game History */}
+        <div className="glass-effect p-6 rounded-2xl">
+          <div className="flex justify-between items-center mb-6">
+            <h2
+              className="text-2xl font-bold bg-clip-text text-transparent 
+                         bg-gradient-to-r from-gaming-primary to-gaming-accent"
+            >
+              Betting History
+            </h2>
+            <button
+              onClick={() => setShowStats(!showStats)}
+              className="btn-secondary"
+            >
+              {showStats ? "Hide Stats" : "Show Stats"}
+            </button>
+          </div>
+
+          <AnimatePresence>
+            {showStats && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="mb-6"
+              >
+                <GameStats diceContract={contracts.dice} account={account} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -1967,21 +2233,35 @@ const DicePage = ({
                   <th className="text-left p-2">Chosen</th>
                   <th className="text-left p-2">Rolled</th>
                   <th className="text-left p-2">Amount</th>
+                  <th className="text-left p-2">Result</th>
                   <th className="text-left p-2">Time</th>
                 </tr>
               </thead>
               <tbody>
                 {betHistory.map((bet, index) => (
-                  <tr key={index}>
+                  <motion.tr
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`border-b border-secondary-800/30
+                              ${
+                                bet.rolledNumber === bet.chosenNumber
+                                  ? "text-gaming-success"
+                                  : "text-gaming-error"
+                              }`}
+                  >
                     <td className="p-2">{bet.chosenNumber.toString()}</td>
                     <td className="p-2">{bet.rolledNumber.toString()}</td>
                     <td className="p-2">
                       {ethers.formatEther(bet.amount.toString())}
                     </td>
                     <td className="p-2">
+                      {bet.rolledNumber === bet.chosenNumber ? "WIN" : "LOSS"}
+                    </td>
+                    <td className="p-2">
                       {new Date(Number(bet.timestamp) * 1000).toLocaleString()}
                     </td>
-                  </tr>
+                  </motion.tr>
                 ))}
               </tbody>
             </table>
