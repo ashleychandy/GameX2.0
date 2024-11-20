@@ -1717,75 +1717,210 @@ const steps = [
 // New Game Statistics Panel
 const GameStats = ({ diceContract, account }) => {
   const [stats, setStats] = useState({
-    totalGames: 0,
+    gamesWon: 0,
     totalWinnings: BigInt(0),
     biggestWin: BigInt(0),
   });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const fetchStats = async () => {
-    if (!diceContract || !account) return;
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!diceContract || !account) {
+        setLoading(false);
+        return;
+      }
 
+      try {
+        setLoading(true);
+        const userData = await diceContract.getUserData(account);
+        const previousBets = await diceContract.getPreviousBets(account);
+
+        let biggestWin = BigInt(0);
+        let gamesWon = 0;
+
+        previousBets.forEach((bet) => {
+          if (bet.chosenNumber === bet.rolledNumber) {
+            gamesWon++;
+            const winAmount = bet.amount * BigInt(6);
+            if (winAmount > biggestWin) {
+              biggestWin = winAmount;
+            }
+          }
+        });
+
+        setStats({
+          gamesWon,
+          totalWinnings: userData.totalWinnings,
+          biggestWin,
+        });
+        setError("");
+      } catch (err) {
+        console.error("Error fetching stats:", err);
+        setError("Failed to load statistics");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, [diceContract, account]);
+
+  if (loading) {
+    return (
+      <div className="w-full p-6 bg-secondary-900/60 backdrop-blur-xl rounded-2xl border border-white/5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="animate-pulse">
+              <div className="h-32 rounded-xl bg-secondary-800/50">
+                <div className="h-full flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-secondary-700/50" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full p-6 bg-secondary-900/60 backdrop-blur-xl rounded-2xl border border-white/5">
+        <div className="flex items-center justify-center p-6 rounded-xl bg-gaming-error/10 border border-gaming-error/20">
+          <div className="flex items-center gap-3 text-gaming-error">
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span className="text-lg font-medium">{error}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const formatValue = (value) => {
     try {
-      // Fetch all required data in parallel
-      const [userData, previousBets] = await Promise.all([
-        diceContract.getUserData(account),
-        diceContract.getPreviousBets(account),
-      ]);
-
-      // From getUserData we get:
-      // [currentGame, totalGames, totalBets, totalWinnings, totalLosses, lastPlayed]
-      const totalGames = Number(userData[1]); // gamesPlayed is at index 1
-      const totalWinnings = BigInt(userData[3]); // totalWinnings is at index 3
-
-      // Calculate biggest win from previous bets
-      const biggestWin = previousBets.reduce((max, bet) => {
-        // Check if bet was won by comparing chosenNumber with rolledNumber
-        if (Number(bet.chosenNumber) === Number(bet.rolledNumber)) {
-          // Winning amount is 6x the bet amount as per contract
-          const winAmount = BigInt(bet.amount) * BigInt(6);
-          return winAmount > max ? winAmount : max;
-        }
-        return max;
-      }, BigInt(0));
-
-      setStats({
-        totalGames,
-        totalWinnings,
-        biggestWin,
-      });
-    } catch (error) {
-      console.error("Error fetching stats:", error);
+      return ethers.formatEther(value.toString());
+    } catch (err) {
+      return "0";
     }
   };
 
-  useEffect(() => {
-    fetchStats();
-    const interval = setInterval(fetchStats, 10000);
-    return () => clearInterval(interval);
-  }, [diceContract, account]);
+  const statItems = [
+    {
+      label: "Games Won",
+      value: stats.gamesWon.toString(),
+      icon: "🎲",
+      gradientFrom: "from-emerald-500",
+      gradientTo: "to-emerald-600",
+      borderColor: "border-emerald-500/20",
+      shadowColor: "shadow-emerald-500/10",
+    },
+    {
+      label: "Total Winnings",
+      value: `${formatValue(stats.totalWinnings)} GameX`,
+      icon: "💰",
+      gradientFrom: "from-gaming-primary",
+      gradientTo: "to-gaming-accent",
+      borderColor: "border-gaming-primary/20",
+      shadowColor: "shadow-gaming-primary/10",
+    },
+    {
+      label: "Biggest Win",
+      value: `${formatValue(stats.biggestWin)} GameX`,
+      icon: "🏆",
+      gradientFrom: "from-amber-500",
+      gradientTo: "to-amber-600",
+      borderColor: "border-amber-500/20",
+      shadowColor: "shadow-amber-500/10",
+    },
+  ];
 
   return (
-    <div>
-      <div className="grid grid-cols-2 gap-4">
-        <StatCard
-          title="Total Games"
-          value={stats.totalGames.toString()}
-          icon="🎲"
-        />
-        <StatCard
-          title="Total Winnings"
-          value={`${ethers.formatEther(stats.totalWinnings)} GameX`}
-          icon="✨"
-          color="success"
-        />
-      </div>
-      <div className="grid grid-cols-1 gap-4 mt-4">
-        <StatCard
-          title="Biggest Win"
-          value={`${ethers.formatEther(stats.biggestWin)} GameX`}
-          icon="🏆"
-          color="success"
-        />
+    <div className="w-full space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {statItems.map((item, index) => (
+          <motion.div
+            key={item.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className={`
+              relative group
+              bg-secondary-900/60 backdrop-blur-xl
+              rounded-2xl border ${item.borderColor}
+              shadow-xl ${item.shadowColor}
+              overflow-hidden
+              transition-all duration-300
+              hover:scale-[1.02] hover:shadow-2xl
+            `}
+          >
+            {/* Background Gradient Overlay */}
+            <div
+              className={`
+                absolute inset-0 opacity-10 group-hover:opacity-20
+                transition-opacity duration-300
+                bg-gradient-to-br ${item.gradientFrom} ${item.gradientTo}
+              `}
+            />
+
+            {/* Content Container */}
+            <div className="relative p-6 h-full">
+              <div className="flex flex-col h-full">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-3xl">{item.icon}</span>
+                  <span
+                    className={`
+                      text-sm font-medium text-secondary-400
+                      group-hover:text-secondary-300
+                      transition-colors duration-300
+                    `}
+                  >
+                    {item.label}
+                  </span>
+                </div>
+
+                {/* Value */}
+                <div className="mt-auto">
+                  <span
+                    className={`
+                      text-2xl font-bold
+                      bg-gradient-to-r ${item.gradientFrom} ${item.gradientTo}
+                      bg-clip-text text-transparent
+                      group-hover:scale-105
+                      transition-transform duration-300
+                      block
+                    `}
+                  >
+                    {item.value}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Hover Effect Overlay */}
+            <div
+              className={`
+                absolute inset-0
+                bg-gradient-to-r ${item.gradientFrom} ${item.gradientTo}
+                opacity-0 group-hover:opacity-5
+                transition-opacity duration-300
+              `}
+            />
+          </motion.div>
+        ))}
       </div>
     </div>
   );
@@ -2213,182 +2348,344 @@ function AdminPage({
   onError,
   addToast,
 }) {
-  const [isPaused, setIsPaused] = useState(false);
-  const [minters, setMinters] = useState([]);
-  const [burners, setBurners] = useState([]);
-  const [newAddress, setNewAddress] = useState("");
-  const [selectedRole, setSelectedRole] = useState("MINTER_ROLE");
-  const [activeGames, setActiveGames] = useState([]);
+  const [gameStats, setGameStats] = useState({
+    contractBalance: BigInt(0),
+    isPaused: false,
+    ownerCount: 0,
+  });
+
+  const [formInputs, setFormInputs] = useState({
+    newAddress: "",
+    selectedRole: "MINTER_ROLE",
+    withdrawAmount: "",
+    newOwnerAddress: "",
+  });
+
+  const [roleAddresses, setRoleAddresses] = useState({
+    minters: [],
+    burners: [],
+  });
+
+  const [loading, setLoading] = useState({
+    stats: false,
+    action: false,
+  });
+
+  const fetchGameStats = async () => {
+    try {
+      setLoading((prev) => ({ ...prev, stats: true }));
+      const [balance, isPaused, ownerCount, { minters, burners }] =
+        await Promise.all([
+          diceContract.getContractBalance(),
+          diceContract.paused(),
+          diceContract.getOwnerCount(),
+          tokenContract.getMinterBurnerAddresses(),
+        ]);
+
+      setGameStats({
+        contractBalance: balance,
+        isPaused,
+        ownerCount,
+      });
+
+      setRoleAddresses({
+        minters,
+        burners,
+      });
+    } catch (error) {
+      onError(error, "Fetching game stats");
+    } finally {
+      setLoading((prev) => ({ ...prev, stats: false }));
+    }
+  };
 
   useEffect(() => {
-    const init = async () => {
-      try {
-        // Check if game is paused
-        const paused = await diceContract.paused();
-        setIsPaused(paused);
-
-        // Get minters and burners
-        const { minters: m, burners: b } =
-          await tokenContract.getMinterBurnerAddresses();
-        setMinters(m);
-        setBurners(b);
-      } catch (err) {
-        onError(err, "admin initialization");
-      }
-    };
-
-    init();
+    fetchGameStats();
+    const interval = setInterval(fetchGameStats, 10000);
+    return () => clearInterval(interval);
   }, [diceContract, tokenContract]);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormInputs((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
 
   const handlePauseToggle = async () => {
     try {
-      if (isPaused) {
-        await diceContract.unpause();
-        addToast("Game unpaused successfully", "success");
-      } else {
-        await diceContract.pause();
-        addToast("Game paused successfully", "success");
-      }
-      setIsPaused(!isPaused);
-    } catch (err) {
-      onError(err, "pause toggle");
+      setLoading((prev) => ({ ...prev, action: true }));
+      const tx = await diceContract[gameStats.isPaused ? "unpause" : "pause"]();
+      await tx.wait();
+      addToast(
+        `Game ${gameStats.isPaused ? "unpaused" : "paused"} successfully`,
+        "success"
+      );
+      await fetchGameStats();
+    } catch (error) {
+      onError(error, "Toggling pause state");
+    } finally {
+      setLoading((prev) => ({ ...prev, action: false }));
+    }
+  };
+
+  const handleWithdraw = async (e) => {
+    e.preventDefault();
+    if (!formInputs.withdrawAmount) return;
+
+    try {
+      setLoading((prev) => ({ ...prev, action: true }));
+      const amount = ethers.parseEther(formInputs.withdrawAmount);
+      const tx = await diceContract.withdraw(amount);
+      await tx.wait();
+      addToast("Withdrawal successful", "success");
+      await fetchGameStats();
+      setFormInputs((prev) => ({ ...prev, withdrawAmount: "" }));
+    } catch (error) {
+      onError(error, "Withdrawing funds");
+    } finally {
+      setLoading((prev) => ({ ...prev, action: false }));
     }
   };
 
   const handleRoleManagement = async (action) => {
     try {
-      if (!ethers.isAddress(newAddress)) {
+      setLoading((prev) => ({ ...prev, action: true }));
+      if (!ethers.isAddress(formInputs.newAddress)) {
         addToast("Invalid address", "error");
         return;
       }
 
-      const role = await tokenContract[selectedRole]();
-
-      if (action === "grant") {
-        await tokenContract.grantRole(role, newAddress);
-        addToast(`${selectedRole} granted successfully`, "success");
-      } else {
-        await tokenContract.revokeRole(role, newAddress);
-        addToast(`${selectedRole} revoked successfully`, "success");
-      }
-
-      // Refresh lists
-      const { minters: m, burners: b } =
-        await tokenContract.getMinterBurnerAddresses();
-      setMinters(m);
-      setBurners(b);
-    } catch (err) {
-      onError(err, "role management");
+      const role = await tokenContract[formInputs.selectedRole]();
+      const tx = await tokenContract[
+        action === "grant" ? "grantRole" : "revokeRole"
+      ](role, formInputs.newAddress);
+      await tx.wait();
+      addToast(`Role ${action}ed successfully`, "success");
+      await fetchGameStats();
+      setFormInputs((prev) => ({ ...prev, newAddress: "" }));
+    } catch (error) {
+      onError(error, "Managing roles");
+    } finally {
+      setLoading((prev) => ({ ...prev, action: false }));
     }
   };
 
-  const handleForceStopGame = async (playerAddress) => {
+  const handleAddOwner = async () => {
     try {
-      await diceContract.forceStopGame(playerAddress);
-      addToast("Game stopped successfully", "success");
-      // Refresh active games list
-    } catch (err) {
-      onError(err, "force stop game");
+      setLoading((prev) => ({ ...prev, action: true }));
+      if (!ethers.isAddress(formInputs.newOwnerAddress)) {
+        addToast("Invalid address", "error");
+        return;
+      }
+
+      const tx = await diceContract.addOwner(formInputs.newOwnerAddress);
+      await tx.wait();
+      addToast("Owner added successfully", "success");
+      await fetchGameStats();
+      setFormInputs((prev) => ({ ...prev, newOwnerAddress: "" }));
+    } catch (error) {
+      onError(error, "Adding owner");
+    } finally {
+      setLoading((prev) => ({ ...prev, action: false }));
     }
   };
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-
-      {/* Game Control */}
-      <section className="glass-effect p-6 rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">Game Control</h2>
-        <button
-          onClick={handlePauseToggle}
-          className={`btn-gaming ${
-            isPaused ? "bg-success-600" : "bg-error-600"
-          }`}
-        >
-          {isPaused ? "Unpause Game" : "Pause Game"}
-        </button>
-      </section>
-
-      {/* Role Management */}
-      <section className="glass-effect p-6 rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">Role Management</h2>
-        <div className="space-y-4">
-          <div className="flex gap-4">
-            <input
-              type="text"
-              value={newAddress}
-              onChange={(e) => setNewAddress(e.target.value)}
-              placeholder="Enter address"
-              className="input-gaming flex-1"
-            />
-            <select
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value)}
-              className="select-gaming"
-            >
-              <option value="MINTER_ROLE">Minter</option>
-              <option value="BURNER_ROLE">Burner</option>
-            </select>
-            <button
-              onClick={() => handleRoleManagement("grant")}
-              className="btn-gaming bg-success-600"
-            >
-              Grant
-            </button>
-            <button
-              onClick={() => handleRoleManagement("revoke")}
-              className="btn-gaming bg-error-600"
-            >
-              Revoke
-            </button>
-          </div>
-
-          {/* Role Lists */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <h3 className="font-medium mb-2">Minters</h3>
-              <ul className="space-y-2">
-                {minters.map((address) => (
-                  <li key={address} className="text-sm text-gray-300">
-                    {address}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-medium mb-2">Burners</h3>
-              <ul className="space-y-2">
-                {burners.map((address) => (
-                  <li key={address} className="text-sm text-gray-300">
-                    {address}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-gradient">Admin Dashboard</h1>
+        <div className="glass-panel px-6 py-3">
+          <span className="text-secondary-400">Admin:</span>
+          <span className="ml-2 text-gaming-primary">
+            {account.slice(0, 6)}...{account.slice(-4)}
+          </span>
         </div>
-      </section>
+      </div>
 
-      {/* Active Games */}
-      <section className="glass-effect p-6 rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">Active Games</h2>
-        <div className="space-y-4">
-          {activeGames.map((game) => (
-            <div
-              key={game.player}
-              className="flex justify-between items-center"
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <motion.div
+          className="stat-card"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <span className="text-secondary-400">Contract Balance</span>
+          <span className="text-2xl font-bold">
+            {ethers.formatEther(gameStats.contractBalance)} GameX
+          </span>
+        </motion.div>
+
+        <motion.div
+          className="stat-card"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <span className="text-secondary-400">Game Status</span>
+          <span
+            className={`text-2xl font-bold ${
+              gameStats.isPaused ? "text-gaming-error" : "text-gaming-success"
+            }`}
+          >
+            {gameStats.isPaused ? "Paused" : "Active"}
+          </span>
+        </motion.div>
+
+        <motion.div
+          className="stat-card"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <span className="text-secondary-400">Owner Count</span>
+          <span className="text-2xl font-bold">{gameStats.ownerCount}</span>
+        </motion.div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="game-card">
+          <h2 className="text-xl font-bold">Game Control</h2>
+          <button
+            onClick={handlePauseToggle}
+            disabled={loading.action}
+            className={`btn-gaming w-full ${
+              gameStats.isPaused ? "bg-gaming-success" : "bg-gaming-error"
+            }`}
+          >
+            {loading.action
+              ? "Processing..."
+              : gameStats.isPaused
+              ? "Unpause Game"
+              : "Pause Game"}
+          </button>
+        </div>
+
+        <div className="game-card">
+          <h2 className="text-xl font-bold">House Management</h2>
+          <form onSubmit={handleWithdraw} className="space-y-4">
+            <div>
+              <label className="text-secondary-400">Withdraw Amount</label>
+              <input
+                type="text"
+                name="withdrawAmount"
+                value={formInputs.withdrawAmount}
+                onChange={handleInputChange}
+                className="input-gaming w-full"
+                placeholder="Enter amount in GameX"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading.action}
+              className="btn-gaming w-full"
             >
-              <span>{game.player}</span>
-              <button
-                onClick={() => handleForceStopGame(game.player)}
-                className="btn-gaming bg-error-600"
+              Withdraw House Balance
+            </button>
+          </form>
+        </div>
+
+        <div className="game-card">
+          <h2 className="text-xl font-bold">Role Management</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="text-secondary-400">Address</label>
+              <input
+                type="text"
+                name="newAddress"
+                value={formInputs.newAddress}
+                onChange={handleInputChange}
+                className="input-gaming w-full"
+                placeholder="Enter address"
+              />
+            </div>
+            <div>
+              <label className="text-secondary-400">Role</label>
+              <select
+                name="selectedRole"
+                value={formInputs.selectedRole}
+                onChange={handleInputChange}
+                className="input-gaming w-full"
               >
-                Force Stop
+                <option value="MINTER_ROLE">Minter</option>
+                <option value="BURNER_ROLE">Burner</option>
+              </select>
+            </div>
+            <div className="flex gap-4">
+              <button
+                onClick={() => handleRoleManagement("grant")}
+                disabled={loading.action}
+                className="btn-gaming flex-1"
+              >
+                Grant Role
+              </button>
+              <button
+                onClick={() => handleRoleManagement("revoke")}
+                disabled={loading.action}
+                className="btn-gaming flex-1"
+              >
+                Revoke Role
               </button>
             </div>
-          ))}
+          </div>
         </div>
-      </section>
+
+        <div className="game-card">
+          <h2 className="text-xl font-bold">Owner Management</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="text-secondary-400">New Owner Address</label>
+              <input
+                type="text"
+                name="newOwnerAddress"
+                value={formInputs.newOwnerAddress}
+                onChange={handleInputChange}
+                className="input-gaming w-full"
+                placeholder="Enter address"
+              />
+            </div>
+            <button
+              onClick={handleAddOwner}
+              disabled={loading.action}
+              className="btn-gaming w-full"
+            >
+              Add Owner
+            </button>
+          </div>
+        </div>
+
+        <div className="game-card">
+          <h2 className="text-xl font-bold">Current Role Holders</h2>
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-secondary-400 mb-2">Minters</h3>
+              <div className="space-y-2">
+                {roleAddresses.minters.map((address) => (
+                  <div
+                    key={address}
+                    className="text-sm text-white bg-secondary-800/50 p-2 rounded"
+                  >
+                    {address}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h3 className="text-secondary-400 mb-2">Burners</h3>
+              <div className="space-y-2">
+                {roleAddresses.burners.map((address) => (
+                  <div
+                    key={address}
+                    className="text-sm text-white bg-secondary-800/50 p-2 rounded"
+                  >
+                    {address}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2502,15 +2799,41 @@ const DicePage = ({
 
   // Handle game resolution
   const handleGameResolution = async () => {
-    if (!gameState.needsResolution || !isMounted.current) return;
+    if (
+      !gameState.needsResolution ||
+      !isMounted.current ||
+      !contracts.dice ||
+      !account
+    )
+      return;
 
     try {
+      // Clear any existing monitoring interval first
+      if (monitorIntervalRef.current) {
+        clearInterval(monitorIntervalRef.current);
+        monitorIntervalRef.current = null;
+      }
+
       setGameState((prev) => ({ ...prev, isProcessing: true }));
+
+      // Check if game is still active before resolving
+      const currentStatus = await contracts.dice.getGameStatus(account);
+      if (!currentStatus.isActive) {
+        setGameState((prev) => ({
+          ...prev,
+          isProcessing: false,
+          isRolling: false,
+          needsResolution: false,
+        }));
+        return;
+      }
+
       const tx = await contracts.dice.resolveGame();
       await tx.wait();
 
       if (!isMounted.current) return;
 
+      // Get final game status
       const gameStatus = await contracts.dice.getGameStatus(account);
       const isWin = Number(gameStatus.status) === 2; // COMPLETED_WIN
 
@@ -2523,12 +2846,21 @@ const DicePage = ({
           addToast("Better luck next time!", "warning");
         }
 
+        // Update states after resolution
         await Promise.all([updateGameState(), updateBalance()]);
       }
     } catch (error) {
       if (isMounted.current) {
         console.error("Error resolving game:", error);
         onError(error);
+
+        // Reset states on error
+        setGameState((prev) => ({
+          ...prev,
+          isProcessing: false,
+          isRolling: false,
+          needsResolution: false,
+        }));
       }
     } finally {
       if (isMounted.current) {
@@ -2536,6 +2868,7 @@ const DicePage = ({
           ...prev,
           isProcessing: false,
           isRolling: false,
+          needsResolution: false,
         }));
       }
     }
