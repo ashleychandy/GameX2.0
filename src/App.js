@@ -2359,6 +2359,8 @@ function AdminPage({
     selectedRole: "MINTER_ROLE",
     withdrawAmount: "",
     newOwnerAddress: "",
+    mintAddress: "",
+    mintAmount: "",
   });
 
   const [roleAddresses, setRoleAddresses] = useState({
@@ -2413,27 +2415,37 @@ function AdminPage({
     }));
   };
 
-  const handlePauseToggle = async () => {
+  const handleRoleManagement = async (action) => {
     try {
       setLoading((prev) => ({ ...prev, action: true }));
-      const tx = await diceContract[gameStats.isPaused ? "unpause" : "pause"]();
+      if (!ethers.isAddress(formInputs.newAddress)) {
+        addToast("Invalid address", "error");
+        return;
+      }
+
+      const tx =
+        action === "grant"
+          ? await tokenContract.grantRole(
+              formInputs.selectedRole,
+              formInputs.newAddress
+            )
+          : await tokenContract.revokeRole(
+              formInputs.selectedRole,
+              formInputs.newAddress
+            );
+
       await tx.wait();
-      addToast(
-        `Game ${gameStats.isPaused ? "unpaused" : "paused"} successfully`,
-        "success"
-      );
+      addToast(`Role ${action}ed successfully`, "success");
       await fetchGameStats();
+      setFormInputs((prev) => ({ ...prev, newAddress: "" }));
     } catch (error) {
-      onError(error, "Toggling pause state");
+      onError(error, `${action}ing role`);
     } finally {
       setLoading((prev) => ({ ...prev, action: false }));
     }
   };
 
-  const handleWithdraw = async (e) => {
-    e.preventDefault();
-    if (!formInputs.withdrawAmount) return;
-
+  const handleWithdraw = async () => {
     try {
       setLoading((prev) => ({ ...prev, action: true }));
       const amount = ethers.parseEther(formInputs.withdrawAmount);
@@ -2449,24 +2461,20 @@ function AdminPage({
     }
   };
 
-  const handleRoleManagement = async (action) => {
+  const handlePauseToggle = async () => {
     try {
       setLoading((prev) => ({ ...prev, action: true }));
-      if (!ethers.isAddress(formInputs.newAddress)) {
-        addToast("Invalid address", "error");
-        return;
-      }
-
-      const role = await tokenContract[formInputs.selectedRole]();
-      const tx = await tokenContract[
-        action === "grant" ? "grantRole" : "revokeRole"
-      ](role, formInputs.newAddress);
+      const tx = gameStats.isPaused
+        ? await diceContract.unpause()
+        : await diceContract.pause();
       await tx.wait();
-      addToast(`Role ${action}ed successfully`, "success");
+      addToast(
+        `Game ${gameStats.isPaused ? "unpaused" : "paused"} successfully`,
+        "success"
+      );
       await fetchGameStats();
-      setFormInputs((prev) => ({ ...prev, newAddress: "" }));
     } catch (error) {
-      onError(error, "Managing roles");
+      onError(error, `${gameStats.isPaused ? "Unpausing" : "Pausing"} game`);
     } finally {
       setLoading((prev) => ({ ...prev, action: false }));
     }
@@ -2492,198 +2500,198 @@ function AdminPage({
     }
   };
 
+  const handleMintTokens = async () => {
+    try {
+      setLoading((prev) => ({ ...prev, action: true }));
+      if (!ethers.isAddress(formInputs.mintAddress)) {
+        addToast("Invalid address", "error");
+        return;
+      }
+
+      const amount = ethers.parseEther(formInputs.mintAmount);
+      const tx = await tokenContract.mint(formInputs.mintAddress, amount);
+      await tx.wait();
+      addToast("Tokens minted successfully", "success");
+      await fetchGameStats();
+      setFormInputs((prev) => ({ ...prev, mintAddress: "", mintAmount: "" }));
+    } catch (error) {
+      onError(error, "Minting tokens");
+    } finally {
+      setLoading((prev) => ({ ...prev, action: false }));
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gradient">Admin Dashboard</h1>
-        <div className="glass-panel px-6 py-3">
-          <span className="text-secondary-400">Admin:</span>
-          <span className="ml-2 text-gaming-primary">
-            {account.slice(0, 6)}...{account.slice(-4)}
-          </span>
+      <div className="game-card">
+        <h2 className="text-xl font-bold">Game Statistics</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          <div>
+            <p className="text-secondary-400">Contract Balance</p>
+            <p className="text-xl font-bold">
+              {loading.stats
+                ? "Loading..."
+                : ethers.formatEther(gameStats.contractBalance)}{" "}
+              ETH
+            </p>
+          </div>
+          <div>
+            <p className="text-secondary-400">Game Status</p>
+            <p className="text-xl font-bold">
+              {loading.stats
+                ? "Loading..."
+                : gameStats.isPaused
+                ? "Paused"
+                : "Active"}
+            </p>
+          </div>
+          <div>
+            <p className="text-secondary-400">Owner Count</p>
+            <p className="text-xl font-bold">
+              {loading.stats ? "Loading..." : gameStats.ownerCount}
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <motion.div
-          className="stat-card"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <span className="text-secondary-400">Contract Balance</span>
-          <span className="text-2xl font-bold">
-            {ethers.formatEther(gameStats.contractBalance)} GameX
-          </span>
-        </motion.div>
-
-        <motion.div
-          className="stat-card"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <span className="text-secondary-400">Game Status</span>
-          <span
-            className={`text-2xl font-bold ${
-              gameStats.isPaused ? "text-gaming-error" : "text-gaming-success"
-            }`}
-          >
-            {gameStats.isPaused ? "Paused" : "Active"}
-          </span>
-        </motion.div>
-
-        <motion.div
-          className="stat-card"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <span className="text-secondary-400">Owner Count</span>
-          <span className="text-2xl font-bold">{gameStats.ownerCount}</span>
-        </motion.div>
+      <div className="game-card">
+        <h2 className="text-xl font-bold">Role Management</h2>
+        <div className="space-y-4">
+          <div>
+            <label className="text-secondary-400">Address</label>
+            <input
+              type="text"
+              name="newAddress"
+              value={formInputs.newAddress}
+              onChange={handleInputChange}
+              className="input-gaming w-full"
+              placeholder="Enter address"
+            />
+          </div>
+          <div>
+            <label className="text-secondary-400">Role</label>
+            <select
+              name="selectedRole"
+              value={formInputs.selectedRole}
+              onChange={handleInputChange}
+              className="input-gaming w-full"
+            >
+              <option value="MINTER_ROLE">Minter</option>
+              <option value="BURNER_ROLE">Burner</option>
+            </select>
+          </div>
+          <div className="flex gap-4">
+            <button
+              onClick={() => handleRoleManagement("grant")}
+              disabled={loading.action}
+              className="btn-gaming flex-1"
+            >
+              Grant Role
+            </button>
+            <button
+              onClick={() => handleRoleManagement("revoke")}
+              disabled={loading.action}
+              className="btn-gaming flex-1"
+            >
+              Revoke Role
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="game-card">
-          <h2 className="text-xl font-bold">Game Control</h2>
+      <div className="game-card">
+        <h2 className="text-xl font-bold">Token Minting</h2>
+        <div className="space-y-4">
+          <div>
+            <label className="text-secondary-400">Recipient Address</label>
+            <input
+              type="text"
+              name="mintAddress"
+              value={formInputs.mintAddress}
+              onChange={handleInputChange}
+              className="input-gaming w-full"
+              placeholder="Enter recipient address"
+            />
+          </div>
+          <div>
+            <label className="text-secondary-400">Amount to Mint</label>
+            <input
+              type="text"
+              name="mintAmount"
+              value={formInputs.mintAmount}
+              onChange={handleInputChange}
+              className="input-gaming w-full"
+              placeholder="Enter amount in GameX"
+            />
+          </div>
+          <button
+            onClick={handleMintTokens}
+            disabled={loading.action}
+            className="btn-gaming w-full"
+          >
+            {loading.action ? "Minting..." : "Mint Tokens"}
+          </button>
+        </div>
+      </div>
+
+      <div className="game-card">
+        <h2 className="text-xl font-bold">Withdraw Funds</h2>
+        <div className="space-y-4">
+          <div>
+            <label className="text-secondary-400">Amount (ETH)</label>
+            <input
+              type="text"
+              name="withdrawAmount"
+              value={formInputs.withdrawAmount}
+              onChange={handleInputChange}
+              className="input-gaming w-full"
+              placeholder="Enter amount in ETH"
+            />
+          </div>
+          <button
+            onClick={handleWithdraw}
+            disabled={loading.action}
+            className="btn-gaming w-full"
+          >
+            Withdraw
+          </button>
+        </div>
+      </div>
+
+      <div className="game-card">
+        <h2 className="text-xl font-bold">Game Control</h2>
+        <div className="space-y-4">
           <button
             onClick={handlePauseToggle}
             disabled={loading.action}
-            className={`btn-gaming w-full ${
-              gameStats.isPaused ? "bg-gaming-success" : "bg-gaming-error"
-            }`}
+            className="btn-gaming w-full"
           >
-            {loading.action
-              ? "Processing..."
-              : gameStats.isPaused
-              ? "Unpause Game"
-              : "Pause Game"}
+            {gameStats.isPaused ? "Unpause Game" : "Pause Game"}
           </button>
         </div>
+      </div>
 
-        <div className="game-card">
-          <h2 className="text-xl font-bold">House Management</h2>
-          <form onSubmit={handleWithdraw} className="space-y-4">
-            <div>
-              <label className="text-secondary-400">Withdraw Amount</label>
-              <input
-                type="text"
-                name="withdrawAmount"
-                value={formInputs.withdrawAmount}
-                onChange={handleInputChange}
-                className="input-gaming w-full"
-                placeholder="Enter amount in GameX"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading.action}
-              className="btn-gaming w-full"
-            >
-              Withdraw House Balance
-            </button>
-          </form>
-        </div>
-
-        <div className="game-card">
-          <h2 className="text-xl font-bold">Role Management</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="text-secondary-400">Address</label>
-              <input
-                type="text"
-                name="newAddress"
-                value={formInputs.newAddress}
-                onChange={handleInputChange}
-                className="input-gaming w-full"
-                placeholder="Enter address"
-              />
-            </div>
-            <div>
-              <label className="text-secondary-400">Role</label>
-              <select
-                name="selectedRole"
-                value={formInputs.selectedRole}
-                onChange={handleInputChange}
-                className="input-gaming w-full"
-              >
-                <option value="MINTER_ROLE">Minter</option>
-                <option value="BURNER_ROLE">Burner</option>
-              </select>
-            </div>
-            <div className="flex gap-4">
-              <button
-                onClick={() => handleRoleManagement("grant")}
-                disabled={loading.action}
-                className="btn-gaming flex-1"
-              >
-                Grant Role
-              </button>
-              <button
-                onClick={() => handleRoleManagement("revoke")}
-                disabled={loading.action}
-                className="btn-gaming flex-1"
-              >
-                Revoke Role
-              </button>
-            </div>
+      <div className="game-card">
+        <h2 className="text-xl font-bold">Owner Management</h2>
+        <div className="space-y-4">
+          <div>
+            <label className="text-secondary-400">New Owner Address</label>
+            <input
+              type="text"
+              name="newOwnerAddress"
+              value={formInputs.newOwnerAddress}
+              onChange={handleInputChange}
+              className="input-gaming w-full"
+              placeholder="Enter new owner address"
+            />
           </div>
-        </div>
-
-        <div className="game-card">
-          <h2 className="text-xl font-bold">Owner Management</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="text-secondary-400">New Owner Address</label>
-              <input
-                type="text"
-                name="newOwnerAddress"
-                value={formInputs.newOwnerAddress}
-                onChange={handleInputChange}
-                className="input-gaming w-full"
-                placeholder="Enter address"
-              />
-            </div>
-            <button
-              onClick={handleAddOwner}
-              disabled={loading.action}
-              className="btn-gaming w-full"
-            >
-              Add Owner
-            </button>
-          </div>
-        </div>
-
-        <div className="game-card">
-          <h2 className="text-xl font-bold">Current Role Holders</h2>
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-secondary-400 mb-2">Minters</h3>
-              <div className="space-y-2">
-                {roleAddresses.minters.map((address) => (
-                  <div
-                    key={address}
-                    className="text-sm text-white bg-secondary-800/50 p-2 rounded"
-                  >
-                    {address}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h3 className="text-secondary-400 mb-2">Burners</h3>
-              <div className="space-y-2">
-                {roleAddresses.burners.map((address) => (
-                  <div
-                    key={address}
-                    className="text-sm text-white bg-secondary-800/50 p-2 rounded"
-                  >
-                    {address}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <button
+            onClick={handleAddOwner}
+            disabled={loading.action}
+            className="btn-gaming w-full"
+          >
+            Add Owner
+          </button>
         </div>
       </div>
     </div>
