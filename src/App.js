@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -2303,6 +2309,9 @@ const DicePage = ({
   const [showWinAnimation, setShowWinAnimation] = useState(false);
   const [showLoseAnimation, setShowLoseAnimation] = useState(false);
 
+  // Add monitorInterval
+  const monitorIntervalRef = useRef(null);
+
   // Calculate potential winnings
   const potentialWinnings = useMemo(() => {
     if (!betAmount) return BigInt(0);
@@ -2367,13 +2376,15 @@ const DicePage = ({
 
     try {
       const bets = await contracts.dice.getPreviousBets(account);
-      const processedBets = bets.map((bet) => ({
-        chosenNumber: Number(bet.chosenNumber),
-        rolledNumber: Number(bet.rolledNumber),
-        amount: bet.amount.toString(),
-        timestamp: Number(bet.timestamp),
-        isWin: Number(bet.chosenNumber) === Number(bet.rolledNumber),
-      }));
+      const processedBets = bets
+        .map((bet) => ({
+          chosenNumber: Number(bet.chosenNumber),
+          rolledNumber: Number(bet.rolledNumber),
+          amount: bet.amount.toString(),
+          timestamp: Number(bet.timestamp),
+          isWin: Number(bet.chosenNumber) === Number(bet.rolledNumber),
+        }))
+        .reverse();
 
       setBetHistory(processedBets);
     } catch (error) {
@@ -2381,6 +2392,96 @@ const DicePage = ({
       onError(error, "updateBetHistory");
     }
   }, [contracts.dice, account, onError]);
+
+  // Enhanced approval check with proper cleanup
+  const checkAndApproveToken = async (amount) => {
+    try {
+      const currentAllowance = await contracts.token.allowance(
+        account,
+        contracts.dice.target
+      );
+
+      if (currentAllowance < amount) {
+        setLoadingStates((prev) => ({ ...prev, approving: true }));
+        setLoadingMessage("Approving tokens...");
+
+        // Use MaxUint256 for unlimited approval
+        const maxApproval = ethers.MaxUint256;
+        const approveTx = await contracts.token.approve(
+          contracts.dice.target,
+          maxApproval
+        );
+        await approveTx.wait();
+
+        // Update allowance after approval
+        await updateBalance();
+        addToast("Token approval successful", "success");
+        return true;
+      }
+      return true;
+    } catch (error) {
+      onError(error, "approval");
+      return false;
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, approving: false }));
+      setLoadingMessage("");
+    }
+  };
+
+  // Enhanced bet placement with proper cleanup
+  const handlePlaceBet = async () => {
+    if (!contracts.dice || !account || !chosenNumber) return;
+
+    // Clear any existing monitoring interval
+    if (monitorIntervalRef.current) {
+      clearInterval(monitorIntervalRef.current);
+      monitorIntervalRef.current = null;
+    }
+
+    try {
+      setLoadingStates((prev) => ({ ...prev, betting: true }));
+      setLoadingMessage("Placing bet...");
+
+      const approved = await checkAndApproveToken(betAmount);
+      if (!approved) {
+        throw new Error("Token approval failed");
+      }
+
+      const tx = await contracts.dice.playDice(chosenNumber, betAmount);
+      await tx.wait();
+
+      setGameState((prev) => ({
+        ...prev,
+        isActive: true,
+        isProcessing: true,
+        canPlay: false,
+        isRolling: true,
+      }));
+
+      addToast("Bet placed successfully!", "success");
+
+      // Start monitoring for game resolution
+      monitorIntervalRef.current = setInterval(async () => {
+        try {
+          const status = await contracts.dice.getGameStatus(account);
+          if (Number(status.status) > 1) {
+            clearInterval(monitorIntervalRef.current);
+            monitorIntervalRef.current = null;
+            await handleGameResolution();
+          }
+        } catch (error) {
+          clearInterval(monitorIntervalRef.current);
+          monitorIntervalRef.current = null;
+          onError(error, "monitoring");
+        }
+      }, 2000);
+    } catch (error) {
+      onError(error, "placeBet");
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, betting: false }));
+      setLoadingMessage("");
+    }
+  };
 
   // Handle game resolution
   const handleGameResolution = useCallback(async () => {
@@ -2429,61 +2530,17 @@ const DicePage = ({
     setLoadingMessage,
   ]);
 
-  // Enhanced bet placement
-  const handlePlaceBet = async () => {
-    if (!contracts.dice || !account || !chosenNumber) return;
-
-    try {
-      setLoadingStates((prev) => ({ ...prev, betting: true }));
-      setLoadingMessage("Placing bet...");
-
-      // First approve if needed
-      if (allowance < betAmount) {
-        // Get user's current token balance
-        const userBalance = await contracts.token.balanceOf(account);
-
-        const approveTx = await contracts.token.approve(
-          contracts.dice.target,
-          userBalance // Approve exactly what the user has
-        );
-        await approveTx.wait();
-        addToast("Token approval successful", "success");
-
-        // Update allowance state
-        setAllowance(userBalance);
+  // Add cleanup effect for component unmount
+  useEffect(() => {
+    return () => {
+      if (monitorIntervalRef.current) {
+        clearInterval(monitorIntervalRef.current);
+        monitorIntervalRef.current = null;
       }
+    };
+  }, []);
 
-      const tx = await contracts.dice.playDice(chosenNumber, betAmount);
-      await tx.wait();
-
-      setGameState((prev) => ({
-        ...prev,
-        isActive: true,
-        isProcessing: true,
-        canPlay: false,
-        isRolling: true,
-      }));
-
-      addToast("Bet placed successfully!", "success");
-
-      // Start monitoring for game resolution
-      const monitorInterval = setInterval(async () => {
-        const status = await contracts.dice.getGameStatus(account);
-        if (Number(status.status) > 1) {
-          // Game completed
-          clearInterval(monitorInterval);
-          await handleGameResolution();
-        }
-      }, 2000);
-    } catch (error) {
-      onError(error, "placeBet");
-    } finally {
-      setLoadingStates((prev) => ({ ...prev, betting: false }));
-      setLoadingMessage("");
-    }
-  };
-
-  // Initialize and update game state
+  // Update the initialization effect to include cleanup
   useEffect(() => {
     const init = async () => {
       await Promise.all([
@@ -2496,9 +2553,16 @@ const DicePage = ({
     init();
 
     // Set up polling interval for updates
-    const interval = setInterval(init, 10000); // Update every 10 seconds
+    const updateInterval = setInterval(init, 10000);
 
-    return () => clearInterval(interval);
+    // Cleanup function
+    return () => {
+      clearInterval(updateInterval);
+      if (monitorIntervalRef.current) {
+        clearInterval(monitorIntervalRef.current);
+        monitorIntervalRef.current = null;
+      }
+    };
   }, [updateGameState, updateBetHistory, updateBalance]);
 
   return (
