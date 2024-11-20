@@ -2615,7 +2615,26 @@ const DicePage = ({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-4">
+              <div className="flex flex-col gap-4">
+                {/* Approval Button - Show when allowance is insufficient */}
+                {betAmount > BigInt(0) && allowance < betAmount && (
+                  <button
+                    onClick={() => checkAndApproveToken(betAmount)}
+                    disabled={gameState.isProcessing}
+                    className="btn-gaming h-14 w-full"
+                  >
+                    {gameState.isProcessing ? (
+                      <span className="flex items-center justify-center">
+                        <LoadingSpinner size="small" />
+                        <span className="ml-2">Approving...</span>
+                      </span>
+                    ) : (
+                      "Approve Tokens"
+                    )}
+                  </button>
+                )}
+
+                {/* Place Bet Button */}
                 <button
                   onClick={handlePlaceBet}
                   disabled={
@@ -2625,7 +2644,7 @@ const DicePage = ({
                     allowance < betAmount ||
                     gameState.isProcessing
                   }
-                  className="btn-gaming flex-1 h-14"
+                  className="btn-gaming h-14 w-full"
                 >
                   {gameState.isProcessing ? (
                     <span className="flex items-center justify-center">
@@ -2637,13 +2656,21 @@ const DicePage = ({
                   )}
                 </button>
 
+                {/* Resolve Game Button */}
                 {gameState.needsResolution && (
                   <button
                     onClick={handleGameResolution}
                     disabled={gameState.isProcessing}
-                    className="btn-gaming flex-1 h-14"
+                    className="btn-gaming h-14 w-full"
                   >
-                    Resolve Game
+                    {gameState.isProcessing ? (
+                      <span className="flex items-center justify-center">
+                        <LoadingSpinner size="small" />
+                        <span className="ml-2">Resolving...</span>
+                      </span>
+                    ) : (
+                      "Resolve Game"
+                    )}
                   </button>
                 )}
               </div>
