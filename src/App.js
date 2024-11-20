@@ -659,38 +659,56 @@ const DiceVisualizer = ({ chosenNumber, isRolling, result }) => {
   };
 
   const dotPositions = {
-    1: [4],
-    2: [0, 8],
-    3: [0, 4, 8],
-    4: [0, 2, 6, 8],
-    5: [0, 2, 4, 6, 8],
-    6: [0, 2, 3, 5, 6, 8],
+    1: [{ index: 4 }],
+    2: [{ index: 0 }, { index: 8 }],
+    3: [{ index: 0 }, { index: 4 }, { index: 8 }],
+    4: [{ index: 0 }, { index: 2 }, { index: 6 }, { index: 8 }],
+    5: [{ index: 0 }, { index: 2 }, { index: 4 }, { index: 6 }, { index: 8 }],
+    6: [
+      { index: 0 },
+      { index: 2 },
+      { index: 3 },
+      { index: 5 },
+      { index: 6 },
+      { index: 8 },
+    ],
   };
 
   const renderDots = (number) => {
-    // Ensure we have a valid number between 1-6
     const validNumber = Math.max(1, Math.min(6, Number(number) || 1));
+    const dots = dotPositions[validNumber] || [];
 
-    return Array(9)
-      .fill(null)
-      .map((_, index) => (
-        <div
-          key={index}
-          className={`w-2 h-2 rounded-full transition-all duration-200
-          ${
-            dotPositions[validNumber]?.includes(index)
-              ? "bg-white scale-100 opacity-100"
-              : "bg-transparent scale-0 opacity-0"
-          }`}
-        />
-      ));
+    return (
+      <div className="relative w-full h-full grid grid-cols-3 grid-rows-3 gap-2 p-4">
+        {Array(9)
+          .fill(null)
+          .map((_, index) => {
+            const isActive = dots.some((dot) => dot.index === index);
+            return (
+              <div
+                key={index}
+                className={`flex items-center justify-center transition-all duration-300
+                ${isActive ? "scale-100" : "scale-0"}`}
+              >
+                <div
+                  className={`w-4 h-4 rounded-full 
+                  ${
+                    isActive
+                      ? "bg-gradient-to-br from-white to-white/80 shadow-[0_0_8px_rgba(255,255,255,0.6)]"
+                      : "bg-transparent"
+                  }`}
+                />
+              </div>
+            );
+          })}
+      </div>
+    );
   };
 
-  // Determine which number to display
   const displayNumber = result || chosenNumber || 1;
 
   return (
-    <div className="relative w-full max-w-[120px] mx-auto">
+    <div className="relative w-full max-w-[200px] mx-auto">
       <AnimatePresence mode="wait">
         <motion.div
           key={isRolling ? "rolling" : displayNumber}
@@ -699,47 +717,18 @@ const DiceVisualizer = ({ chosenNumber, isRolling, result }) => {
           className="w-full aspect-square"
         >
           <div className="dice-container">
-            <div
-              className={`
-              absolute inset-0 rounded-lg bg-gaming-primary/20
-              backdrop-blur-sm border border-white/10
-              shadow-[0_0_10px_rgba(59,130,246,0.3)]
-              ${isRolling ? "animate-shake" : ""}
-              transform transition-all duration-200
-            `}
-            >
-              <div className="grid grid-cols-3 grid-rows-3 gap-1 p-3 h-full">
-                {renderDots(displayNumber)}
-              </div>
+            <div className="dice-face">
+              <div className="absolute inset-0 bg-gradient-to-br from-gaming-primary/30 to-gaming-accent/30 rounded-xl backdrop-blur-sm" />
+              {renderDots(displayNumber)}
             </div>
-
-            <div
-              className="absolute inset-0 rounded-lg bg-gradient-to-tr 
-              from-white/5 to-transparent pointer-events-none"
-            />
           </div>
         </motion.div>
       </AnimatePresence>
-      {result && !isRolling && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.5 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="absolute -bottom-8 left-0 w-full text-center"
-        >
-          <div
-            className={`text-lg font-bold ${
-              result === chosenNumber
-                ? "text-gaming-success animate-bounce"
-                : "text-gaming-error animate-shake"
-            }`}
-          >
-            {result === chosenNumber ? "WIN!" : "LOSE"}
-          </div>
-        </motion.div>
-      )}
     </div>
   );
 };
+
+
 
 const NumberSelector = ({ value, onChange, disabled }) => {
   const numbers = [1, 2, 3, 4, 5, 6];

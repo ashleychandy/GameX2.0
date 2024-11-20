@@ -152,22 +152,24 @@
   }
 
     .dice-container {
-    @apply relative w-full max-w-[120px] mx-auto 
-           transform transition-all duration-200 
+    @apply relative w-full mx-auto 
+           transform transition-all duration-300 
            hover:scale-[1.02];
     aspect-ratio: 1 / 1;
   }
 
   .dice-face {
-    @apply absolute inset-0 rounded-lg 
-           bg-gradient-to-br from-gaming-primary/20 to-gaming-accent/20
-           backdrop-blur-sm border border-white/10
-           shadow-[0_0_10px_rgba(255,70,85,0.2)]
-           transition-all duration-200;
+    @apply absolute inset-0 rounded-xl 
+           bg-gradient-to-br from-gaming-primary/10 to-gaming-accent/10
+           backdrop-blur-lg border border-white/10
+           shadow-[0_0_20px_rgba(255,70,85,0.2)]
+           transition-all duration-300
+           p-4;
   }
 
   .dice-face:hover {
-    @apply border-white/20 shadow-[0_0_20px_rgba(255,70,85,0.3)];
+    @apply border-white/20 shadow-[0_0_30px_rgba(255,70,85,0.3)]
+           transform scale-105;
   }
 
   .number-button {
