@@ -482,7 +482,7 @@ const BalancePanel = ({ userBalance, allowance, potentialWinnings }) => {
     },
     {
       label: "Token Allowance",
-      value: ethers.formatEther(allowance.toString()),
+      value: allowance > 0 ? "Approved" : "Not Approved",
       icon: (
         <svg
           className="w-5 h-5"
@@ -521,6 +521,7 @@ const BalancePanel = ({ userBalance, allowance, potentialWinnings }) => {
   ];
 
   const formatValue = (value) => {
+    if (value === "Approved" || value === "Not Approved") return value;
     const formatted = parseFloat(value).toFixed(6);
     return formatted.replace(/\.?0+$/, "");
   };
@@ -2666,10 +2667,10 @@ const DicePage = ({
                     {gameState.isProcessing ? (
                       <span className="flex items-center justify-center">
                         <LoadingSpinner size="small" />
-                        <span className="ml-2">Resolving...</span>
+                        <span className="ml-2">Revealing...</span>
                       </span>
                     ) : (
-                      "Resolve Game"
+                      "Reveal Result"
                     )}
                   </button>
                 )}
