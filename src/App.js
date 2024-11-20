@@ -728,8 +728,6 @@ const DiceVisualizer = ({ chosenNumber, isRolling, result }) => {
   );
 };
 
-
-
 const NumberSelector = ({ value, onChange, disabled }) => {
   const numbers = [1, 2, 3, 4, 5, 6];
 
@@ -1062,18 +1060,33 @@ const LoadingSpinner = ({ size = "medium", light = false }) => {
 const RequestMonitor = ({ diceContract, requestId, onComplete, onError }) => {
   const [attempts, setAttempts] = useState(0);
   const MAX_ATTEMPTS = 30; // 1 minute maximum (2s * 30)
+  const timeoutRef = useRef(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+
+    return () => {
+      isMounted.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!diceContract || !requestId) return;
 
-    let timeoutId;
-
     const checkRequest = async () => {
       try {
+        if (!isMounted.current) return;
+
         const [isActive, requestDetails] = await Promise.all([
           diceContract.isRequestActive(requestId),
           diceContract.getPlayerForRequest(requestId),
         ]);
+
+        if (!isMounted.current) return;
 
         if (!isActive) {
           onComplete && onComplete();
@@ -1086,21 +1099,24 @@ const RequestMonitor = ({ diceContract, requestId, onComplete, onError }) => {
         }
 
         setAttempts((prev) => prev + 1);
-        timeoutId = setTimeout(checkRequest, 2000);
+        timeoutRef.current = setTimeout(checkRequest, 2000);
       } catch (error) {
-        console.error("Error monitoring request:", error);
-        onError && onError(error);
+        if (isMounted.current) {
+          console.error("Error monitoring request:", error);
+          onError && onError(error);
+        }
       }
     };
 
     checkRequest();
 
     return () => {
-      if (timeoutId) clearTimeout(timeoutId);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
-  }, [diceContract, requestId, attempts, onComplete, onError]);
+  }, [diceContract, requestId, attempts, onComplete, onError, MAX_ATTEMPTS]);
 
-  // Optional: Return a progress indicator
   return attempts > 0 ? (
     <div className="text-sm text-secondary-400">
       Monitoring request... {((attempts / MAX_ATTEMPTS) * 100).toFixed(0)}%
@@ -1830,94 +1846,147 @@ const GameControls = ({
     needsResolution: false,
     canPlay: true,
     isProcessing: false,
+    isRolling: false,
   });
+
+  const monitorIntervalRef = useRef(null);
+  const isMounted = useRef(true);
+
+  // Cleanup effect
+  useEffect(() => {
+    isMounted.current = true;
+
+    return () => {
+      isMounted.current = false;
+      if (monitorIntervalRef.current) {
+        clearInterval(monitorIntervalRef.current);
+        monitorIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   // Update game state
   const updateGameState = useCallback(async () => {
-    if (!diceContract || !account) return;
+    if (!diceContract || !account || !isMounted.current) return;
+
     try {
-      // Get game status and request details in parallel
-      const [
-        [isActive, status, chosenNum, amount, timestamp],
-        [requestId, requestFulfilled, requestActive],
-        canPlay,
-      ] = await Promise.all([
+      const [gameStatus, requestDetails, canPlay] = await Promise.all([
         diceContract.getGameStatus(account),
         diceContract.getCurrentRequestDetails(account),
         diceContract.canStartNewGame(account),
       ]);
 
-      const newGameState = {
-        isActive,
-        requestId: requestId.toString(),
+      if (!isMounted.current) return;
+
+      setGameState((prev) => ({
+        ...prev,
+        isActive: gameStatus.isActive,
         status: [
           "PENDING",
           "STARTED",
           "COMPLETED_WIN",
           "COMPLETED_LOSS",
           "CANCELLED",
-        ][status],
-        result: status > 1 ? chosenNum : null,
-        timestamp: Number(timestamp),
-        needsResolution: requestFulfilled && !requestActive,
+        ][Number(gameStatus.status)],
+        result: gameStatus.status > 1 ? Number(gameStatus.rolledNumber) : null,
+        requestId: requestDetails.requestId.toString(),
+        needsResolution:
+          requestDetails.requestFulfilled && !requestDetails.requestActive,
         canPlay,
         isProcessing: false,
-      };
+      }));
 
-      setGameState(newGameState);
-      onGameStateChange(newGameState);
-
-      // Start monitoring if there's an active request
-      if (isActive && requestActive && !requestFulfilled) {
-        startRequestMonitoring(requestId.toString());
-      }
+      onGameStateChange && onGameStateChange(gameStatus);
     } catch (error) {
-      console.error("Error updating game state:", error);
-      onError(error);
+      if (isMounted.current) {
+        console.error("Error updating game state:", error);
+        onError(error);
+      }
     }
-  }, [diceContract, account, onError, onGameStateChange]);
+  }, [diceContract, account, onGameStateChange, onError]);
 
-  // Monitor VRF request
-  const startRequestMonitoring = useCallback(
-    (requestId) => {
-      const checkRequest = async () => {
-        try {
-          const isActive = await diceContract.isRequestActive(requestId);
-          if (!isActive) {
-            await updateGameState();
-            await updateBalance();
-            return;
-          }
-          setTimeout(checkRequest, 2000);
-        } catch (error) {
-          console.error("Error monitoring request:", error);
-          onError(error);
-        }
-      };
-      checkRequest();
-    },
-    [diceContract, updateGameState, onError]
-  );
-
-  // Update token balance
+  // Update balance
   const updateBalance = useCallback(async () => {
-    if (!tokenContract || !account) return;
+    if (!tokenContract || !account || !isMounted.current) return;
+
     try {
       const balance = await tokenContract.balanceOf(account);
-      onBalanceChange(balance);
+      if (!isMounted.current) return;
+      onBalanceChange && onBalanceChange(balance);
     } catch (error) {
-      console.error("Error updating balance:", error);
-      onError(error);
+      if (isMounted.current) {
+        console.error("Error updating balance:", error);
+        onError(error);
+      }
     }
   }, [tokenContract, account, onBalanceChange, onError]);
 
-  // Place bet
-  const placeBet = async () => {
-    if (!diceContract || !tokenContract || !account) return;
+  // Initialize component
+  useEffect(() => {
+    const init = async () => {
+      await Promise.all([updateGameState(), updateBalance()]);
+    };
+
+    init();
+
+    // Set up polling interval for updates
+    const updateInterval = setInterval(init, 10000);
+
+    return () => {
+      clearInterval(updateInterval);
+      if (monitorIntervalRef.current) {
+        clearInterval(monitorIntervalRef.current);
+        monitorIntervalRef.current = null;
+      }
+    };
+  }, [updateGameState, updateBalance]);
+
+  // Resolve game
+  const resolveGame = async () => {
+    if (!diceContract || !account || !isMounted.current) return;
     if (gameState.isProcessing) return;
 
     try {
-      setGameState((prev) => ({ ...prev, isProcessing: true }));
+      if (isMounted.current) {
+        setGameState((prev) => ({ ...prev, isProcessing: true }));
+      }
+
+      const tx = await diceContract.resolveGame();
+      await tx.wait();
+
+      if (!isMounted.current) return;
+
+      addToast("Game resolved successfully!", "success");
+
+      await Promise.all([updateGameState(), updateBalance()]);
+    } catch (error) {
+      if (isMounted.current) {
+        console.error("Error resolving game:", error);
+        onError(error);
+      }
+    } finally {
+      if (isMounted.current) {
+        setGameState((prev) => ({ ...prev, isProcessing: false }));
+      }
+    }
+  };
+
+  // Place bet
+  const placeBet = async () => {
+    if (!diceContract || !tokenContract || !account || !isMounted.current)
+      return;
+    if (gameState.isProcessing || !chosenNumber || betAmount <= 0) return;
+
+    // Clear any existing monitoring interval
+    if (monitorIntervalRef.current) {
+      clearInterval(monitorIntervalRef.current);
+      monitorIntervalRef.current = null;
+    }
+
+    try {
+      if (isMounted.current) {
+        setGameState((prev) => ({ ...prev, isProcessing: true }));
+      }
 
       // Check allowance
       const allowance = await tokenContract.allowance(
@@ -1925,97 +1994,154 @@ const GameControls = ({
         diceContract.address
       );
       if (allowance < betAmount) {
-        // Approve tokens if needed
         const approveTx = await tokenContract.approve(
           diceContract.address,
-          betAmount
+          ethers.MaxUint256
         );
         await approveTx.wait();
+        if (!isMounted.current) return;
         addToast("Token approval successful", "success");
       }
 
-      // Place the bet
       const tx = await diceContract.playDice(chosenNumber, betAmount);
       await tx.wait();
 
+      if (!isMounted.current) return;
+
       addToast("Bet placed successfully!", "success");
+      setGameState((prev) => ({ ...prev, isRolling: true }));
       await updateGameState();
       await updateBalance();
+
+      // Start monitoring for game resolution
+      monitorIntervalRef.current = setInterval(async () => {
+        try {
+          if (!isMounted.current) {
+            clearInterval(monitorIntervalRef.current);
+            return;
+          }
+
+          const status = await diceContract.getGameStatus(account);
+          if (Number(status.status) > 1) {
+            clearInterval(monitorIntervalRef.current);
+            monitorIntervalRef.current = null;
+            if (isMounted.current) {
+              await resolveGame();
+            }
+          }
+        } catch (error) {
+          if (isMounted.current) {
+            clearInterval(monitorIntervalRef.current);
+            monitorIntervalRef.current = null;
+            onError(error);
+          }
+        }
+      }, 2000);
     } catch (error) {
-      console.error("Error placing bet:", error);
-      onError(error);
+      if (isMounted.current) {
+        console.error("Error placing bet:", error);
+        onError(error);
+      }
     } finally {
-      setGameState((prev) => ({ ...prev, isProcessing: false }));
+      if (isMounted.current) {
+        setGameState((prev) => ({ ...prev, isProcessing: false }));
+      }
     }
   };
 
-  // Resolve game
-  const resolveGame = async () => {
-    if (!diceContract || !account) return;
-    if (gameState.isProcessing) return;
-
-    try {
-      setGameState((prev) => ({ ...prev, isProcessing: true }));
-      const tx = await diceContract.resolveGame();
-      await tx.wait();
-
-      addToast("Game resolved successfully!", "success");
-      await updateGameState();
-      await updateBalance();
-    } catch (error) {
-      console.error("Error resolving game:", error);
-      onError(error);
-    } finally {
-      setGameState((prev) => ({ ...prev, isProcessing: false }));
-    }
-  };
-
-  // Initial state update
+  // Handle component unmount
   useEffect(() => {
-    updateGameState();
-    updateBalance();
-  }, [updateGameState, updateBalance]);
+    return () => {
+      isMounted.current = false;
+      if (monitorIntervalRef.current) {
+        clearInterval(monitorIntervalRef.current);
+        monitorIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div className="space-y-4">
       {/* Game Status */}
       <div className="text-lg font-semibold">
-        Status: {gameState.status}
-        {gameState.result && ` (Result: ${gameState.result})`}
+        <div
+          className={`status-badge ${
+            gameState.status === "COMPLETED_WIN"
+              ? "status-success"
+              : gameState.status === "COMPLETED_LOSS"
+              ? "status-error"
+              : gameState.status === "STARTED"
+              ? "status-warning"
+              : "status-info"
+          }`}
+        >
+          {gameState.status}
+          {gameState.result && ` (Result: ${gameState.result})`}
+        </div>
       </div>
 
       {/* Action Buttons */}
-      <div className="space-x-4">
+      <div className="flex space-x-4">
         {/* Place Bet Button */}
         <button
-          className={`btn btn-primary ${
+          className={`btn-gaming ${
             !gameState.canPlay || gameState.isProcessing
               ? "opacity-50 cursor-not-allowed"
               : ""
           }`}
           onClick={placeBet}
-          disabled={!gameState.canPlay || gameState.isProcessing}
+          disabled={
+            !gameState.canPlay ||
+            gameState.isProcessing ||
+            !chosenNumber ||
+            betAmount <= 0
+          }
         >
-          {gameState.isProcessing ? "Processing..." : "Place Bet"}
+          {gameState.isProcessing ? (
+            <span className="flex items-center">
+              <LoadingSpinner size="small" />
+              <span className="ml-2">Processing...</span>
+            </span>
+          ) : (
+            "Place Bet"
+          )}
         </button>
 
         {/* Resolve Game Button */}
         {gameState.needsResolution && (
           <button
-            className={`btn btn-secondary ${
+            className={`btn-gaming ${
               gameState.isProcessing ? "opacity-50 cursor-not-allowed" : ""
             }`}
             onClick={resolveGame}
             disabled={gameState.isProcessing}
           >
-            {gameState.isProcessing ? "Processing..." : "Resolve Game"}
+            {gameState.isProcessing ? (
+              <span className="flex items-center">
+                <LoadingSpinner size="small" />
+                <span className="ml-2">Resolving...</span>
+              </span>
+            ) : (
+              "Resolve Game"
+            )}
           </button>
         )}
       </div>
 
       {/* Processing Indicator */}
       {gameState.isProcessing && (
-        <div className="text-sm text-gray-500">Transaction in progress...</div>
+        <div className="text-sm text-secondary-400 animate-pulse">
+          Transaction in progress...
+        </div>
+      )}
+
+      {/* Game Result Animation */}
+      {gameState.isRolling && (
+        <div className="dice-container">
+          <div className="dice-face animate-spin">
+            {/* Dice animation content */}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -2275,59 +2401,48 @@ const DicePage = ({
   setLoadingStates,
   setLoadingMessage,
 }) => {
-  // Game State
   const [gameState, setGameState] = useState({
     isActive: false,
-    isProcessing: false,
-    canPlay: false,
-    needsResolution: false,
-    requestId: null,
-    lastResult: null,
-    isRolling: false,
     status: "PENDING",
+    lastResult: null,
+    requestId: null,
+    needsResolution: false,
+    canPlay: true,
+    isProcessing: false,
+    isRolling: false,
   });
 
-  // User Input State
   const [chosenNumber, setChosenNumber] = useState(null);
   const [betAmount, setBetAmount] = useState(BigInt(0));
   const [userBalance, setUserBalance] = useState(BigInt(0));
   const [allowance, setAllowance] = useState(BigInt(0));
-  const [betHistory, setBetHistory] = useState([]);
   const [showStats, setShowStats] = useState(false);
-
-  // Animation States
   const [showWinAnimation, setShowWinAnimation] = useState(false);
   const [showLoseAnimation, setShowLoseAnimation] = useState(false);
 
-  // Add monitorInterval
   const monitorIntervalRef = useRef(null);
+  const isMounted = useRef(true);
 
   // Calculate potential winnings
   const potentialWinnings = useMemo(() => {
-    if (!betAmount) return BigInt(0);
-    return betAmount * BigInt(6);
+    if (!betAmount || betAmount <= 0) return BigInt(0);
+    return betAmount * BigInt(6); // 6x multiplier for correct guess
   }, [betAmount]);
 
-  // Update user balance and allowance
-  const updateBalance = useCallback(async () => {
-    if (!contracts.token || !account) return;
-
-    try {
-      const [balance, tokenAllowance] = await Promise.all([
-        contracts.token.balanceOf(account),
-        contracts.token.allowance(account, contracts.dice.target),
-      ]);
-
-      setUserBalance(balance);
-      setAllowance(tokenAllowance);
-    } catch (error) {
-      console.error("Error updating balance:", error);
-    }
-  }, [contracts.token, contracts.dice, account]);
+  // Cleanup effect
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+      if (monitorIntervalRef.current) {
+        clearInterval(monitorIntervalRef.current);
+      }
+    };
+  }, []);
 
   // Update game state
   const updateGameState = useCallback(async () => {
-    if (!contracts.dice || !account) return;
+    if (!contracts.dice || !account || !isMounted.current) return;
 
     try {
       const [gameStatus, requestDetails, canPlay] = await Promise.all([
@@ -2335,6 +2450,8 @@ const DicePage = ({
         contracts.dice.getCurrentRequestDetails(account),
         contracts.dice.canStartNewGame(account),
       ]);
+
+      if (!isMounted.current) return;
 
       setGameState((prev) => ({
         ...prev,
@@ -2352,208 +2469,189 @@ const DicePage = ({
         needsResolution:
           requestDetails.requestFulfilled && !requestDetails.requestActive,
         canPlay,
-        isProcessing: false,
       }));
     } catch (error) {
-      console.error("Error updating game state:", error);
-      onError(error, "updateGameState");
+      if (isMounted.current) {
+        console.error("Error updating game state:", error);
+        onError(error);
+      }
     }
   }, [contracts.dice, account, onError]);
 
-  // Update bet history
-  const updateBetHistory = useCallback(async () => {
-    if (!contracts.dice || !account) return;
+  // Update balance and allowance
+  const updateBalance = useCallback(async () => {
+    if (!contracts.token || !account || !isMounted.current) return;
 
     try {
-      const bets = await contracts.dice.getPreviousBets(account);
-      const processedBets = bets
-        .map((bet) => ({
-          chosenNumber: Number(bet.chosenNumber),
-          rolledNumber: Number(bet.rolledNumber),
-          amount: bet.amount.toString(),
-          timestamp: Number(bet.timestamp),
-          isWin: Number(bet.chosenNumber) === Number(bet.rolledNumber),
-        }))
-        .reverse();
+      const [balance, tokenAllowance] = await Promise.all([
+        contracts.token.balanceOf(account),
+        contracts.token.allowance(account, contracts.dice.target),
+      ]);
 
-      setBetHistory(processedBets);
+      if (!isMounted.current) return;
+
+      setUserBalance(balance);
+      setAllowance(tokenAllowance);
     } catch (error) {
-      console.error("Error updating bet history:", error);
-      onError(error, "updateBetHistory");
+      if (isMounted.current) {
+        console.error("Error updating balance:", error);
+        onError(error);
+      }
     }
-  }, [contracts.dice, account, onError]);
+  }, [contracts.token, contracts.dice, account, onError]);
 
-  // Enhanced approval check with proper cleanup
-  const checkAndApproveToken = async (amount) => {
+  // Handle game resolution
+  const handleGameResolution = async () => {
+    if (!gameState.needsResolution || !isMounted.current) return;
+
     try {
-      const currentAllowance = await contracts.token.allowance(
-        account,
-        contracts.dice.target
-      );
+      setGameState((prev) => ({ ...prev, isProcessing: true }));
+      const tx = await contracts.dice.resolveGame();
+      await tx.wait();
 
-      if (currentAllowance < amount) {
-        setLoadingStates((prev) => ({ ...prev, approving: true }));
-        setLoadingMessage("Approving tokens...");
+      if (!isMounted.current) return;
 
-        // Use MaxUint256 for unlimited approval
-        const maxApproval = ethers.MaxUint256;
-        const approveTx = await contracts.token.approve(
+      const gameStatus = await contracts.dice.getGameStatus(account);
+      const isWin = Number(gameStatus.status) === 2; // COMPLETED_WIN
+
+      if (isMounted.current) {
+        if (isWin) {
+          setShowWinAnimation(true);
+          addToast("Congratulations! You won!", "success");
+        } else {
+          setShowLoseAnimation(true);
+          addToast("Better luck next time!", "warning");
+        }
+
+        await Promise.all([updateGameState(), updateBalance()]);
+      }
+    } catch (error) {
+      if (isMounted.current) {
+        console.error("Error resolving game:", error);
+        onError(error);
+      }
+    } finally {
+      if (isMounted.current) {
+        setGameState((prev) => ({
+          ...prev,
+          isProcessing: false,
+          isRolling: false,
+        }));
+      }
+    }
+  };
+
+  // Check and approve token
+  const checkAndApproveToken = async (amount) => {
+    if (!isMounted.current) return false;
+
+    try {
+      if (allowance < amount) {
+        setGameState((prev) => ({ ...prev, isProcessing: true }));
+        const tx = await contracts.token.approve(
           contracts.dice.target,
-          maxApproval
+          ethers.MaxUint256
         );
-        await approveTx.wait();
+        await tx.wait();
 
-        // Update allowance after approval
+        if (!isMounted.current) return false;
+
         await updateBalance();
         addToast("Token approval successful", "success");
         return true;
       }
       return true;
     } catch (error) {
-      onError(error, "approval");
+      if (isMounted.current) {
+        console.error("Error approving tokens:", error);
+        onError(error);
+      }
       return false;
     } finally {
-      setLoadingStates((prev) => ({ ...prev, approving: false }));
-      setLoadingMessage("");
+      if (isMounted.current) {
+        setGameState((prev) => ({ ...prev, isProcessing: false }));
+      }
     }
   };
 
-  // Enhanced bet placement with proper cleanup
+  // Place bet
   const handlePlaceBet = async () => {
-    if (!contracts.dice || !account || !chosenNumber) return;
-
-    // Clear any existing monitoring interval
-    if (monitorIntervalRef.current) {
-      clearInterval(monitorIntervalRef.current);
-      monitorIntervalRef.current = null;
-    }
+    if (!contracts.dice || !account || !chosenNumber || !isMounted.current)
+      return;
+    if (gameState.isProcessing || betAmount <= BigInt(0)) return;
 
     try {
-      setLoadingStates((prev) => ({ ...prev, betting: true }));
-      setLoadingMessage("Placing bet...");
+      setGameState((prev) => ({ ...prev, isProcessing: true }));
 
       const approved = await checkAndApproveToken(betAmount);
-      if (!approved) {
-        throw new Error("Token approval failed");
-      }
+      if (!approved || !isMounted.current) return;
 
       const tx = await contracts.dice.playDice(chosenNumber, betAmount);
       await tx.wait();
 
+      if (!isMounted.current) return;
+
       setGameState((prev) => ({
         ...prev,
         isActive: true,
-        isProcessing: true,
-        canPlay: false,
         isRolling: true,
       }));
 
       addToast("Bet placed successfully!", "success");
+      await Promise.all([updateGameState(), updateBalance()]);
 
       // Start monitoring for game resolution
       monitorIntervalRef.current = setInterval(async () => {
         try {
+          if (!isMounted.current) {
+            clearInterval(monitorIntervalRef.current);
+            return;
+          }
+
           const status = await contracts.dice.getGameStatus(account);
           if (Number(status.status) > 1) {
             clearInterval(monitorIntervalRef.current);
-            monitorIntervalRef.current = null;
-            await handleGameResolution();
+            if (isMounted.current) {
+              await handleGameResolution();
+            }
           }
         } catch (error) {
-          clearInterval(monitorIntervalRef.current);
-          monitorIntervalRef.current = null;
-          onError(error, "monitoring");
+          if (isMounted.current) {
+            clearInterval(monitorIntervalRef.current);
+            onError(error);
+          }
         }
       }, 2000);
     } catch (error) {
-      onError(error, "placeBet");
+      if (isMounted.current) {
+        console.error("Error placing bet:", error);
+        onError(error);
+      }
     } finally {
-      setLoadingStates((prev) => ({ ...prev, betting: false }));
-      setLoadingMessage("");
+      if (isMounted.current) {
+        setGameState((prev) => ({ ...prev, isProcessing: false }));
+      }
     }
   };
 
-  // Handle game resolution
-  const handleGameResolution = useCallback(async () => {
-    if (!gameState.needsResolution) return;
-
-    try {
-      setLoadingStates((prev) => ({ ...prev, resolving: true }));
-      setLoadingMessage("Resolving game...");
-
-      const tx = await contracts.dice.resolveGame();
-      await tx.wait();
-
-      const gameStatus = await contracts.dice.getGameStatus(account);
-      const isWin = Number(gameStatus.status) === 2; // COMPLETED_WIN
-
-      if (isWin) {
-        setShowWinAnimation(true);
-        addToast("Congratulations! You won!", "success");
-      } else {
-        setShowLoseAnimation(true);
-        addToast("Better luck next time!", "error");
-      }
-
-      await Promise.all([
-        updateBalance(),
-        updateGameState(),
-        updateBetHistory(),
-      ]);
-    } catch (error) {
-      onError(error, "resolveGame");
-    } finally {
-      setLoadingStates((prev) => ({ ...prev, resolving: false }));
-      setLoadingMessage("");
-      setGameState((prev) => ({ ...prev, isRolling: false }));
-    }
-  }, [
-    gameState.needsResolution,
-    contracts.dice,
-    account,
-    updateBalance,
-    updateGameState,
-    updateBetHistory,
-    addToast,
-    onError,
-    setLoadingStates,
-    setLoadingMessage,
-  ]);
-
-  // Add cleanup effect for component unmount
+  // Initialize and update data
   useEffect(() => {
-    return () => {
-      if (monitorIntervalRef.current) {
-        clearInterval(monitorIntervalRef.current);
-        monitorIntervalRef.current = null;
-      }
-    };
-  }, []);
+    if (!contracts.dice || !account) return;
 
-  // Update the initialization effect to include cleanup
-  useEffect(() => {
     const init = async () => {
-      await Promise.all([
-        updateGameState(),
-        updateBetHistory(),
-        updateBalance(),
-      ]);
+      await Promise.all([updateGameState(), updateBalance()]);
     };
 
     init();
+    const interval = setInterval(init, 10000);
 
-    // Set up polling interval for updates
-    const updateInterval = setInterval(init, 10000);
-
-    // Cleanup function
     return () => {
-      clearInterval(updateInterval);
+      clearInterval(interval);
       if (monitorIntervalRef.current) {
         clearInterval(monitorIntervalRef.current);
-        monitorIntervalRef.current = null;
       }
     };
-  }, [updateGameState, updateBetHistory, updateBalance]);
+  }, [contracts.dice, account, updateGameState, updateBalance]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -2606,7 +2704,6 @@ const DicePage = ({
 
               {/* Action Buttons */}
               <div className="flex flex-col gap-4">
-                {/* Approval Button - Show when allowance is insufficient */}
                 {betAmount > BigInt(0) && allowance < betAmount && (
                   <button
                     onClick={() => checkAndApproveToken(betAmount)}
@@ -2624,7 +2721,6 @@ const DicePage = ({
                   </button>
                 )}
 
-                {/* Place Bet Button */}
                 <button
                   onClick={handlePlaceBet}
                   disabled={
@@ -2646,7 +2742,6 @@ const DicePage = ({
                   )}
                 </button>
 
-                {/* Resolve Game Button */}
                 {gameState.needsResolution && (
                   <button
                     onClick={handleGameResolution}
@@ -2666,7 +2761,6 @@ const DicePage = ({
               </div>
             </div>
 
-            {/* Balance Panel */}
             <BalancePanel
               userBalance={userBalance}
               allowance={allowance}
@@ -2684,7 +2778,6 @@ const DicePage = ({
               />
             </div>
 
-            {/* Game Stats */}
             <div className="glass-panel p-8">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-white/90">Statistics</h2>
@@ -2715,7 +2808,6 @@ const DicePage = ({
           </div>
         </div>
 
-        {/* Game History */}
         <GameHistory
           diceContract={contracts.dice}
           account={account}
@@ -2723,7 +2815,6 @@ const DicePage = ({
         />
       </div>
 
-      {/* Win/Lose Animations */}
       <AnimatePresence>
         {showWinAnimation && (
           <WinAnimation onComplete={() => setShowWinAnimation(false)} />
