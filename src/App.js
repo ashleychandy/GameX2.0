@@ -2715,6 +2715,7 @@ const DicePage = ({
     canPlay: true,
     isProcessing: false,
     isRolling: false,
+    currentGameData: null, // Add this new field
   });
 
   const [chosenNumber, setChosenNumber] = useState(null);
@@ -2758,6 +2759,13 @@ const DicePage = ({
 
       if (!isMounted.current) return;
 
+      // Store the complete game data
+      const currentGameData = {
+        gameStatus,
+        requestDetails,
+        canPlay,
+      };
+
       setGameState((prev) => ({
         ...prev,
         isActive: gameStatus.isActive,
@@ -2774,6 +2782,7 @@ const DicePage = ({
         needsResolution:
           requestDetails.requestFulfilled && !requestDetails.requestActive,
         canPlay,
+        currentGameData, // Store the complete data
       }));
     } catch (error) {
       if (isMounted.current) {
@@ -2806,6 +2815,8 @@ const DicePage = ({
   }, [contracts.token, contracts.dice, account, onError]);
 
   // Handle game resolution
+  // Inside DicePage component, update the handleGameResolution function:
+
   const handleGameResolution = async () => {
     if (
       !gameState.needsResolution ||
@@ -2814,71 +2825,66 @@ const DicePage = ({
       !account
     )
       return;
+    if (gameState.isProcessing) return;
 
     try {
-      // Clear any existing monitoring interval first
-      if (monitorIntervalRef.current) {
-        clearInterval(monitorIntervalRef.current);
-        monitorIntervalRef.current = null;
-      }
-
-      setGameState((prev) => ({ ...prev, isProcessing: true }));
-
-      // Check if game is still active before resolving
-      const currentStatus = await contracts.dice.getGameStatus(account);
-      if (!currentStatus.isActive) {
+      // Use the stored game data for validation
+      const currentGameData = gameState.currentGameData;
+      if (!currentGameData || !currentGameData.gameStatus.isActive) {
         setGameState((prev) => ({
           ...prev,
           isProcessing: false,
           isRolling: false,
           needsResolution: false,
+          status: "PENDING",
         }));
         return;
       }
+
+      setGameState((prev) => ({
+        ...prev,
+        isProcessing: true,
+        isRolling: false,
+      }));
 
       const tx = await contracts.dice.resolveGame();
       await tx.wait();
 
       if (!isMounted.current) return;
 
-      // Get final game status
-      const gameStatus = await contracts.dice.getGameStatus(account);
-      const isWin = Number(gameStatus.status) === 2; // COMPLETED_WIN
+      // Get final game status after resolution
+      const finalStatus = await contracts.dice.getGameStatus(account);
+      const isWin = Number(finalStatus.status) === 2;
 
-      if (isMounted.current) {
-        if (isWin) {
-          setShowWinAnimation(true);
-          addToast("Congratulations! You won!", "success");
-        } else {
-          setShowLoseAnimation(true);
-          addToast("Better luck next time!", "warning");
-        }
+      setGameState((prev) => ({
+        ...prev,
+        isProcessing: false,
+        isRolling: false,
+        needsResolution: false,
+        status: isWin ? "COMPLETED_WIN" : "COMPLETED_LOSS",
+        lastResult: Number(finalStatus.rolledNumber),
+        currentGameData: null, // Clear the stored game data
+      }));
 
-        // Update states after resolution
-        await Promise.all([updateGameState(), updateBalance()]);
+      if (isWin) {
+        setShowWinAnimation(true);
+        addToast("Congratulations! You won!", "success");
+      } else {
+        setShowLoseAnimation(true);
+        addToast("Better luck next time!", "warning");
       }
+
+      await Promise.all([updateGameState(), updateBalance()]);
     } catch (error) {
-      if (isMounted.current) {
-        console.error("Error resolving game:", error);
-        onError(error);
-
-        // Reset states on error
-        setGameState((prev) => ({
-          ...prev,
-          isProcessing: false,
-          isRolling: false,
-          needsResolution: false,
-        }));
-      }
-    } finally {
-      if (isMounted.current) {
-        setGameState((prev) => ({
-          ...prev,
-          isProcessing: false,
-          isRolling: false,
-          needsResolution: false,
-        }));
-      }
+      if (!isMounted.current) return;
+      console.error("Error resolving game:", error);
+      onError(error);
+      setGameState((prev) => ({
+        ...prev,
+        isProcessing: false,
+        isRolling: false,
+        needsResolution: false,
+      }));
     }
   };
 
