@@ -3305,6 +3305,7 @@ function App() {
 
   // Account Change Handler
   // Update the handleAccountsChanged function
+  // Update the handleAccountsChanged function
   const handleAccountsChanged = async (accounts) => {
     if (accounts.length === 0) {
       setAccount("");
@@ -3314,48 +3315,79 @@ function App() {
       const newAccount = accounts[0];
       setAccount(newAccount);
 
-      if (contracts.token) {
+      if (contracts.token && contracts.dice) {
         try {
-          // Check for both DEFAULT_ADMIN_ROLE and owner status
-          const DEFAULT_ADMIN_ROLE = await contracts.token.DEFAULT_ADMIN_ROLE();
-          const hasAdminRole = await contracts.token.hasRole(
-            DEFAULT_ADMIN_ROLE,
-            newAccount
-          );
-          const isOwner = await contracts.dice.isOwner(newAccount);
+          // First check token admin role
+          const DEFAULT_ADMIN_ROLE = ethers.ZeroHash; // This is equivalent to bytes32(0)
+          let hasAdminRole = false;
+          let isOwner = false;
+
+          try {
+            hasAdminRole = await contracts.token.hasRole(DEFAULT_ADMIN_ROLE, newAccount);
+          } catch (err) {
+            console.error("Error checking token admin role:", err);
+          }
+
+          try {
+            isOwner = await contracts.dice.isOwner(newAccount);
+          } catch (err) {
+            console.error("Error checking dice owner status:", err);
+          }
 
           setIsAdmin(hasAdminRole || isOwner);
-
-          console.log("Admin check:", {
+          console.log("Admin status check:", {
             account: newAccount,
             hasAdminRole,
             isOwner,
-            isAdmin: hasAdminRole || isOwner,
+            isAdmin: hasAdminRole || isOwner
           });
+
         } catch (err) {
-          console.error("Error checking admin status:", err);
+          console.error("Error in admin status check:", err);
           setIsAdmin(false);
         }
       }
     }
   };
 
-  // Add this useEffect to recheck admin status when contracts are initialized
+  // Update the useEffect for admin status check
   useEffect(() => {
     const checkAdminStatus = async () => {
-      if (contracts.token && contracts.dice && account) {
+      if (!contracts.token || !contracts.dice || !account) {
+        setIsAdmin(false);
+        return;
+      }
+
+      try {
+        // Check token admin role
+        const DEFAULT_ADMIN_ROLE = ethers.ZeroHash; // This is equivalent to bytes32(0)
+        let hasAdminRole = false;
+        let isOwner = false;
+
         try {
-          const DEFAULT_ADMIN_ROLE = await contracts.token.DEFAULT_ADMIN_ROLE();
-          const hasAdminRole = await contracts.token.hasRole(
-            DEFAULT_ADMIN_ROLE,
-            account
-          );
-          const isOwner = await contracts.dice.isOwner(account);
-          setIsAdmin(hasAdminRole || isOwner);
+          hasAdminRole = await contracts.token.hasRole(DEFAULT_ADMIN_ROLE, account);
         } catch (err) {
-          console.error("Error checking admin status:", err);
-          setIsAdmin(false);
+          console.error("Error checking token admin role:", err);
         }
+
+        // Check dice owner status using view function
+        try {
+          isOwner = await contracts.dice.isOwner(account);
+        } catch (err) {
+          console.error("Error checking dice owner status:", err);
+        }
+
+        setIsAdmin(hasAdminRole || isOwner);
+        console.log("Admin status check:", {
+          account,
+          hasAdminRole,
+          isOwner,
+          isAdmin: hasAdminRole || isOwner
+        });
+
+      } catch (err) {
+        console.error("Error in admin status check:", err);
+        setIsAdmin(false);
       }
     };
 
