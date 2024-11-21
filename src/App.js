@@ -3195,20 +3195,50 @@ function App() {
   // Error Handler
   const handleError = useCallback((error, context = "") => {
     console.error(`Error in ${context}:`, error);
-    let errorMessage = "An unknown error occurred";
+    let errorMessage = "Something went wrong. Please try again.";
 
-    // Contract-specific error handling
+    // User rejected transaction
     if (error.code === 4001) {
-      errorMessage = "Transaction rejected by user";
-    } else if (error.code === -32603) {
-      errorMessage =
-        "Internal JSON-RPC error. Please check your wallet connection.";
-    } else if (error.message?.includes("insufficient funds")) {
-      errorMessage = "Insufficient token balance for this operation";
-    } else if (error.message?.includes("ERC20: insufficient allowance")) {
-      errorMessage = "Please approve token usage before proceeding";
-    } else if (error.message) {
-      errorMessage = error.message;
+      errorMessage = "Transaction cancelled - No worries, you can try again when ready!";
+    } 
+    // Network/RPC error
+    else if (error.code === -32603) {
+      errorMessage = "Network connection issue. Please check your wallet connection and try again.";
+    }
+    // Contract specific errors
+    else if (error.message) {
+      if (error.message.includes("insufficient funds")) {
+        errorMessage = "Not enough tokens in your wallet for this bet";
+      }
+      else if (error.message.includes("ERC20: insufficient allowance")) {
+        errorMessage = "Please approve tokens before placing your bet";
+      }
+      else if (error.message.includes("user rejected")) {
+        errorMessage = "Transaction cancelled - No worries, you can try again when ready!";
+      }
+      else if (error.message.includes("nonce")) {
+        errorMessage = "Transaction sequence error. Please try again";
+      }
+      else if (error.message.includes("gas")) {
+        errorMessage = "Network is busy. Please try again with higher gas or wait a moment";
+      }
+      // Contract custom errors
+      else if (error.message.includes("InvalidBetParameters")) {
+        errorMessage = "Invalid bet amount or number selection. Please check and try again";
+      }
+      else if (error.message.includes("InsufficientContractBalance")) {
+        errorMessage = "Game contract balance too low for this bet. Please try a smaller amount";
+      }
+      else if (error.message.includes("PayoutCalculationError")) {
+        errorMessage = "Error calculating potential winnings. Please try again";
+      }
+      else if (error.message.includes("GameError")) {
+        errorMessage = "Game is currently paused or unavailable. Please try again later";
+      }
+      // Keep original message if it's a custom user-friendly message
+      else if (error.message.length < 100 && !error.message.includes("execution reverted")) {
+        errorMessage = error.message;
+      }
     }
 
     setError(errorMessage);
