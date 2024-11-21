@@ -25,6 +25,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import { debounce } from "lodash";
 
 import DiceABI from "./contracts/abi/Dice.json";
 import TokenABI from "./contracts/abi/Token.json";
@@ -2706,6 +2707,7 @@ const DicePage = ({
   setLoadingStates,
   setLoadingMessage,
 }) => {
+  // State declarations first
   const [gameState, setGameState] = useState({
     isActive: false,
     status: "PENDING",
@@ -2715,7 +2717,13 @@ const DicePage = ({
     canPlay: true,
     isProcessing: false,
     isRolling: false,
-    currentGameData: null, // Add this new field
+    currentGameData: null,
+  });
+
+  const [isLoading, setIsLoading] = useState({
+    gameState: false,
+    balance: false,
+    history: false,
   });
 
   const [chosenNumber, setChosenNumber] = useState(null);
@@ -2726,27 +2734,11 @@ const DicePage = ({
   const [showWinAnimation, setShowWinAnimation] = useState(false);
   const [showLoseAnimation, setShowLoseAnimation] = useState(false);
 
+  // Refs
   const monitorIntervalRef = useRef(null);
   const isMounted = useRef(true);
 
-  // Calculate potential winnings
-  const potentialWinnings = useMemo(() => {
-    if (!betAmount || betAmount <= 0) return BigInt(0);
-    return betAmount * BigInt(6); // 6x multiplier for correct guess
-  }, [betAmount]);
-
-  // Cleanup effect
-  useEffect(() => {
-    isMounted.current = true;
-    return () => {
-      isMounted.current = false;
-      if (monitorIntervalRef.current) {
-        clearInterval(monitorIntervalRef.current);
-      }
-    };
-  }, []);
-
-  // Update game state
+  // Define updateGameState and updateBalance functions first
   const updateGameState = useCallback(async () => {
     if (!contracts.dice || !account || !isMounted.current) return;
 
@@ -2759,7 +2751,6 @@ const DicePage = ({
 
       if (!isMounted.current) return;
 
-      // Store the complete game data
       const currentGameData = {
         gameStatus,
         requestDetails,
@@ -2782,7 +2773,7 @@ const DicePage = ({
         needsResolution:
           requestDetails.requestFulfilled && !requestDetails.requestActive,
         canPlay,
-        currentGameData, // Store the complete data
+        currentGameData,
       }));
     } catch (error) {
       if (isMounted.current) {
@@ -2792,7 +2783,6 @@ const DicePage = ({
     }
   }, [contracts.dice, account, onError]);
 
-  // Update balance and allowance
   const updateBalance = useCallback(async () => {
     if (!contracts.token || !account || !isMounted.current) return;
 
@@ -2814,9 +2804,67 @@ const DicePage = ({
     }
   }, [contracts.token, contracts.dice, account, onError]);
 
+  // Now define debouncedFetch after updateGameState and updateBalance are defined
+  const debouncedFetch = useMemo(
+    () =>
+      debounce(async () => {
+        try {
+          await Promise.all([updateGameState(), updateBalance()]);
+        } catch (error) {
+          onError(error);
+        }
+      }, 1000),
+    [updateGameState, updateBalance, onError]
+  );
+
+  // Cleanup effect
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+      debouncedFetch.cancel();
+      if (monitorIntervalRef.current) {
+        clearInterval(monitorIntervalRef.current);
+      }
+    };
+  }, [debouncedFetch]);
+
+  // Data fetching effect
+  useEffect(() => {
+    if (!contracts.dice || !account) return;
+
+    const fetchData = async () => {
+      setIsLoading((prev) => ({ ...prev, gameState: true, balance: true }));
+      try {
+        await Promise.all([updateGameState(), updateBalance()]);
+      } catch (error) {
+        onError(error);
+      } finally {
+        setIsLoading((prev) => ({ ...prev, gameState: false, balance: false }));
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 10000);
+
+    return () => {
+      clearInterval(interval);
+      if (monitorIntervalRef.current) {
+        clearInterval(monitorIntervalRef.current);
+      }
+    };
+  }, [contracts.dice, account, updateGameState, updateBalance, onError]);
+
+  // Calculate potential winnings
+  const potentialWinnings = useMemo(() => {
+    if (!betAmount || betAmount <= 0) return BigInt(0);
+    return betAmount * BigInt(6); // 6x multiplier for correct guess
+  }, [betAmount]);
+
   // Handle game resolution
   // Inside DicePage component, update the handleGameResolution function:
 
+  // Replace the existing handleGameResolution function with this version:
   const handleGameResolution = async () => {
     if (
       !gameState.needsResolution ||
@@ -2828,7 +2876,6 @@ const DicePage = ({
     if (gameState.isProcessing) return;
 
     try {
-      // Use the stored game data for validation
       const currentGameData = gameState.currentGameData;
       if (!currentGameData || !currentGameData.gameStatus.isActive) {
         setGameState((prev) => ({
@@ -2852,7 +2899,6 @@ const DicePage = ({
 
       if (!isMounted.current) return;
 
-      // Get final game status after resolution
       const finalStatus = await contracts.dice.getGameStatus(account);
       const isWin = Number(finalStatus.status) === 2;
 
@@ -2863,7 +2909,7 @@ const DicePage = ({
         needsResolution: false,
         status: isWin ? "COMPLETED_WIN" : "COMPLETED_LOSS",
         lastResult: Number(finalStatus.rolledNumber),
-        currentGameData: null, // Clear the stored game data
+        currentGameData: null,
       }));
 
       if (isWin) {
@@ -2874,7 +2920,8 @@ const DicePage = ({
         addToast("Better luck next time!", "warning");
       }
 
-      await Promise.all([updateGameState(), updateBalance()]);
+      // Use debounced fetch
+      debouncedFetch();
     } catch (error) {
       if (!isMounted.current) return;
       console.error("Error resolving game:", error);
@@ -2922,6 +2969,7 @@ const DicePage = ({
   };
 
   // Place bet
+  // Replace the existing handlePlaceBet function with this version:
   const handlePlaceBet = async () => {
     if (!contracts.dice || !account || !chosenNumber || !isMounted.current)
       return;
@@ -2945,7 +2993,9 @@ const DicePage = ({
       }));
 
       addToast("Bet placed successfully!", "success");
-      await Promise.all([updateGameState(), updateBalance()]);
+
+      // Use debounced fetch
+      debouncedFetch();
 
       // Start monitoring for game resolution
       monitorIntervalRef.current = setInterval(async () => {
@@ -2958,6 +3008,7 @@ const DicePage = ({
           const status = await contracts.dice.getGameStatus(account);
           if (Number(status.status) > 1) {
             clearInterval(monitorIntervalRef.current);
+            monitorIntervalRef.current = null;
             if (isMounted.current) {
               await handleGameResolution();
             }
@@ -2965,6 +3016,7 @@ const DicePage = ({
         } catch (error) {
           if (isMounted.current) {
             clearInterval(monitorIntervalRef.current);
+            monitorIntervalRef.current = null;
             onError(error);
           }
         }
@@ -2981,25 +3033,6 @@ const DicePage = ({
     }
   };
 
-  // Initialize and update data
-  useEffect(() => {
-    if (!contracts.dice || !account) return;
-
-    const init = async () => {
-      await Promise.all([updateGameState(), updateBalance()]);
-    };
-
-    init();
-    const interval = setInterval(init, 10000);
-
-    return () => {
-      clearInterval(interval);
-      if (monitorIntervalRef.current) {
-        clearInterval(monitorIntervalRef.current);
-      }
-    };
-  }, [contracts.dice, account, updateGameState, updateBalance]);
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="space-y-10">
@@ -3012,6 +3045,20 @@ const DicePage = ({
             Choose a number, place your bet, and test your luck!
           </p>
         </div>
+
+        {/* Loading States */}
+        {(isLoading.gameState || isLoading.balance) && (
+          <div className="glass-panel p-4">
+            <div className="flex items-center justify-center space-x-2">
+              <LoadingSpinner size="small" />
+              <span className="text-secondary-400">
+                {isLoading.gameState
+                  ? "Updating game state..."
+                  : "Updating balance..."}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Game Status */}
         <div className="glass-panel p-6">
@@ -3272,15 +3319,20 @@ function App() {
   }, []);
 
   // Contract Initialization
+  // Enhanced contract initialization with better error handling
   const initializeContracts = useCallback(
     async (signer) => {
-      try {
-        if (!DICE_CONTRACT_ADDRESS || !TOKEN_CONTRACT_ADDRESS) {
-          throw new Error(
-            "Contract addresses not found in environment variables"
-          );
-        }
+      if (!signer) {
+        throw new Error("No signer provided");
+      }
 
+      if (!DICE_CONTRACT_ADDRESS || !TOKEN_CONTRACT_ADDRESS) {
+        throw new Error(
+          "Contract addresses not found in environment variables"
+        );
+      }
+
+      try {
         const diceContract = new ethers.Contract(
           DICE_CONTRACT_ADDRESS,
           DiceABI.abi,
@@ -3292,6 +3344,12 @@ function App() {
           signer
         );
 
+        // Verify contracts are deployed
+        await Promise.all([
+          diceContract.getContractBalance(),
+          tokenContract.totalSupply(),
+        ]);
+
         setContracts({
           dice: diceContract,
           token: tokenContract,
@@ -3299,14 +3357,18 @@ function App() {
 
         return { diceContract, tokenContract };
       } catch (err) {
-        handleError(err, "initializeContracts");
-        return null;
+        const error =
+          err instanceof Error
+            ? err
+            : new Error("Contract initialization failed");
+        handleError(error, "initializeContracts");
+        throw error; // Re-throw to handle in calling function
       }
     },
     [handleError]
   );
 
-  // Wallet Connection
+  // Enhanced wallet connection with better error handling
   const connectWallet = async () => {
     setLoadingStates((prev) => ({ ...prev, wallet: true }));
     setLoadingMessage("Connecting to wallet...");
@@ -3317,34 +3379,48 @@ function App() {
       }
 
       const provider = new ethers.BrowserProvider(window.ethereum);
-      await validateNetwork(provider);
+      const chainId = await validateNetwork(provider);
 
       const accounts = await window.ethereum.request({
         method: "eth_requestAccounts",
       });
 
+      if (!accounts || accounts.length === 0) {
+        throw new Error("No accounts found");
+      }
+
       const signer = await provider.getSigner();
       setProvider(provider);
       setSigner(signer);
 
-      const contractsData = await initializeContracts(signer);
-      if (!contractsData) {
-        throw new Error("Failed to initialize contracts");
-      }
+      try {
+        const contractsData = await initializeContracts(signer);
+        if (!contractsData) {
+          throw new Error("Failed to initialize contracts");
+        }
 
-      await handleAccountsChanged(accounts);
-      addToast("Wallet connected successfully!", "success");
+        await handleAccountsChanged(accounts);
+        addToast("Wallet connected successfully!", "success");
+      } catch (contractError) {
+        // Reset state on contract initialization failure
+        setProvider(null);
+        setSigner(null);
+        throw contractError;
+      }
     } catch (err) {
       handleError(err, "connectWallet");
+      // Reset all states on error
+      setProvider(null);
+      setSigner(null);
+      setContracts({ dice: null, token: null });
     } finally {
       setLoadingStates((prev) => ({ ...prev, wallet: false }));
       setLoadingMessage("");
     }
   };
 
-  // Account Change Handler
-  // Update the handleAccountsChanged function
-  // Update the handleAccountsChanged function
+  
+
   const handleAccountsChanged = async (accounts) => {
     if (accounts.length === 0) {
       setAccount("");
