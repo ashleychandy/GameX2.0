@@ -1715,7 +1715,6 @@ const steps = [
   },
 ];
 
-// New Game Statistics Panel
 const GameStats = ({ diceContract, account }) => {
   const [stats, setStats] = useState({
     gamesWon: 0,
@@ -1723,205 +1722,88 @@ const GameStats = ({ diceContract, account }) => {
     biggestWin: BigInt(0),
   });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const isMounted = useRef(true);
 
   useEffect(() => {
+    isMounted.current = true;
+
     const fetchStats = async () => {
-      if (!diceContract || !account) {
-        setLoading(false);
-        return;
-      }
+      if (!diceContract || !account) return;
 
       try {
         setLoading(true);
-        const userData = await diceContract.getUserData(account);
-        const previousBets = await diceContract.getPreviousBets(account);
+        const bets = await diceContract.getPreviousBets(account);
 
-        let biggestWin = BigInt(0);
-        let gamesWon = 0;
+        if (!isMounted.current) return;
 
-        previousBets.forEach((bet) => {
-          if (bet.chosenNumber === bet.rolledNumber) {
-            gamesWon++;
-            const winAmount = bet.amount * BigInt(6);
-            if (winAmount > biggestWin) {
-              biggestWin = winAmount;
+        let totalWins = 0;
+        let totalWinAmount = BigInt(0);
+        let maxWin = BigInt(0);
+
+        bets.forEach((bet) => {
+          const isWin = Number(bet.chosenNumber) === Number(bet.rolledNumber);
+          if (isWin) {
+            totalWins++;
+            const winAmount = BigInt(bet.amount) * BigInt(6);
+            totalWinAmount += winAmount;
+            if (winAmount > maxWin) {
+              maxWin = winAmount;
             }
           }
         });
 
+        if (!isMounted.current) return;
+
         setStats({
-          gamesWon,
-          totalWinnings: userData.totalWinnings,
-          biggestWin,
+          gamesWon: totalWins,
+          totalWinnings: totalWinAmount,
+          biggestWin: maxWin,
         });
-        setError("");
-      } catch (err) {
-        console.error("Error fetching stats:", err);
-        setError("Failed to load statistics");
+      } catch (error) {
+        console.error("Error fetching game stats:", error);
       } finally {
-        setLoading(false);
+        if (isMounted.current) {
+          setLoading(false);
+        }
       }
     };
 
     fetchStats();
+
+    return () => {
+      isMounted.current = false;
+    };
   }, [diceContract, account]);
 
   if (loading) {
     return (
-      <div className="w-full p-6 bg-secondary-900/60 backdrop-blur-xl rounded-2xl border border-white/5">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="animate-pulse">
-              <div className="h-32 rounded-xl bg-secondary-800/50">
-                <div className="h-full flex items-center justify-center">
-                  <div className="w-8 h-8 rounded-full bg-secondary-700/50" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="animate-pulse space-y-4">
+        <div className="h-8 bg-secondary-800/50 rounded w-1/3"></div>
+        <div className="h-8 bg-secondary-800/50 rounded w-2/3"></div>
+        <div className="h-8 bg-secondary-800/50 rounded w-1/2"></div>
       </div>
     );
   }
-
-  if (error) {
-    return (
-      <div className="w-full p-6 bg-secondary-900/60 backdrop-blur-xl rounded-2xl border border-white/5">
-        <div className="flex items-center justify-center p-6 rounded-xl bg-gaming-error/10 border border-gaming-error/20">
-          <div className="flex items-center gap-3 text-gaming-error">
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span className="text-lg font-medium">{error}</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const formatValue = (value) => {
-    try {
-      return ethers.formatEther(value.toString());
-    } catch (err) {
-      return "0";
-    }
-  };
-
-  const statItems = [
-    {
-      label: "Games Won",
-      value: stats.gamesWon.toString(),
-      icon: "🎲",
-      gradientFrom: "from-emerald-500",
-      gradientTo: "to-emerald-600",
-      borderColor: "border-emerald-500/20",
-      shadowColor: "shadow-emerald-500/10",
-    },
-    {
-      label: "Total Winnings",
-      value: `${formatValue(stats.totalWinnings)} GameX`,
-      icon: "💰",
-      gradientFrom: "from-gaming-primary",
-      gradientTo: "to-gaming-accent",
-      borderColor: "border-gaming-primary/20",
-      shadowColor: "shadow-gaming-primary/10",
-    },
-    {
-      label: "Biggest Win",
-      value: `${formatValue(stats.biggestWin)} GameX`,
-      icon: "🏆",
-      gradientFrom: "from-amber-500",
-      gradientTo: "to-amber-600",
-      borderColor: "border-amber-500/20",
-      shadowColor: "shadow-amber-500/10",
-    },
-  ];
 
   return (
-    <div className="w-full space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {statItems.map((item, index) => (
-          <motion.div
-            key={item.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className={`
-              relative group
-              bg-secondary-900/60 backdrop-blur-xl
-              rounded-2xl border ${item.borderColor}
-              shadow-xl ${item.shadowColor}
-              overflow-hidden
-              transition-all duration-300
-              hover:scale-[1.02] hover:shadow-2xl
-            `}
-          >
-            {/* Background Gradient Overlay */}
-            <div
-              className={`
-                absolute inset-0 opacity-10 group-hover:opacity-20
-                transition-opacity duration-300
-                bg-gradient-to-br ${item.gradientFrom} ${item.gradientTo}
-              `}
-            />
-
-            {/* Content Container */}
-            <div className="relative p-6 h-full">
-              <div className="flex flex-col h-full">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-3xl">{item.icon}</span>
-                  <span
-                    className={`
-                      text-sm font-medium text-secondary-400
-                      group-hover:text-secondary-300
-                      transition-colors duration-300
-                    `}
-                  >
-                    {item.label}
-                  </span>
-                </div>
-
-                {/* Value */}
-                <div className="mt-auto">
-                  <span
-                    className={`
-                      text-2xl font-bold
-                      bg-gradient-to-r ${item.gradientFrom} ${item.gradientTo}
-                      bg-clip-text text-transparent
-                      group-hover:scale-105
-                      transition-transform duration-300
-                      block
-                    `}
-                  >
-                    {item.value}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Hover Effect Overlay */}
-            <div
-              className={`
-                absolute inset-0
-                bg-gradient-to-r ${item.gradientFrom} ${item.gradientTo}
-                opacity-0 group-hover:opacity-5
-                transition-opacity duration-300
-              `}
-            />
-          </motion.div>
-        ))}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="stat-card">
+        <h3 className="text-secondary-400">Games Won</h3>
+        <p className="text-2xl font-bold text-gaming-success">
+          {stats.gamesWon}
+        </p>
+      </div>
+      <div className="stat-card">
+        <h3 className="text-secondary-400">Total Winnings</h3>
+        <p className="text-2xl font-bold text-gaming-primary">
+          {ethers.formatEther(stats.totalWinnings)} GameX
+        </p>
+      </div>
+      <div className="stat-card">
+        <h3 className="text-secondary-400">Biggest Win</h3>
+        <p className="text-2xl font-bold text-gaming-accent">
+          {ethers.formatEther(stats.biggestWin)} GameX
+        </p>
       </div>
     </div>
   );
@@ -3320,6 +3202,7 @@ function App() {
 
   // Contract Initialization
   // Enhanced contract initialization with better error handling
+  // Contract Initialization
   const initializeContracts = useCallback(
     async (signer) => {
       if (!signer) {
@@ -3333,6 +3216,17 @@ function App() {
       }
 
       try {
+        // First verify if contracts exist at the addresses
+        const provider = signer.provider;
+        const diceCode = await provider.getCode(DICE_CONTRACT_ADDRESS);
+        const tokenCode = await provider.getCode(TOKEN_CONTRACT_ADDRESS);
+
+        if (diceCode === "0x" || tokenCode === "0x") {
+          throw new Error(
+            "One or more contracts not deployed at specified addresses"
+          );
+        }
+
         const diceContract = new ethers.Contract(
           DICE_CONTRACT_ADDRESS,
           DiceABI.abi,
@@ -3344,11 +3238,17 @@ function App() {
           signer
         );
 
-        // Verify contracts are deployed
-        await Promise.all([
-          diceContract.getContractBalance(),
-          tokenContract.totalSupply(),
-        ]);
+        // Use try/catch for each contract verification
+        try {
+          // Use a simple view function instead of complex ones
+          await tokenContract.name();
+          await diceContract.owner(); // or another simple view function from your Dice contract
+        } catch (verifyError) {
+          console.error("Contract verification failed:", verifyError);
+          throw new Error(
+            "Contract interface mismatch or contracts not properly deployed"
+          );
+        }
 
         setContracts({
           dice: diceContract,
@@ -3357,12 +3257,13 @@ function App() {
 
         return { diceContract, tokenContract };
       } catch (err) {
-        const error =
-          err instanceof Error
-            ? err
-            : new Error("Contract initialization failed");
-        handleError(error, "initializeContracts");
-        throw error; // Re-throw to handle in calling function
+        const errorMessage = err.message || "Contract initialization failed";
+        console.error("Contract initialization error details:", err);
+        handleError(
+          new Error(`Contract initialization failed: ${errorMessage}`),
+          "initializeContracts"
+        );
+        throw err;
       }
     },
     [handleError]
@@ -3418,8 +3319,6 @@ function App() {
       setLoadingMessage("");
     }
   };
-
-  
 
   const handleAccountsChanged = async (accounts) => {
     if (accounts.length === 0) {
@@ -3529,8 +3428,10 @@ function App() {
 
   // Toast Management
   const addToast = useCallback((message, type = "info") => {
-    const id = Date.now();
+    const id = `toast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     setToasts((prev) => [...prev, { id, message, type }]);
+
+    // Remove toast after 5 seconds
     setTimeout(() => {
       setToasts((prev) => prev.filter((toast) => toast.id !== id));
     }, 5000);
@@ -3646,7 +3547,7 @@ function App() {
         </main>
 
         {/* Toasts */}
-        <AnimatePresence>
+        <AnimatePresence mode="popLayout">
           <div className="fixed bottom-4 right-4 space-y-2 z-50">
             {toasts.map((toast) => (
               <motion.div
@@ -3654,6 +3555,7 @@ function App() {
                 initial={{ opacity: 0, y: 50 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
+                layout
               >
                 <Toast
                   message={toast.message}
