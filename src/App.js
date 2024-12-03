@@ -1395,6 +1395,27 @@ const Icons = {
   ),
 };
 
+const GameBoard = ({ chosenNumber, gameState, onNumberSelect }) => {
+  return (
+    <div className="game-card space-y-8">
+      <DiceVisualizer
+        chosenNumber={chosenNumber}
+        isRolling={gameState.isRolling}
+        result={gameState.lastResult}
+      />
+
+      <NumberSelector
+        value={chosenNumber}
+        onChange={onNumberSelect}
+        disabled={gameState.isProcessing}
+      />
+
+      <StatusPanel gameState={gameState} />
+    </div>
+  );
+};
+
+
 // Game Card Component
 const GameCard = ({ game }) => (
   <motion.div
