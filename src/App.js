@@ -2893,50 +2893,35 @@ const DicePage = ({
   };
 
   const handlePlaceBet = async () => {
-    if (!contracts.dice || !account || !chosenNumber || !isMounted.current)
-      return;
+    if (!contracts.dice || !account || !chosenNumber || !isMounted.current) return;
     if (gameState.isProcessing || betAmount <= BigInt(0)) return;
 
     try {
       await logGameState();
-
       setGameState((prev) => ({ ...prev, isProcessing: true }));
 
+      // Add additional validation for bet amount
+      if (betAmount > userBalance) {
+        throw new Error("Insufficient balance");
+      }
+
+      // Check if user can play
       const canPlay = await contracts.dice.canStartNewGame(account);
       if (!canPlay) {
-        throw new Error(
-          "Cannot start new game - previous game may need resolution"
-        );
+        throw new Error("Cannot start new game - previous game may need resolution");
       }
 
-      const [gameStatus, requestDetails] = await Promise.all([
-        contracts.dice.getGameStatus(account),
-        contracts.dice.getCurrentRequestDetails(account),
-      ]);
-
-      if (gameStatus.isActive) {
-        if (requestDetails.requestFulfilled) {
-          await handleGameResolution();
-          const canPlayAfterResolution = await contracts.dice.canStartNewGame(
-            account
-          );
-          if (!canPlayAfterResolution) {
-            throw new Error("Game state not properly reset after resolution");
-          }
-        } else {
-          throw new Error("Previous game must be resolved first");
-        }
-      }
-
-      const approved = await checkAndApproveToken(betAmount);
-      if (!approved) {
-        throw new Error("Token approval failed");
-      }
-
+      // Add gas estimation
+      const gasEstimate = await contracts.dice.playDice.estimateGas(
+        chosenNumber, 
+        betAmount
+      );
+      
       const tx = await contracts.dice.playDice(chosenNumber, betAmount, {
-        gasLimit: 500000,
+        gasLimit: Math.ceil(gasEstimate * 1.2), // Add 20% buffer
       });
 
+      // Add transaction confirmation handling
       const receipt = await tx.wait();
       if (!receipt.status) {
         throw new Error("Transaction failed");
@@ -2968,8 +2953,12 @@ const DicePage = ({
             return;
           }
 
-          const status = await contracts.dice.getGameStatus(account);
-          if (Number(status.status) > 1) {
+          const [gameStatus, requestDetails] = await Promise.all([
+            contracts.dice.getGameStatus(account),
+            contracts.dice.getCurrentRequestDetails(account),
+          ]);
+
+          if (requestDetails.requestFulfilled && Number(gameStatus.status) > 1) {
             clearInterval(monitorIntervalRef.current);
             monitorIntervalRef.current = null;
             if (isMounted.current) {
@@ -2977,18 +2966,22 @@ const DicePage = ({
             }
           }
         } catch (error) {
-          console.error("Monitoring error:", error);
+          console.error("Game monitoring error:", error);
           clearInterval(monitorIntervalRef.current);
         }
       }, 2000);
     } catch (error) {
       if (!isMounted.current) return;
 
+      // Enhance error handling
       let errorMessage = error.reason || error.message;
+      if (errorMessage.includes("insufficient funds")) {
+        errorMessage = "Insufficient balance to place bet";
+      } else if (errorMessage.includes("gas required exceeds allowance")) {
+        errorMessage = "Transaction would exceed gas limit. Please try a smaller bet amount.";
+      }
+
       console.error("Bet placement error details:", error);
-
-      await logGameState();
-
       onError(new Error(errorMessage));
       addToast(errorMessage, "error");
     } finally {
