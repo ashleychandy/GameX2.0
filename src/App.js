@@ -1722,7 +1722,6 @@ const Home = () => {
   );
 };
 
-// Data arrays for features and steps
 const features = [
   {
     icon: "🔒",
@@ -1836,7 +1835,6 @@ const GameStats = ({ diceContract, account }) => {
   );
 };
 
-// Helper StatCard component (can be moved to a separate file)
 const StatCard = ({ title, value, icon, color = "primary" }) => (
   <div
     className={`
@@ -1870,7 +1868,6 @@ const StatCard = ({ title, value, icon, color = "primary" }) => (
   </div>
 );
 
-// New Game Controls Component
 const GameControls = ({
   diceContract,
   tokenContract,
@@ -2211,7 +2208,6 @@ const ApprovalButton = ({ onApprove, amount, isLoading }) => {
   );
 };
 
-// Win Animation Component
 const WinAnimation = ({ onComplete }) => (
   <motion.div
     initial={{ opacity: 0 }}
@@ -2231,7 +2227,6 @@ const WinAnimation = ({ onComplete }) => (
   </motion.div>
 );
 
-// Lose Animation Component
 const LoseAnimation = ({ onComplete }) => (
   <motion.div
     initial={{ opacity: 0 }}
@@ -3263,22 +3258,15 @@ const DicePage = ({
   );
 };
 
-// Main App Component
 function App() {
-  // Core States
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
-  const [contracts, setContracts] = useState({
-    dice: null,
-    token: null,
-  });
+  const [contracts, setContracts] = useState({ dice: null, token: null });
   const [account, setAccount] = useState("");
   const [chainId, setChainId] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState("");
   const [toasts, setToasts] = useState([]);
-
-  // Loading States
   const [loadingStates, setLoadingStates] = useState({
     provider: true,
     contracts: true,
@@ -3287,12 +3275,12 @@ function App() {
   });
   const [loadingMessage, setLoadingMessage] = useState("");
 
-  // Error Handler
+  const queryClient = useQueryClient();
+
   const handleError = useCallback((error, context = "") => {
     console.error(`Error in ${context}:`, error);
     let errorMessage = "Something went wrong. Please try again.";
 
-    // Extract the error message/reason
     const errorString = error.reason || error.message || error.toString();
 
     if (error.code === 4001) {
@@ -3302,7 +3290,6 @@ function App() {
       errorMessage =
         "Network connection issue. Please check your wallet connection and try again.";
     } else if (errorString.includes("execution reverted")) {
-      // Handle specific revert reasons
       if (errorString.includes("game not ready")) {
         errorMessage = "Game is not ready to be resolved yet";
       } else if (errorString.includes("already resolved")) {
@@ -3313,15 +3300,12 @@ function App() {
       } else {
         errorMessage = "Transaction failed - Please try again";
       }
-    } else {
-      // Your existing error handling conditions...
     }
 
     setError(errorMessage);
     addToast(errorMessage, "error");
   }, []);
 
-  // Network Validation
   const validateNetwork = useCallback(async (provider) => {
     try {
       const network = await provider.getNetwork();
@@ -3338,9 +3322,6 @@ function App() {
     }
   }, []);
 
-  // Contract Initialization
-  // Enhanced contract initialization with better error handling
-  // Contract Initialization
   const initializeContracts = useCallback(
     async (signer) => {
       if (!signer) {
@@ -3354,7 +3335,6 @@ function App() {
       }
 
       try {
-        // First verify if contracts exist at the addresses
         const provider = signer.provider;
         const diceCode = await provider.getCode(DICE_CONTRACT_ADDRESS);
         const tokenCode = await provider.getCode(TOKEN_CONTRACT_ADDRESS);
@@ -3376,11 +3356,9 @@ function App() {
           signer
         );
 
-        // Use try/catch for each contract verification
         try {
-          // Use a simple view function instead of complex ones
           await tokenContract.name();
-          await diceContract.owner(); // or another simple view function from your Dice contract
+          await diceContract.owner();
         } catch (verifyError) {
           console.error("Contract verification failed:", verifyError);
           throw new Error(
@@ -3388,10 +3366,7 @@ function App() {
           );
         }
 
-        setContracts({
-          dice: diceContract,
-          token: tokenContract,
-        });
+        setContracts({ dice: diceContract, token: tokenContract });
 
         return { diceContract, tokenContract };
       } catch (err) {
@@ -3407,7 +3382,6 @@ function App() {
     [handleError]
   );
 
-  // Enhanced wallet connection with better error handling
   const connectWallet = async () => {
     setLoadingStates((prev) => ({ ...prev, wallet: true }));
     setLoadingMessage("Connecting to wallet...");
@@ -3441,14 +3415,12 @@ function App() {
         await handleAccountsChanged(accounts);
         addToast("Wallet connected successfully!", "success");
       } catch (contractError) {
-        // Reset state on contract initialization failure
         setProvider(null);
         setSigner(null);
         throw contractError;
       }
     } catch (err) {
       handleError(err, "connectWallet");
-      // Reset all states on error
       setProvider(null);
       setSigner(null);
       setContracts({ dice: null, token: null });
@@ -3469,8 +3441,7 @@ function App() {
 
       if (contracts.token && contracts.dice) {
         try {
-          // First check token admin role
-          const DEFAULT_ADMIN_ROLE = ethers.ZeroHash; // This is equivalent to bytes32(0)
+          const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
           let hasAdminRole = false;
           let isOwner = false;
 
@@ -3504,7 +3475,6 @@ function App() {
     }
   };
 
-  // Update the useEffect for admin status check
   useEffect(() => {
     const checkAdminStatus = async () => {
       if (!contracts.token || !contracts.dice || !account) {
@@ -3513,8 +3483,7 @@ function App() {
       }
 
       try {
-        // Check token admin role
-        const DEFAULT_ADMIN_ROLE = ethers.ZeroHash; // This is equivalent to bytes32(0)
+        const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
         let hasAdminRole = false;
         let isOwner = false;
 
@@ -3527,7 +3496,6 @@ function App() {
           console.error("Error checking token admin role:", err);
         }
 
-        // Check dice owner status using view function
         try {
           isOwner = await contracts.dice.isOwner(account);
         } catch (err) {
@@ -3550,7 +3518,6 @@ function App() {
     checkAdminStatus();
   }, [contracts.token, contracts.dice, account]);
 
-  // Chain Change Handler
   const handleChainChanged = async (newChainId) => {
     const chainIdDec = parseInt(newChainId, 16);
     setChainId(chainIdDec);
@@ -3564,12 +3531,10 @@ function App() {
     window.location.reload();
   };
 
-  // Toast Management
   const addToast = useCallback((message, type = "info") => {
     const id = `toast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     setToasts((prev) => [...prev, { id, message, type }]);
 
-    // Remove toast after 5 seconds
     setTimeout(() => {
       setToasts((prev) => prev.filter((toast) => toast.id !== id));
     }, 5000);
@@ -3579,7 +3544,6 @@ function App() {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
 
-  // Initialization Effect
   useEffect(() => {
     const init = async () => {
       try {
@@ -3629,7 +3593,6 @@ function App() {
     }
   }, [handleError, initializeContracts, validateNetwork]);
 
-  // Loading Check
   if (Object.values(loadingStates).some((state) => state)) {
     return <LoadingOverlay message={loadingMessage} />;
   }
@@ -3637,7 +3600,6 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-secondary-900">
-        {/* Network Warning */}
         {chainId && !SUPPORTED_CHAIN_IDS.includes(chainId) && (
           <NetworkWarning />
         )}
@@ -3684,7 +3646,6 @@ function App() {
           </Routes>
         </main>
 
-        {/* Toasts */}
         <AnimatePresence mode="popLayout">
           <div className="fixed bottom-4 right-4 space-y-2 z-50">
             {toasts.map((toast) => (
