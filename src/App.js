@@ -26,7 +26,7 @@ import {
   Legend,
 } from "chart.js";
 import { debounce } from "lodash";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient,QueryClientProvider } from "@tanstack/react-query";
 
 import DiceABI from "./contracts/abi/Dice.json";
 import TokenABI from "./contracts/abi/Token.json";
@@ -1059,72 +1059,42 @@ const LoadingSpinner = ({ size = "medium", light = false }) => {
   );
 };
 
-const RequestMonitor = ({ diceContract, requestId, onComplete, onError }) => {
-  const [attempts, setAttempts] = useState(0);
-  const MAX_ATTEMPTS = 30; // 1 minute maximum (2s * 30)
-  const timeoutRef = useRef(null);
-  const isMounted = useRef(true);
+function RequestMonitor({ diceContract, account }) {
+  const fetchRequestStatus = async () => {
+    if (!diceContract || !account) return null;
+    // Fetch the request status from the contract
+    const status = await diceContract.getCurrentRequestDetails(account);
+    return status;
+  };
+
+  const {
+    data: requestStatus,
+    isLoading,
+    error,
+  } = useQuery(["requestStatus", account], fetchRequestStatus, {
+    refetchInterval: 5000, // Poll every 5 seconds
+    enabled: !!diceContract && !!account, // Only run if these are available
+  });
 
   useEffect(() => {
-    isMounted.current = true;
+    if (requestStatus) {
+      // Handle the request status update
+      console.log("Request Status:", requestStatus);
+    }
+  }, [requestStatus]);
 
-    return () => {
-      isMounted.current = false;
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
 
-  useEffect(() => {
-    if (!diceContract || !requestId) return;
-
-    const checkRequest = async () => {
-      try {
-        if (!isMounted.current) return;
-
-        const [isActive, requestDetails] = await Promise.all([
-          diceContract.isRequestActive(requestId),
-          diceContract.getPlayerForRequest(requestId),
-        ]);
-
-        if (!isMounted.current) return;
-
-        if (!isActive) {
-          onComplete && onComplete();
-          return;
-        }
-
-        if (attempts >= MAX_ATTEMPTS) {
-          onError && onError(new Error("Request monitoring timed out"));
-          return;
-        }
-
-        setAttempts((prev) => prev + 1);
-        timeoutRef.current = setTimeout(checkRequest, 2000);
-      } catch (error) {
-        if (isMounted.current) {
-          console.error("Error monitoring request:", error);
-          onError && onError(error);
-        }
-      }
-    };
-
-    checkRequest();
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [diceContract, requestId, attempts, onComplete, onError, MAX_ATTEMPTS]);
-
-  return attempts > 0 ? (
-    <div className="text-sm text-secondary-400">
-      Monitoring request... {((attempts / MAX_ATTEMPTS) * 100).toFixed(0)}%
+  return (
+    <div>
+      {/* Render request status or other UI elements */}
+      <p>Request ID: {requestStatus?.requestId}</p>
+      <p>Request Fulfilled: {requestStatus?.requestFulfilled ? "Yes" : "No"}</p>
+      <p>Request Active: {requestStatus?.requestActive ? "Yes" : "No"}</p>
     </div>
-  ) : null;
-};
+  );
+}
 
 const GameHistory = ({ diceContract, account, onError }) => {
   const [filter, setFilter] = useState("all");
