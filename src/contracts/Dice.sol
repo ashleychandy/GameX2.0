@@ -408,31 +408,7 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         return user.currentRequestId != 0 && !user.requestFulfilled;
     }
 
-    function getPlayerStats(address player) external view returns (
-        uint256 totalGamesWon,
-        uint256 totalGamesLost
-    ) {
-        if (player == address(0)) revert InvalidBetParameters(10);
-        UserData storage user = userData[player];
-        
-        if (user.gamesPlayed == 0) {
-            return (0, 0);
-        }
-        
-        // Calculate games won more safely
-        uint256 gamesWon;
-        if (user.totalWinnings > 0) {
-            gamesWon = user.totalWinnings / (6 * 1 ether); // Adjust for token decimals
-        } else {
-            gamesWon = 0;
-        }
-        
-        // Ensure gamesLost calculation doesn't underflow
-        uint256 gamesLost = user.gamesPlayed > gamesWon ? 
-            user.gamesPlayed - gamesWon : 0;
-        
-        return (gamesWon, gamesLost);
-    }
+    
 
     function getCurrentRequestDetails(address player) external view returns (
         uint256 requestId,
@@ -483,6 +459,11 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         while (user.previousBets.length > newSize) {
             user.previousBets.pop();
         }
+    }
+
+    function getHistorySize(address player) external view returns (uint256) {
+        UserData storage user = userData[player];
+        return user.maxHistorySize;
     }
 
     function setCallbackGasLimit(uint32 _callbackGasLimit) external onlyOwners {
