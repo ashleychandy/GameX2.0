@@ -2744,9 +2744,6 @@ const DicePage = ({
   }, [betAmount]);
 
   // Handle game resolution
-  // Inside DicePage component, update the handleGameResolution function:
-
-  // Replace the existing handleGameResolution function with this version:
   const handleGameResolution = async () => {
     if (
       !gameState.needsResolution ||
@@ -2758,40 +2755,50 @@ const DicePage = ({
     if (gameState.isProcessing) return;
 
     try {
-      const currentGameData = gameState.currentGameData;
-      if (!currentGameData || !currentGameData.gameStatus.isActive) {
-        setGameState((prev) => ({
-          ...prev,
-          isProcessing: false,
-          isRolling: false,
-          needsResolution: false,
-          status: "PENDING",
-        }));
-        return;
-      }
-
       setGameState((prev) => ({
         ...prev,
         isProcessing: true,
         isRolling: false,
       }));
 
+      // Enhanced status check with exact contract conditions
+      const [gameStatus, requestDetails] = await Promise.all([
+        contracts.dice.getGameStatus(account),
+        contracts.dice.getCurrentRequestDetails(account),
+      ]);
+
+      // Match the exact contract requirements
+      if (!gameStatus.isActive) {
+        throw new Error("No active game");
+      }
+
+      if (!requestDetails.requestFulfilled) {
+        throw new Error("Random number not ready");
+      }
+
       const tx = await contracts.dice.resolveGame();
-      await tx.wait();
+      const receipt = await tx.wait();
+
+      if (!receipt.status) {
+        throw new Error("Transaction failed during execution");
+      }
 
       if (!isMounted.current) return;
 
       const finalStatus = await contracts.dice.getGameStatus(account);
       const isWin = Number(finalStatus.status) === 2;
 
+      // Reset game state completely
       setGameState((prev) => ({
         ...prev,
         isProcessing: false,
         isRolling: false,
         needsResolution: false,
+        isActive: false, // Add this line
         status: isWin ? "COMPLETED_WIN" : "COMPLETED_LOSS",
         lastResult: Number(finalStatus.rolledNumber),
         currentGameData: null,
+        canPlay: true, // Add this line
       }));
 
       if (isWin) {
@@ -2802,18 +2809,32 @@ const DicePage = ({
         addToast("Better luck next time!", "warning");
       }
 
-      // Use debounced fetch
-      debouncedFetch();
+      // Add a small delay before updating state
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await Promise.all([updateGameState(), updateBalance()]);
     } catch (error) {
       if (!isMounted.current) return;
-      console.error("Error resolving game:", error);
-      onError(error);
+
+      let errorMessage = error.reason || error.message;
+
+      if (errorMessage.includes("No active game")) {
+        errorMessage = "No active game found to resolve";
+      } else if (errorMessage.includes("Random number not ready")) {
+        errorMessage =
+          "The random number is not ready yet. Please wait a few moments and try again.";
+      }
+
+      console.error("Error resolving game:", errorMessage);
+      onError(new Error(errorMessage), "Game Resolution");
+
       setGameState((prev) => ({
         ...prev,
         isProcessing: false,
         isRolling: false,
-        needsResolution: false,
+        needsResolution: errorMessage.includes("Random number not ready"),
       }));
+
+      addToast(errorMessage, "warning");
     }
   };
 
@@ -2850,21 +2871,79 @@ const DicePage = ({
     }
   };
 
-  // Place bet
-  // Replace the existing handlePlaceBet function with this version:
+  // Add this debug function at component level
+  const logGameState = async () => {
+    if (!contracts.dice || !account) return;
+    
+    try {
+      const [gameStatus, requestDetails, canPlay] = await Promise.all([
+        contracts.dice.getGameStatus(account),
+        contracts.dice.getCurrentRequestDetails(account),
+        contracts.dice.canStartNewGame(account)
+      ]);
+      
+      console.log("Current Game State:", {
+        gameStatus,
+        requestDetails,
+        canPlay,
+        localState: gameState
+      });
+    } catch (error) {
+      console.error("Error logging game state:", error);
+    }
+  };
+
+  // Update handlePlaceBet with additional checks
   const handlePlaceBet = async () => {
-    if (!contracts.dice || !account || !chosenNumber || !isMounted.current)
-      return;
+    if (!contracts.dice || !account || !chosenNumber || !isMounted.current) return;
     if (gameState.isProcessing || betAmount <= BigInt(0)) return;
 
     try {
+      // Log state before placing bet
+      await logGameState();
+      
       setGameState((prev) => ({ ...prev, isProcessing: true }));
 
-      const approved = await checkAndApproveToken(betAmount);
-      if (!approved || !isMounted.current) return;
+      // Explicit check for game state using contract call
+      const canPlay = await contracts.dice.canStartNewGame(account);
+      if (!canPlay) {
+        throw new Error("Cannot start new game - previous game may need resolution");
+      }
 
-      const tx = await contracts.dice.playDice(chosenNumber, betAmount);
-      await tx.wait();
+      // Force check and resolve any pending game
+      const [gameStatus, requestDetails] = await Promise.all([
+        contracts.dice.getGameStatus(account),
+        contracts.dice.getCurrentRequestDetails(account)
+      ]);
+
+      if (gameStatus.isActive) {
+        // Try to force resolve if there's an active game
+        if (requestDetails.requestFulfilled) {
+          await handleGameResolution();
+          // Verify game state again after resolution
+          const canPlayAfterResolution = await contracts.dice.canStartNewGame(account);
+          if (!canPlayAfterResolution) {
+            throw new Error("Game state not properly reset after resolution");
+          }
+        } else {
+          throw new Error("Previous game must be resolved first");
+        }
+      }
+
+      // Rest of the bet placement logic...
+      const approved = await checkAndApproveToken(betAmount);
+      if (!approved) {
+        throw new Error("Token approval failed");
+      }
+
+      const tx = await contracts.dice.playDice(chosenNumber, betAmount, {
+        gasLimit: 500000
+      });
+
+      const receipt = await tx.wait();
+      if (!receipt.status) {
+        throw new Error("Transaction failed");
+      }
 
       if (!isMounted.current) return;
 
@@ -2872,14 +2951,25 @@ const DicePage = ({
         ...prev,
         isActive: true,
         isRolling: true,
+        status: "STARTED"
       }));
 
       addToast("Bet placed successfully!", "success");
 
-      // Use debounced fetch
-      debouncedFetch();
+      // Update states
+      await Promise.all([
+        updateGameState(),
+        updateBalance()
+      ]);
 
-      // Start monitoring for game resolution
+      // Log state after bet placement
+      await logGameState();
+
+      // Monitor for resolution...
+      if (monitorIntervalRef.current) {
+        clearInterval(monitorIntervalRef.current);
+      }
+
       monitorIntervalRef.current = setInterval(async () => {
         try {
           if (!isMounted.current) {
@@ -2896,24 +2986,105 @@ const DicePage = ({
             }
           }
         } catch (error) {
-          if (isMounted.current) {
-            clearInterval(monitorIntervalRef.current);
-            monitorIntervalRef.current = null;
-            onError(error);
-          }
+          console.error("Monitoring error:", error);
+          clearInterval(monitorIntervalRef.current);
         }
       }, 2000);
+
     } catch (error) {
-      if (isMounted.current) {
-        console.error("Error placing bet:", error);
-        onError(error);
-      }
+      if (!isMounted.current) return;
+
+      let errorMessage = error.reason || error.message;
+      console.error("Bet placement error details:", error);
+      
+      // Log state after error
+      await logGameState();
+      
+      onError(new Error(errorMessage));
+      addToast(errorMessage, "error");
     } finally {
       if (isMounted.current) {
-        setGameState((prev) => ({ ...prev, isProcessing: false }));
+        setGameState((prev) => ({
+          ...prev,
+          isProcessing: false,
+          isRolling: false
+        }));
       }
     }
   };
+
+  // Add this to your existing useEffect for game state monitoring
+  useEffect(() => {
+    if (!gameState.isActive || gameState.needsResolution) return;
+
+    const checkResolutionStatus = async () => {
+      try {
+        const [gameStatus, requestDetails] = await Promise.all([
+          contracts.dice.getGameStatus(account),
+          contracts.dice.getCurrentRequestDetails(account),
+        ]);
+
+        if (requestDetails.requestFulfilled && Number(gameStatus.status) > 1) {
+          // Game is ready to be resolved
+          handleGameResolution();
+        }
+      } catch (error) {
+        console.error("Error checking resolution status:", error);
+      }
+    };
+
+    const interval = setInterval(checkResolutionStatus, 3000); // Check every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [gameState.isActive, gameState.needsResolution, contracts.dice, account]);
+
+  // Update the cleanup effect
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+      if (monitorIntervalRef.current) {
+        clearInterval(monitorIntervalRef.current);
+        monitorIntervalRef.current = null;
+      }
+      // Force reset game state on unmount
+      setGameState(prev => ({
+        ...prev,
+        isActive: false,
+        needsResolution: false,
+        canPlay: true,
+        status: "PENDING",
+        isProcessing: false,
+        isRolling: false
+      }));
+    };
+  }, []);
+
+  // Add an effect to force reset game state on mount
+  useEffect(() => {
+    const resetGameState = async () => {
+      if (!contracts.dice || !account) return;
+      
+      try {
+        const canPlay = await contracts.dice.canStartNewGame(account);
+        if (canPlay) {
+          setGameState(prev => ({
+            ...prev,
+            isActive: false,
+            needsResolution: false,
+            canPlay: true,
+            status: "PENDING",
+            isProcessing: false,
+            isRolling: false
+          }));
+        }
+        await logGameState();
+      } catch (error) {
+        console.error("Error resetting game state:", error);
+      }
+    };
+
+    resetGameState();
+  }, [contracts.dice, account]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -3132,51 +3303,29 @@ function App() {
     console.error(`Error in ${context}:`, error);
     let errorMessage = "Something went wrong. Please try again.";
 
-    // User rejected transaction
+    // Extract the error message/reason
+    const errorString = error.reason || error.message || error.toString();
+
     if (error.code === 4001) {
       errorMessage =
         "Transaction cancelled - No worries, you can try again when ready!";
-    }
-    // Network/RPC error
-    else if (error.code === -32603) {
+    } else if (error.code === -32603) {
       errorMessage =
         "Network connection issue. Please check your wallet connection and try again.";
-    }
-    // Contract specific errors
-    else if (error.message) {
-      if (error.message.includes("insufficient funds")) {
-        errorMessage = "Not enough tokens in your wallet for this bet";
-      } else if (error.message.includes("ERC20: insufficient allowance")) {
-        errorMessage = "Please approve tokens before placing your bet";
-      } else if (error.message.includes("user rejected")) {
+    } else if (errorString.includes("execution reverted")) {
+      // Handle specific revert reasons
+      if (errorString.includes("game not ready")) {
+        errorMessage = "Game is not ready to be resolved yet";
+      } else if (errorString.includes("already resolved")) {
+        errorMessage = "This game has already been resolved";
+      } else if (errorString.includes("active game exists")) {
         errorMessage =
-          "Transaction cancelled - No worries, you can try again when ready!";
-      } else if (error.message.includes("nonce")) {
-        errorMessage = "Transaction sequence error. Please try again";
-      } else if (error.message.includes("gas")) {
-        errorMessage =
-          "Network is busy. Please try again with higher gas or wait a moment";
+          "Please resolve your current game before placing a new bet";
+      } else {
+        errorMessage = "Transaction failed - Please try again";
       }
-      // Contract custom errors
-      else if (error.message.includes("InvalidBetParameters")) {
-        errorMessage =
-          "Invalid bet amount or number selection. Please check and try again";
-      } else if (error.message.includes("InsufficientContractBalance")) {
-        errorMessage =
-          "Game contract balance too low for this bet. Please try a smaller amount";
-      } else if (error.message.includes("PayoutCalculationError")) {
-        errorMessage = "Error calculating potential winnings. Please try again";
-      } else if (error.message.includes("GameError")) {
-        errorMessage =
-          "Game is currently paused or unavailable. Please try again later";
-      }
-      // Keep original message if it's a custom user-friendly message
-      else if (
-        error.message.length < 100 &&
-        !error.message.includes("execution reverted")
-      ) {
-        errorMessage = error.message;
-      }
+    } else {
+      // Your existing error handling conditions...
     }
 
     setError(errorMessage);
