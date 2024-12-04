@@ -2605,6 +2605,12 @@ const DicePage = ({
   setLoadingStates,
   setLoadingMessage,
 }) => {
+  const queryClient = useQueryClient();
+  const [chosenNumber, setChosenNumber] = useState(null);
+  const [betAmount, setBetAmount] = useState(BigInt(0));
+  const [showStats, setShowStats] = useState(false);
+  const [showWinAnimation, setShowWinAnimation] = useState(false);
+  const [showLoseAnimation, setShowLoseAnimation] = useState(false);
   const [gameState, setGameState] = useState({
     isActive: false,
     status: "PENDING",
@@ -2617,42 +2623,57 @@ const DicePage = ({
     currentGameData: null,
   });
 
-  const [isLoading, setIsLoading] = useState({
-    gameState: false,
-    balance: false,
-    history: false,
-  });
-
-  const [chosenNumber, setChosenNumber] = useState(null);
-  const [betAmount, setBetAmount] = useState(BigInt(0));
-  const [userBalance, setUserBalance] = useState(BigInt(0));
-  const [allowance, setAllowance] = useState(BigInt(0));
-  const [showStats, setShowStats] = useState(false);
-  const [showWinAnimation, setShowWinAnimation] = useState(false);
-  const [showLoseAnimation, setShowLoseAnimation] = useState(false);
-
   const monitorIntervalRef = useRef(null);
   const isMounted = useRef(true);
 
-  const updateGameState = useCallback(async () => {
-    if (!contracts.dice || !account || !isMounted.current) return;
-
-    try {
+  // Game State Query
+  const { data: gameStateData, isLoading: gameStateLoading } = useQuery({
+    queryKey: ['gameState', account, contracts.dice?.target],
+    queryFn: async () => {
+      if (!contracts.dice || !account) return null;
+      
       const [gameStatus, requestDetails, canPlay] = await Promise.all([
         contracts.dice.getGameStatus(account),
         contracts.dice.getCurrentRequestDetails(account),
         contracts.dice.canStartNewGame(account),
       ]);
 
-      if (!isMounted.current) return;
-
-      const currentGameData = {
+      return {
         gameStatus,
         requestDetails,
         canPlay,
       };
+    },
+    enabled: !!contracts.dice && !!account,
+    refetchInterval: 5000,
+  });
 
-      setGameState((prev) => ({
+  // Balance Query
+  const { data: balanceData, isLoading: balanceLoading } = useQuery({
+    queryKey: ['balance', account, contracts.token?.target],
+    queryFn: async () => {
+      if (!contracts.token || !account) return null;
+      
+      const [balance, tokenAllowance] = await Promise.all([
+        contracts.token.balanceOf(account),
+        contracts.token.allowance(account, contracts.dice.target),
+      ]);
+
+      return {
+        balance,
+        allowance: tokenAllowance,
+      };
+    },
+    enabled: !!contracts.token && !!account,
+    refetchInterval: 5000,
+  });
+
+  // Update game state based on query results
+  useEffect(() => {
+    if (gameStateData) {
+      const { gameStatus, requestDetails, canPlay } = gameStateData;
+      
+      setGameState(prev => ({
         ...prev,
         isActive: gameStatus.isActive,
         status: [
@@ -2662,90 +2683,14 @@ const DicePage = ({
           "COMPLETED_LOSS",
           "CANCELLED",
         ][Number(gameStatus.status)],
-        lastResult:
-          gameStatus.status > 1 ? Number(gameStatus.rolledNumber) : null,
+        lastResult: gameStatus.status > 1 ? Number(gameStatus.rolledNumber) : null,
         requestId: requestDetails.requestId.toString(),
-        needsResolution:
-          requestDetails.requestFulfilled && !requestDetails.requestActive,
+        needsResolution: requestDetails.requestFulfilled && !requestDetails.requestActive,
         canPlay,
-        currentGameData,
+        currentGameData: gameStateData,
       }));
-    } catch (error) {
-      if (isMounted.current) {
-        console.error("Error updating game state:", error);
-        onError(error);
-      }
     }
-  }, [contracts.dice, account, onError]);
-
-  const updateBalance = useCallback(async () => {
-    if (!contracts.token || !account || !isMounted.current) return;
-
-    try {
-      const [balance, tokenAllowance] = await Promise.all([
-        contracts.token.balanceOf(account),
-        contracts.token.allowance(account, contracts.dice.target),
-      ]);
-
-      if (!isMounted.current) return;
-
-      setUserBalance(balance);
-      setAllowance(tokenAllowance);
-    } catch (error) {
-      if (isMounted.current) {
-        console.error("Error updating balance:", error);
-        onError(error);
-      }
-    }
-  }, [contracts.token, contracts.dice, account, onError]);
-
-  const debouncedFetch = useMemo(
-    () =>
-      debounce(async () => {
-        try {
-          await Promise.all([updateGameState(), updateBalance()]);
-        } catch (error) {
-          onError(error);
-        }
-      }, 1000),
-    [updateGameState, updateBalance, onError]
-  );
-
-  useEffect(() => {
-    isMounted.current = true;
-    return () => {
-      isMounted.current = false;
-      debouncedFetch.cancel();
-      if (monitorIntervalRef.current) {
-        clearInterval(monitorIntervalRef.current);
-      }
-    };
-  }, [debouncedFetch]);
-
-  useEffect(() => {
-    if (!contracts.dice || !account) return;
-
-    const fetchData = async () => {
-      setIsLoading((prev) => ({ ...prev, gameState: true, balance: true }));
-      try {
-        await Promise.all([updateGameState(), updateBalance()]);
-      } catch (error) {
-        onError(error);
-      } finally {
-        setIsLoading((prev) => ({ ...prev, gameState: false, balance: false }));
-      }
-    };
-
-    fetchData();
-    const interval = setInterval(fetchData, 10000);
-
-    return () => {
-      clearInterval(interval);
-      if (monitorIntervalRef.current) {
-        clearInterval(monitorIntervalRef.current);
-      }
-    };
-  }, [contracts.dice, account, updateGameState, updateBalance, onError]);
+  }, [gameStateData]);
 
   const potentialWinnings = useMemo(() => {
     if (!betAmount || betAmount <= 0) return BigInt(0);
@@ -2753,59 +2698,20 @@ const DicePage = ({
   }, [betAmount]);
 
   const handleGameResolution = async () => {
-    if (
-      !gameState.needsResolution ||
-      !isMounted.current ||
-      !contracts.dice ||
-      !account
-    )
-      return;
+    if (!gameState.needsResolution || !contracts.dice || !account) return;
     if (gameState.isProcessing) return;
 
     try {
-      setGameState((prev) => ({
-        ...prev,
-        isProcessing: true,
-        isRolling: false,
-      }));
-
-      const [gameStatus, requestDetails] = await Promise.all([
-        contracts.dice.getGameStatus(account),
-        contracts.dice.getCurrentRequestDetails(account),
-      ]);
-
-      if (!gameStatus.isActive) {
-        throw new Error("No active game");
-      }
-
-      if (!requestDetails.requestFulfilled) {
-        throw new Error("Random number not ready");
-      }
+      setGameState(prev => ({ ...prev, isProcessing: true, isRolling: false }));
 
       const tx = await contracts.dice.resolveGame();
-      const receipt = await tx.wait();
+      await tx.wait();
 
-      if (!receipt.status) {
-        throw new Error("Transaction failed during execution");
-      }
+      // Invalidate queries to trigger refetch
+      queryClient.invalidateQueries(['gameState', account]);
+      queryClient.invalidateQueries(['balance', account]);
 
-      if (!isMounted.current) return;
-
-      const finalStatus = await contracts.dice.getGameStatus(account);
-      const isWin = Number(finalStatus.status) === 2;
-
-      setGameState((prev) => ({
-        ...prev,
-        isProcessing: false,
-        isRolling: false,
-        needsResolution: false,
-        isActive: false,
-        status: isWin ? "COMPLETED_WIN" : "COMPLETED_LOSS",
-        lastResult: Number(finalStatus.rolledNumber),
-        currentGameData: null,
-        canPlay: true,
-      }));
-
+      const isWin = gameState.status === "COMPLETED_WIN";
       if (isWin) {
         setShowWinAnimation(true);
         addToast("Congratulations! You won!", "success");
@@ -2814,128 +2720,56 @@ const DicePage = ({
         addToast("Better luck next time!", "warning");
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      await Promise.all([updateGameState(), updateBalance()]);
     } catch (error) {
-      if (!isMounted.current) return;
-
-      let errorMessage = error.reason || error.message;
-
-      if (errorMessage.includes("No active game")) {
-        errorMessage = "No active game found to resolve";
-      } else if (errorMessage.includes("Random number not ready")) {
-        errorMessage =
-          "The random number is not ready yet. Please wait a few moments and try again.";
-      }
-
-      console.error("Error resolving game:", errorMessage);
-      onError(new Error(errorMessage), "Game Resolution");
-
-      setGameState((prev) => ({
-        ...prev,
-        isProcessing: false,
-        isRolling: false,
-        needsResolution: errorMessage.includes("Random number not ready"),
-      }));
-
-      addToast(errorMessage, "warning");
+      console.error("Game resolution error:", error);
+      onError(error);
+    } finally {
+      setGameState(prev => ({ ...prev, isProcessing: false }));
     }
   };
 
   const checkAndApproveToken = async (amount) => {
-    if (!isMounted.current) return false;
+    if (!isMounted.current || !balanceData) return false;
 
     try {
-      if (allowance < amount) {
-        setGameState((prev) => ({ ...prev, isProcessing: true }));
+      if (balanceData.allowance < amount) {
+        setGameState(prev => ({ ...prev, isProcessing: true }));
         const tx = await contracts.token.approve(
           contracts.dice.target,
           ethers.MaxUint256
         );
         await tx.wait();
 
-        if (!isMounted.current) return false;
-
-        await updateBalance();
+        // Invalidate balance query to get updated allowance
+        queryClient.invalidateQueries(['balance', account]);
         addToast("Token approval successful", "success");
         return true;
       }
       return true;
     } catch (error) {
-      if (isMounted.current) {
-        console.error("Error approving tokens:", error);
-        onError(error);
-      }
+      console.error("Error approving tokens:", error);
+      onError(error);
       return false;
     } finally {
-      if (isMounted.current) {
-        setGameState((prev) => ({ ...prev, isProcessing: false }));
-      }
-    }
-  };
-
-  const logGameState = async () => {
-    if (!contracts.dice || !account) return;
-
-    try {
-      const [gameStatus, requestDetails, canPlay] = await Promise.all([
-        contracts.dice.getGameStatus(account),
-        contracts.dice.getCurrentRequestDetails(account),
-        contracts.dice.canStartNewGame(account),
-      ]);
-
-      console.log("Current Game State:", {
-        gameStatus,
-        requestDetails,
-        canPlay,
-        localState: gameState,
-      });
-    } catch (error) {
-      console.error("Error logging game state:", error);
+      setGameState(prev => ({ ...prev, isProcessing: false }));
     }
   };
 
   const handlePlaceBet = async () => {
-    if (!contracts.dice || !account || !chosenNumber || !isMounted.current)
-      return;
-    if (gameState.isProcessing || betAmount <= BigInt(0)) return;
+    if (!contracts.dice || !account || !chosenNumber || betAmount <= BigInt(0)) return;
+    if (gameState.isProcessing) return;
 
     try {
-      await logGameState();
-      setGameState((prev) => ({ ...prev, isProcessing: true }));
+      setGameState(prev => ({ ...prev, isProcessing: true }));
 
-      // Add additional validation for bet amount
-      if (betAmount > userBalance) {
-        throw new Error("Insufficient balance");
-      }
+      const tx = await contracts.dice.playDice(chosenNumber, betAmount);
+      await tx.wait();
 
-      // Check if user can play
-      const canPlay = await contracts.dice.canStartNewGame(account);
-      if (!canPlay) {
-        throw new Error(
-          "Cannot start new game - previous game may need resolution"
-        );
-      }
+      // Invalidate queries to trigger refetch
+      queryClient.invalidateQueries(['gameState', account]);
+      queryClient.invalidateQueries(['balance', account]);
 
-      // Add gas estimation
-      const gasEstimate = await contracts.dice.playDice.estimateGas(
-        chosenNumber,
-        betAmount
-      );
-
-      const tx = await contracts.dice.playDice(chosenNumber, betAmount, {
-        gasLimit: Math.ceil(gasEstimate * 1.2), // Add 20% buffer
-      });
-
-      // Add transaction confirmation handling
-      const receipt = await tx.wait();
-      if (!receipt.status) {
-        throw new Error("Transaction failed");
-      }
-
-      if (!isMounted.current) return;
-
-      setGameState((prev) => ({
+      setGameState(prev => ({
         ...prev,
         isActive: true,
         isRolling: true,
@@ -2944,90 +2778,15 @@ const DicePage = ({
 
       addToast("Bet placed successfully!", "success");
 
-      await Promise.all([updateGameState(), updateBalance()]);
-
-      await logGameState();
-
-      if (monitorIntervalRef.current) {
-        clearInterval(monitorIntervalRef.current);
-      }
-
-      monitorIntervalRef.current = setInterval(async () => {
-        try {
-          if (!isMounted.current) {
-            clearInterval(monitorIntervalRef.current);
-            return;
-          }
-
-          const [gameStatus, requestDetails] = await Promise.all([
-            contracts.dice.getGameStatus(account),
-            contracts.dice.getCurrentRequestDetails(account),
-          ]);
-
-          if (
-            requestDetails.requestFulfilled &&
-            Number(gameStatus.status) > 1
-          ) {
-            clearInterval(monitorIntervalRef.current);
-            monitorIntervalRef.current = null;
-            if (isMounted.current) {
-              await handleGameResolution();
-            }
-          }
-        } catch (error) {
-          console.error("Game monitoring error:", error);
-          clearInterval(monitorIntervalRef.current);
-        }
-      }, 2000);
     } catch (error) {
-      if (!isMounted.current) return;
-
-      // Enhance error handling
-      let errorMessage = error.reason || error.message;
-      if (errorMessage.includes("insufficient funds")) {
-        errorMessage = "Insufficient balance to place bet";
-      } else if (errorMessage.includes("gas required exceeds allowance")) {
-        errorMessage =
-          "Transaction would exceed gas limit. Please try a smaller bet amount.";
-      }
-
-      console.error("Bet placement error details:", error);
-      onError(new Error(errorMessage));
-      addToast(errorMessage, "error");
+      console.error("Bet placement error:", error);
+      onError(error);
     } finally {
-      if (isMounted.current) {
-        setGameState((prev) => ({
-          ...prev,
-          isProcessing: false,
-          isRolling: false,
-        }));
-      }
+      setGameState(prev => ({ ...prev, isProcessing: false }));
     }
   };
 
-  useEffect(() => {
-    if (!gameState.isActive || gameState.needsResolution) return;
-
-    const checkResolutionStatus = async () => {
-      try {
-        const [gameStatus, requestDetails] = await Promise.all([
-          contracts.dice.getGameStatus(account),
-          contracts.dice.getCurrentRequestDetails(account),
-        ]);
-
-        if (requestDetails.requestFulfilled && Number(gameStatus.status) > 1) {
-          handleGameResolution();
-        }
-      } catch (error) {
-        console.error("Error checking resolution status:", error);
-      }
-    };
-
-    const interval = setInterval(checkResolutionStatus, 3000);
-
-    return () => clearInterval(interval);
-  }, [gameState.isActive, gameState.needsResolution, contracts.dice, account]);
-
+  // Cleanup effect
   useEffect(() => {
     return () => {
       isMounted.current = false;
@@ -3035,43 +2794,8 @@ const DicePage = ({
         clearInterval(monitorIntervalRef.current);
         monitorIntervalRef.current = null;
       }
-      setGameState((prev) => ({
-        ...prev,
-        isActive: false,
-        needsResolution: false,
-        canPlay: true,
-        status: "PENDING",
-        isProcessing: false,
-        isRolling: false,
-      }));
     };
   }, []);
-
-  useEffect(() => {
-    const resetGameState = async () => {
-      if (!contracts.dice || !account) return;
-
-      try {
-        const canPlay = await contracts.dice.canStartNewGame(account);
-        if (canPlay) {
-          setGameState((prev) => ({
-            ...prev,
-            isActive: false,
-            needsResolution: false,
-            canPlay: true,
-            status: "PENDING",
-            isProcessing: false,
-            isRolling: false,
-          }));
-        }
-        await logGameState();
-      } catch (error) {
-        console.error("Error resetting game state:", error);
-      }
-    };
-
-    resetGameState();
-  }, [contracts.dice, account]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -3085,14 +2809,12 @@ const DicePage = ({
           </p>
         </div>
 
-        {(isLoading.gameState || isLoading.balance) && (
+        {(gameStateLoading || balanceLoading) && (
           <div className="glass-panel p-4">
             <div className="flex items-center justify-center space-x-2">
               <LoadingSpinner size="small" />
               <span className="text-secondary-400">
-                {isLoading.gameState
-                  ? "Updating game state..."
-                  : "Updating balance..."}
+                {gameStateLoading ? "Updating game state..." : "Updating balance..."}
               </span>
             </div>
           </div>
@@ -3124,13 +2846,13 @@ const DicePage = ({
                 <BetInput
                   value={betAmount}
                   onChange={setBetAmount}
-                  userBalance={userBalance.toString()}
+                  userBalance={balanceData?.balance.toString() || "0"}
                   disabled={!gameState.canPlay || gameState.isProcessing}
                 />
               </div>
 
               <div className="flex flex-col gap-4">
-                {betAmount > BigInt(0) && allowance < betAmount && (
+                {betAmount > BigInt(0) && balanceData?.allowance < betAmount && (
                   <button
                     onClick={() => checkAndApproveToken(betAmount)}
                     disabled={gameState.isProcessing}
@@ -3153,7 +2875,7 @@ const DicePage = ({
                     !gameState.canPlay ||
                     !chosenNumber ||
                     betAmount <= BigInt(0) ||
-                    allowance < betAmount ||
+                    (balanceData?.allowance || BigInt(0)) < betAmount ||
                     gameState.isProcessing
                   }
                   className="btn-gaming h-14 w-full"
@@ -3188,8 +2910,8 @@ const DicePage = ({
             </div>
 
             <BalancePanel
-              userBalance={userBalance}
-              allowance={allowance}
+              userBalance={balanceData?.balance || BigInt(0)}
+              allowance={balanceData?.allowance || BigInt(0)}
               potentialWinnings={potentialWinnings}
             />
           </div>
