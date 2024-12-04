@@ -26,7 +26,11 @@ import {
   Legend,
 } from "chart.js";
 import { debounce } from "lodash";
-import { useQuery, useQueryClient,QueryClientProvider } from "@tanstack/react-query";
+import {
+  useQuery,
+  useQueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 
 import DiceABI from "./contracts/abi/Dice.json";
 import TokenABI from "./contracts/abi/Token.json";
@@ -1414,7 +1418,6 @@ const GameBoard = ({ chosenNumber, gameState, onNumberSelect }) => {
     </div>
   );
 };
-
 
 // Game Card Component
 const GameCard = ({ game }) => (
@@ -2893,7 +2896,8 @@ const DicePage = ({
   };
 
   const handlePlaceBet = async () => {
-    if (!contracts.dice || !account || !chosenNumber || !isMounted.current) return;
+    if (!contracts.dice || !account || !chosenNumber || !isMounted.current)
+      return;
     if (gameState.isProcessing || betAmount <= BigInt(0)) return;
 
     try {
@@ -2908,15 +2912,17 @@ const DicePage = ({
       // Check if user can play
       const canPlay = await contracts.dice.canStartNewGame(account);
       if (!canPlay) {
-        throw new Error("Cannot start new game - previous game may need resolution");
+        throw new Error(
+          "Cannot start new game - previous game may need resolution"
+        );
       }
 
       // Add gas estimation
       const gasEstimate = await contracts.dice.playDice.estimateGas(
-        chosenNumber, 
+        chosenNumber,
         betAmount
       );
-      
+
       const tx = await contracts.dice.playDice(chosenNumber, betAmount, {
         gasLimit: Math.ceil(gasEstimate * 1.2), // Add 20% buffer
       });
@@ -2958,7 +2964,10 @@ const DicePage = ({
             contracts.dice.getCurrentRequestDetails(account),
           ]);
 
-          if (requestDetails.requestFulfilled && Number(gameStatus.status) > 1) {
+          if (
+            requestDetails.requestFulfilled &&
+            Number(gameStatus.status) > 1
+          ) {
             clearInterval(monitorIntervalRef.current);
             monitorIntervalRef.current = null;
             if (isMounted.current) {
@@ -2978,7 +2987,8 @@ const DicePage = ({
       if (errorMessage.includes("insufficient funds")) {
         errorMessage = "Insufficient balance to place bet";
       } else if (errorMessage.includes("gas required exceeds allowance")) {
-        errorMessage = "Transaction would exceed gas limit. Please try a smaller bet amount.";
+        errorMessage =
+          "Transaction would exceed gas limit. Please try a smaller bet amount.";
       }
 
       console.error("Bet placement error details:", error);
