@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.20;
-
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
-import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+
+import "@goplugin/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import "@goplugin/contracts/src/v0.8/dev/VRFConsumerBaseV2.sol";
 
 interface IMyToken is IERC20 {
     function mint(address to, uint256 amount) external;
@@ -56,7 +57,7 @@ struct UserData {
     uint256 lastPlayedTimestamp;
 }
 
-contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
+contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2, Ownable {
     // Constants
     uint256 private constant MAX_ROLL = 6;
     uint256 private constant GAME_TIMEOUT = 1 hours;
@@ -73,7 +74,7 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
     error OwnerError(uint256 code); // 1: Not owner, 2: Already owner, 3: Cannot remove last owner, 4: Cannot remove self
 
     // Immutable VRF variables
-    uint256 private immutable s_subscriptionId;
+    uint64 private immutable s_subscriptionId;
     bytes32 private immutable s_keyHash;
     uint32 private callbackGasLimit;
     uint16 private immutable requestConfirmations;
@@ -103,20 +104,32 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
     event OwnerAdded(address indexed newOwner);
     event OwnerRemoved(address indexed removedOwner);
 
+    // Add VRF coordinator interface
+    VRFCoordinatorV2Interface private immutable COORDINATOR;
+
+    // Add request tracking similar to example
+    struct RequestStatus {
+        bool fulfilled;
+        bool exists;
+        uint256[] randomWords;
+    }
+    mapping(uint256 => RequestStatus) public s_requests;
+
     constructor(
         address _myTokenAddress,
-        uint256 subscriptionId,
+        uint64 subscriptionId,
         address vrfCoordinator,
         bytes32 keyHash,
         uint32 _callbackGasLimit,
         uint16 _requestConfirmations,
         uint32 _numWords
-    ) VRFConsumerBaseV2Plus(vrfCoordinator) {
+    ) VRFConsumerBaseV2(vrfCoordinator) Ownable(msg.sender) {
         if (_myTokenAddress == address(0)) revert InvalidBetParameters(1);
         if (vrfCoordinator == address(0)) revert InvalidBetParameters(2);
         if (_callbackGasLimit == 0) revert InvalidBetParameters(3);
         if (_numWords == 0) revert InvalidBetParameters(4);
 
+        COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
         s_subscriptionId = subscriptionId;
         s_keyHash = keyHash;
         callbackGasLimit = _callbackGasLimit;
@@ -128,12 +141,6 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         owners[msg.sender] = true;
         numOwners = 1;
         emit OwnerAdded(msg.sender);
-    }
-
-    // Add this modifier to replace onlyOwner
-    modifier onlyOwners() {
-        if (!owners[msg.sender]) revert OwnerError(1);
-        _;
     }
 
     function playDice(uint256 chosenNumber, uint256 amount) external nonReentrant whenNotPaused returns (uint256 requestId) {
@@ -158,25 +165,20 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
             revert TransferFailed(1);
         }
 
-        // Request VRF directly here instead of using _requestRandomWords()
-        try s_vrfCoordinator.requestRandomWords(
-            VRFV2PlusClient.RandomWordsRequest({
-                keyHash: s_keyHash,
-                subId: s_subscriptionId,
-                requestConfirmations: requestConfirmations,
-                callbackGasLimit: callbackGasLimit,
-                numWords: numWords,
-                extraArgs: VRFV2PlusClient._argsToBytes(
-                    VRFV2PlusClient.ExtraArgsV1({
-                        nativePayment: false
-                    })
-                )
-            })
-        ) returns (uint256 _requestId) {
-            requestId = _requestId;
-        } catch {
-            revert VRFError(1);
-        }
+        // Request random number using COORDINATOR
+        requestId = COORDINATOR.requestRandomWords(
+            s_keyHash,
+            s_subscriptionId,
+            requestConfirmations,
+            callbackGasLimit,
+            numWords
+        );
+
+        s_requests[requestId] = RequestStatus({
+            randomWords: new uint256[](0),
+            exists: true,
+            fulfilled: false
+        });
         
         // Store the mapping of requestId to player
         requestToPlayer[requestId] = msg.sender;
@@ -202,7 +204,11 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         return requestId;
     }
 
-    function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
+        require(s_requests[requestId].exists, "request not found");
+        s_requests[requestId].fulfilled = true;
+        s_requests[requestId].randomWords = randomWords;
+
         address player = requestToPlayer[requestId];
         if (player == address(0)) revert GameError(2);
         
@@ -271,7 +277,7 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         user.currentRequestId = 0;
     }
 
-    function recoverStuckGame(address player) external onlyOwners {
+    function recoverStuckGame(address player) external onlyOwner {
         UserData storage user = userData[player];
         
         require(user.currentGame.isActive, "No active game");
@@ -307,11 +313,11 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         );
     }
 
-    function pause() external onlyOwners {
+    function pause() external onlyOwner {
         _pause();
     }
 
-    function unpause() external onlyOwners {
+    function unpause() external onlyOwner {
         _unpause();
     }
 
@@ -319,11 +325,11 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         return myToken.balanceOf(address(this));
     }
 
-    function revokeTokenRole(bytes32 role, address account) external onlyOwners {
+    function revokeTokenRole(bytes32 role, address account) external onlyOwner {
         myToken.revokeRole(role, account);
     }
 
-    function forceStopGame(address player) external onlyOwners {
+    function forceStopGame(address player) external onlyOwner {
         UserData storage user = userData[player];
         
         require(user.currentGame.isActive, "No active game");
@@ -466,13 +472,21 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         return user.maxHistorySize;
     }
 
-    function setCallbackGasLimit(uint32 _callbackGasLimit) external onlyOwners {
+    function setCallbackGasLimit(uint32 _callbackGasLimit) external onlyOwner {
         callbackGasLimit = _callbackGasLimit;
     }
 
-    // Add these owner management functions
-    function addOwner(address newOwner) external onlyOwners {
-        if (newOwner == address(0)) revert InvalidBetParameters(14);
+    function getOwnerCount() public view returns (uint256) {
+        return numOwners;
+    }
+
+    modifier onlyOwners() {
+        if (!owners[msg.sender]) revert OwnerError(1);
+        _;
+    }
+
+    function addOwner(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert OwnerError(1);
         if (owners[newOwner]) revert OwnerError(2);
         
         owners[newOwner] = true;
@@ -480,7 +494,8 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
         emit OwnerAdded(newOwner);
     }
 
-    function removeOwner(address ownerToRemove) external onlyOwners {
+    function removeOwner(address ownerToRemove) external onlyOwner {
+        if (ownerToRemove == address(0)) revert OwnerError(1);
         if (!owners[ownerToRemove]) revert OwnerError(1);
         if (numOwners <= 1) revert OwnerError(3);
         if (ownerToRemove == msg.sender) revert OwnerError(4);
@@ -492,9 +507,5 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2Plus {
 
     function isOwner(address account) public view returns (bool) {
         return owners[account];
-    }
-
-    function getOwnerCount() public view returns (uint256) {
-        return numOwners;
     }
 }

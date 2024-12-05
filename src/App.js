@@ -48,7 +48,7 @@ ChartJS.register(
 // Environment variables
 const DICE_CONTRACT_ADDRESS = process.env.REACT_APP_DICE_GAME_ADDRESS;
 const TOKEN_CONTRACT_ADDRESS = process.env.REACT_APP_TOKEN_ADDRESS;
-const SUPPORTED_CHAIN_IDS = [80002];
+const SUPPORTED_CHAIN_IDS = [51];
 
 // Enhanced Toast Component
 const Toast = ({ message, type, onClose }) => (
@@ -162,9 +162,9 @@ const Navbar = ({ account, connectWallet, loadingStates, isAdmin }) => (
 
 const NetworkWarning = () => (
   <div className="bg-gaming-error/90 text-white px-4 py-2 text-center">
-    <p>Please switch to Amoy Testnet (Chain ID: 80002)</p>
+    <p>Please switch to XDC Apothem Testnet (Chain ID: 51)</p>
     <button
-      onClick={switchToAmoyNetwork}
+      onClick={switchToXDCNetwork}
       className="mt-2 px-4 py-1 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
     >
       Switch Network
@@ -172,13 +172,13 @@ const NetworkWarning = () => (
   </div>
 );
 
-const switchToAmoyNetwork = async () => {
+const switchToXDCNetwork = async () => {
   if (!window.ethereum) return;
 
   try {
     await window.ethereum.request({
       method: "wallet_switchEthereumChain",
-      params: [{ chainId: "0x13882" }], // 80002 in hex
+      params: [{ chainId: "0x33" }], // 51 in hex
     });
   } catch (switchError) {
     // If the network is not added to MetaMask, add it
@@ -188,15 +188,15 @@ const switchToAmoyNetwork = async () => {
           method: "wallet_addEthereumChain",
           params: [
             {
-              chainId: "0x13882",
-              chainName: "Polygon Amoy Testnet",
+              chainId: "0x33",
+              chainName: "XDC Apothem Testnet",
               nativeCurrency: {
-                name: "MATIC",
-                symbol: "MATIC",
+                name: "XDC",
+                symbol: "XDC",
                 decimals: 18,
               },
-              rpcUrls: ["https://rpc-amoy.polygon.technology"],
-              blockExplorerUrls: ["https://www.oklink.com/amoy"],
+              rpcUrls: ["https://rpc.apothem.network"],
+              blockExplorerUrls: ["https://explorer.apothem.network"],
             },
           ],
         });
@@ -1112,15 +1112,15 @@ const GameHistory = ({ diceContract, account, onError }) => {
 
       try {
         // Fetch bets
-        const bets = await diceContract.getPreviousBets(account);
+      const bets = await diceContract.getPreviousBets(account);
 
         // Process bets and calculate stats
         const processedGames = bets
           .map((bet) => ({
-            chosenNumber: Number(bet.chosenNumber),
-            rolledNumber: Number(bet.rolledNumber),
+        chosenNumber: Number(bet.chosenNumber),
+        rolledNumber: Number(bet.rolledNumber),
             amount: bet.amount.toString(),
-            timestamp: Number(bet.timestamp),
+        timestamp: Number(bet.timestamp),
             isWin: Number(bet.chosenNumber) === Number(bet.rolledNumber),
             payout:
               Number(bet.chosenNumber) === Number(bet.rolledNumber)
@@ -1875,10 +1875,13 @@ const GameControls = ({
 }) => {
   const [gameState, setGameState] = useState({
     isActive: false,
-    requestId: null,
-    status: "PENDING",
+    chosenNumber: null,
     result: null,
+    amount: BigInt(0),
     timestamp: 0,
+    payout: BigInt(0),
+    randomWord: BigInt(0),
+    status: "PENDING", // Now matches GameStatus enum from contract
     needsResolution: false,
     canPlay: true,
     isProcessing: false,
@@ -2317,6 +2320,13 @@ function AdminPage({
   const handleRoleManagement = async (action) => {
     try {
       setLoading((prev) => ({ ...prev, action: true }));
+
+      // Get the correct role hash based on selection
+      const roleHash =
+        formInputs.selectedRole === "MINTER_ROLE"
+          ? await tokenContract.MINTER_ROLE()
+          : await tokenContract.BURNER_ROLE();
+
       if (!ethers.isAddress(formInputs.newAddress)) {
         addToast("Invalid address", "error");
         return;
@@ -2324,14 +2334,8 @@ function AdminPage({
 
       const tx =
         action === "grant"
-          ? await tokenContract.grantRole(
-              formInputs.selectedRole,
-              formInputs.newAddress
-            )
-          : await tokenContract.revokeRole(
-              formInputs.selectedRole,
-              formInputs.newAddress
-            );
+          ? await tokenContract.grantRole(roleHash, formInputs.newAddress)
+          : await tokenContract.revokeRole(roleHash, formInputs.newAddress);
 
       await tx.wait();
       addToast(`Role ${action}ed successfully`, "success");
@@ -2613,47 +2617,65 @@ const DicePage = ({
   const [showLoseAnimation, setShowLoseAnimation] = useState(false);
   const [gameState, setGameState] = useState({
     isActive: false,
-    status: "PENDING",
-    lastResult: null,
-    requestId: null,
+    chosenNumber: null,
+    result: null,
+    amount: BigInt(0),
+    timestamp: 0,
+    payout: BigInt(0),
+    randomWord: BigInt(0),
+    status: "PENDING", // Now matches GameStatus enum from contract
     needsResolution: false,
     canPlay: true,
     isProcessing: false,
     isRolling: false,
-    currentGameData: null,
   });
 
   const monitorIntervalRef = useRef(null);
   const isMounted = useRef(true);
 
+  const GameStatus = {
+    PENDING: 0,
+    STARTED: 1,
+    COMPLETED_WIN: 2,
+    COMPLETED_LOSS: 3,
+    CANCELLED: 4,
+  };
+
   // Game State Query
   const { data: gameStateData, isLoading: gameStateLoading } = useQuery({
-    queryKey: ['gameState', account, contracts.dice?.target],
+    queryKey: ["gameState", account, contracts.dice?.target],
     queryFn: async () => {
       if (!contracts.dice || !account) return null;
-      
-      const [gameStatus, requestDetails, canPlay] = await Promise.all([
-        contracts.dice.getGameStatus(account),
-        contracts.dice.getCurrentRequestDetails(account),
+
+      const [currentGame, hasPendingRequest, canPlay] = await Promise.all([
+        contracts.dice.getCurrentGame(account),
+        contracts.dice.hasPendingRequest(account),
         contracts.dice.canStartNewGame(account),
       ]);
 
       return {
-        gameStatus,
-        requestDetails,
+        currentGame: {
+          isActive: currentGame.isActive,
+          chosenNumber: Number(currentGame.chosenNumber),
+          result: Number(currentGame.result),
+          amount: currentGame.amount,
+          timestamp: Number(currentGame.timestamp),
+          payout: currentGame.payout,
+          randomWord: currentGame.randomWord,
+          status: currentGame.status,
+        },
+        hasPendingRequest,
         canPlay,
       };
     },
-    enabled: !!contracts.dice && !!account,
-    refetchInterval: 5000,
   });
 
   // Balance Query
   const { data: balanceData, isLoading: balanceLoading } = useQuery({
-    queryKey: ['balance', account, contracts.token?.target],
+    queryKey: ["balance", account, contracts.token?.target],
     queryFn: async () => {
       if (!contracts.token || !account) return null;
-      
+
       const [balance, tokenAllowance] = await Promise.all([
         contracts.token.balanceOf(account),
         contracts.token.allowance(account, contracts.dice.target),
@@ -2671,120 +2693,232 @@ const DicePage = ({
   // Update game state based on query results
   useEffect(() => {
     if (gameStateData) {
-      const { gameStatus, requestDetails, canPlay } = gameStateData;
-      
-      setGameState(prev => ({
+      const { currentGame, hasPendingRequest, canPlay } = gameStateData;
+
+      setGameState((prev) => ({
         ...prev,
-        isActive: gameStatus.isActive,
-        status: [
-          "PENDING",
-          "STARTED",
-          "COMPLETED_WIN",
-          "COMPLETED_LOSS",
-          "CANCELLED",
-        ][Number(gameStatus.status)],
-        lastResult: gameStatus.status > 1 ? Number(gameStatus.rolledNumber) : null,
-        requestId: requestDetails.requestId.toString(),
-        needsResolution: requestDetails.requestFulfilled && !requestDetails.requestActive,
+        isActive: currentGame.isActive,
+        status: Object.keys(GameStatus)[currentGame.status],
+        result: currentGame.result > 0 ? currentGame.result : null,
+        amount: currentGame.amount,
+        timestamp: currentGame.timestamp,
+        payout: currentGame.payout,
+        randomWord: currentGame.randomWord,
+        needsResolution: !hasPendingRequest && currentGame.isActive,
         canPlay,
-        currentGameData: gameStateData,
+        currentGameData: currentGame,
       }));
     }
   }, [gameStateData]);
-
-  const potentialWinnings = useMemo(() => {
-    if (!betAmount || betAmount <= 0) return BigInt(0);
-    return betAmount * BigInt(6);
-  }, [betAmount]);
 
   const handleGameResolution = async () => {
     if (!gameState.needsResolution || !contracts.dice || !account) return;
     if (gameState.isProcessing) return;
 
     try {
-      setGameState(prev => ({ ...prev, isProcessing: true, isRolling: false }));
+      setGameState((prev) => ({
+        ...prev,
+        isProcessing: true,
+        isRolling: true,
+      }));
 
       const tx = await contracts.dice.resolveGame();
       await tx.wait();
 
-      // Invalidate queries to trigger refetch
-      queryClient.invalidateQueries(['gameState', account]);
-      queryClient.invalidateQueries(['balance', account]);
+      // Invalidate queries
+      queryClient.invalidateQueries(["gameState", account]);
+      queryClient.invalidateQueries(["balance", account]);
 
-      const isWin = gameState.status === "COMPLETED_WIN";
+      // Show appropriate animation after resolution
+      const updatedGame = await contracts.dice.getCurrentGame(account);
+      const isWin = updatedGame.status === GameStatus.COMPLETED_WIN;
+
       if (isWin) {
         setShowWinAnimation(true);
-        addToast("Congratulations! You won!", "success");
+        addToast(
+          `Congratulations! You won ${ethers.formatEther(
+            updatedGame.payout
+          )} GameX!`,
+          "success"
+        );
       } else {
         setShowLoseAnimation(true);
         addToast("Better luck next time!", "warning");
       }
-
     } catch (error) {
       console.error("Game resolution error:", error);
-      onError(error);
+      handleContractError(error, onError);
     } finally {
-      setGameState(prev => ({ ...prev, isProcessing: false }));
+      setGameState((prev) => ({
+        ...prev,
+        isProcessing: false,
+        isRolling: false,
+      }));
+    }
+  };
+
+  // Add new error handling function
+  const handleContractError = (error, onError) => {
+    if (error.code === "CALL_EXCEPTION") {
+      const errorName = error.errorName;
+      switch (errorName) {
+        case "InvalidBetParameters":
+          addToast("Invalid bet parameters", "error");
+          break;
+        case "InsufficientContractBalance":
+          addToast("Insufficient contract balance", "error");
+          break;
+        case "InsufficientUserBalance":
+          addToast("Insufficient balance", "error");
+          break;
+        case "GameError":
+          addToast("Game error occurred", "error");
+          break;
+        case "PayoutCalculationError":
+          addToast("Error calculating payout", "error");
+          break;
+        default:
+          onError(error);
+      }
+    } else {
+      onError(error);
     }
   };
 
   const checkAndApproveToken = async (amount) => {
-    if (!isMounted.current || !balanceData) return false;
+    if (!contracts.token || !contracts.dice || !amount) {
+      throw new Error("Missing required parameters for token approval");
+    }
 
     try {
-      if (balanceData.allowance < amount) {
-        setGameState(prev => ({ ...prev, isProcessing: true }));
-        const tx = await contracts.token.approve(
-          contracts.dice.target,
-          ethers.MaxUint256
-        );
-        await tx.wait();
+      // Set processing state
+      setGameState((prev) => ({ ...prev, isProcessing: true }));
 
-        // Invalidate balance query to get updated allowance
-        queryClient.invalidateQueries(['balance', account]);
-        addToast("Token approval successful", "success");
+      // Get current allowance
+      const currentAllowance = await contracts.token.allowance(
+        account,
+        contracts.dice.target
+      );
+
+      // If current allowance is less than amount, approve
+      if (currentAllowance < amount) {
+        // First reset allowance to 0 if there's an existing allowance
+        if (currentAllowance > 0n) {
+          const resetTx = await contracts.token.approve(
+            contracts.dice.target,
+            0
+          );
+          await resetTx.wait();
+        }
+
+        // Now set the new allowance
+        const tx = await contracts.token.approve(contracts.dice.target, amount);
+        const receipt = await tx.wait();
+
+        if (!receipt.status) {
+          throw new Error("Token approval transaction failed");
+        }
+
+        // Verify the new allowance
+        const newAllowance = await contracts.token.allowance(
+          account,
+          contracts.dice.target
+        );
+
+        if (newAllowance < amount) {
+          throw new Error("Allowance not set correctly");
+        }
+
         return true;
       }
+
       return true;
     } catch (error) {
-      console.error("Error approving tokens:", error);
-      onError(error);
-      return false;
+      console.error("Token approval error:", error);
+      throw error;
     } finally {
-      setGameState(prev => ({ ...prev, isProcessing: false }));
+      setGameState((prev) => ({ ...prev, isProcessing: false }));
     }
   };
 
-  const handlePlaceBet = async () => {
-    if (!contracts.dice || !account || !chosenNumber || betAmount <= BigInt(0)) return;
-    if (gameState.isProcessing) return;
-
-    try {
-      setGameState(prev => ({ ...prev, isProcessing: true }));
-
-      const tx = await contracts.dice.playDice(chosenNumber, betAmount);
-      await tx.wait();
-
-      // Invalidate queries to trigger refetch
-      queryClient.invalidateQueries(['gameState', account]);
-      queryClient.invalidateQueries(['balance', account]);
-
-      setGameState(prev => ({
-        ...prev,
-        isActive: true,
-        isRolling: true,
-        status: "STARTED",
-      }));
-
-      addToast("Bet placed successfully!", "success");
-
-    } catch (error) {
-      console.error("Bet placement error:", error);
-      onError(error);
-    } finally {
-      setGameState(prev => ({ ...prev, isProcessing: false }));
-    }
+  const checkApprovals = async () => {
+    const allowance = await contracts.token.allowance(
+      account,
+      contracts.dice.target
+    );
+    const balance = await contracts.token.balanceOf(account);
+    console.log({
+      allowance: allowance.toString(),
+      balance: balance.toString(),
+      betAmount: betAmount.toString(),
+    });
   };
+
+  console.log({
+    canPlay: gameState.canPlay,
+    isProcessing: gameState.isProcessing,
+    chosenNumber,
+    betAmount: betAmount.toString(),
+    userBalance: balanceData?.balance?.toString() || "0", // Fixed reference to userBalance
+  });
+
+  const debouncedPlaceBet = useCallback(
+    debounce(async () => {
+      if (
+        !contracts.dice ||
+        !account ||
+        !chosenNumber ||
+        betAmount <= BigInt(0)
+      )
+        return;
+      if (gameState.isProcessing) return;
+
+      try {
+        setGameState((prev) => ({ ...prev, isProcessing: true }));
+
+        const tx = await contracts.dice.playDice(chosenNumber, betAmount);
+        await tx.wait();
+
+        queryClient.invalidateQueries(["gameState", account]);
+        queryClient.invalidateQueries(["balance", account]);
+
+        setGameState((prev) => ({
+          ...prev,
+          isActive: true,
+          isRolling: true,
+          status: "STARTED",
+        }));
+
+        addToast("Bet placed successfully!", "success");
+      } catch (error) {
+        console.error("Bet placement error:", error);
+
+        let errorMessage = "Failed to place bet";
+
+        // Handle specific error codes
+        if (error.code === "CALL_EXCEPTION") {
+          if (error.action === "estimateGas") {
+            // This usually means there's a revert at the contract level
+            errorMessage =
+              "Transaction would fail - please check your balance and permissions";
+
+            // Try to get more specific error info if available
+            if (error.info?.error?.data) {
+              const errorData = error.info.error.data;
+              // Add specific contract error handling here if needed
+            }
+          }
+        } else if (error.code === "ACTION_REJECTED") {
+          errorMessage = "Transaction rejected by user";
+        }
+
+        onError({ ...error, message: errorMessage });
+      } finally {
+        setGameState((prev) => ({ ...prev, isProcessing: false }));
+      }
+    }, 500),
+    [contracts.dice, account, chosenNumber, betAmount, gameState.isProcessing]
+  );
 
   // Cleanup effect
   useEffect(() => {
@@ -2796,6 +2930,62 @@ const DicePage = ({
       }
     };
   }, []);
+
+  const handlePlaceBet = async () => {
+    try {
+      console.log("Starting bet placement...");
+
+      // Check if user has an active game
+      const gameStatus = await contracts.dice.getCurrentGame(account);
+      console.log("Current game status:", gameStatus);
+
+      // Check token approvals
+      const allowance = await contracts.token.allowance(
+        account,
+        contracts.dice.target
+      );
+      const balance = await contracts.token.balanceOf(account);
+      console.log("Token status:", {
+        allowance: allowance.toString(),
+        balance: balance.toString(),
+        betAmount: betAmount.toString(),
+      });
+
+      // Attempt to place bet
+      const tx = await contracts.dice.playDice(chosenNumber, betAmount);
+      console.log("Transaction sent:", tx.hash);
+
+      await tx.wait();
+      console.log("Transaction confirmed");
+    } catch (error) {
+      console.error("Bet placement failed:", error);
+      // Check for specific error types
+      if (error.code === "CALL_EXCEPTION") {
+        const errorName = error.errorName;
+        switch (errorName) {
+          case "InvalidBetParameters":
+            addToast(
+              "Invalid bet parameters. Check your bet amount and chosen number.",
+              "error"
+            );
+            break;
+          case "InsufficientUserBalance":
+            addToast("Insufficient balance to place bet.", "error");
+            break;
+          case "GameError":
+            addToast(
+              "You have an active game. Please resolve it first.",
+              "error"
+            );
+            break;
+          default:
+            onError(error);
+        }
+      } else {
+        onError(error);
+      }
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -2814,7 +3004,9 @@ const DicePage = ({
             <div className="flex items-center justify-center space-x-2">
               <LoadingSpinner size="small" />
               <span className="text-secondary-400">
-                {gameStateLoading ? "Updating game state..." : "Updating balance..."}
+                {gameStateLoading
+                  ? "Updating game state..."
+                  : "Updating balance..."}
               </span>
             </div>
           </div>
@@ -2852,22 +3044,23 @@ const DicePage = ({
               </div>
 
               <div className="flex flex-col gap-4">
-                {betAmount > BigInt(0) && balanceData?.allowance < betAmount && (
-                  <button
-                    onClick={() => checkAndApproveToken(betAmount)}
-                    disabled={gameState.isProcessing}
-                    className="btn-gaming h-14 w-full"
-                  >
-                    {gameState.isProcessing ? (
-                      <span className="flex items-center justify-center">
-                        <LoadingSpinner size="small" />
-                        <span className="ml-2">Approving...</span>
-                      </span>
-                    ) : (
-                      "Approve Tokens"
-                    )}
-                  </button>
-                )}
+                {betAmount > BigInt(0) &&
+                  balanceData?.allowance < betAmount && (
+                    <button
+                      onClick={() => checkAndApproveToken(betAmount)}
+                      disabled={gameState.isProcessing}
+                      className="btn-gaming h-14 w-full"
+                    >
+                      {gameState.isProcessing ? (
+                        <span className="flex items-center justify-center">
+                          <LoadingSpinner size="small" />
+                          <span className="ml-2">Approving...</span>
+                        </span>
+                      ) : (
+                        "Approve Tokens"
+                      )}
+                    </button>
+                  )}
 
                 <button
                   onClick={handlePlaceBet}
@@ -2876,7 +3069,10 @@ const DicePage = ({
                     !chosenNumber ||
                     betAmount <= BigInt(0) ||
                     (balanceData?.allowance || BigInt(0)) < betAmount ||
-                    gameState.isProcessing
+                    (balanceData?.balance || BigInt(0)) < betAmount ||
+                    gameState.isProcessing ||
+                    !account ||
+                    !contracts.dice
                   }
                   className="btn-gaming h-14 w-full"
                 >
@@ -2912,7 +3108,7 @@ const DicePage = ({
             <BalancePanel
               userBalance={balanceData?.balance || BigInt(0)}
               allowance={balanceData?.allowance || BigInt(0)}
-              potentialWinnings={potentialWinnings}
+              potentialWinnings={betAmount * BigInt(6)}
             />
           </div>
 
@@ -3029,7 +3225,7 @@ function App() {
       setChainId(currentChainId);
 
       if (!SUPPORTED_CHAIN_IDS.includes(currentChainId)) {
-        throw new Error("Please switch to Amoy Testnet (Chain ID: 80002)");
+        throw new Error("Please switch to XDC Apothem Testnet (Chain ID: 51)");
       }
 
       return currentChainId;
@@ -3239,8 +3435,8 @@ function App() {
     setChainId(chainIdDec);
 
     if (!SUPPORTED_CHAIN_IDS.includes(chainIdDec)) {
-      addToast("Please switch to Amoy Testnet (Chain ID: 80002)", "error");
-      await switchToAmoyNetwork();
+      addToast("Please switch to XDC Apothem Testnet (Chain ID: 51)", "error");
+      await switchToXDCNetwork();
       return;
     }
 
