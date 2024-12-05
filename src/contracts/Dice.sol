@@ -76,7 +76,7 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2, Ownable {
     // Immutable VRF variables
     uint64 private immutable s_subscriptionId;
     bytes32 private immutable s_keyHash;
-    uint32 private callbackGasLimit;
+    uint32 private immutable callbackGasLimit;
     uint16 private immutable requestConfirmations;
     uint32 private immutable numWords;
 
@@ -472,9 +472,7 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2, Ownable {
         return user.maxHistorySize;
     }
 
-    function setCallbackGasLimit(uint32 _callbackGasLimit) external onlyOwner {
-        callbackGasLimit = _callbackGasLimit;
-    }
+    
 
     function getOwnerCount() public view returns (uint256) {
         return numOwners;

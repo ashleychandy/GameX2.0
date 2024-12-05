@@ -2800,19 +2800,15 @@ const DicePage = ({
         contracts.dice.target
       );
 
-      // If current allowance is less than amount, approve
+      // If current allowance is less than amount, approve max amount
       if (currentAllowance < amount) {
-        // First reset allowance to 0 if there's an existing allowance
-        if (currentAllowance > 0n) {
-          const resetTx = await contracts.token.approve(
-            contracts.dice.target,
-            0
-          );
-          await resetTx.wait();
-        }
+        // Use MaxUint256 for unlimited approval
+        const maxApproval = ethers.MaxUint256;
 
-        // Now set the new allowance
-        const tx = await contracts.token.approve(contracts.dice.target, amount);
+        const tx = await contracts.token.approve(
+          contracts.dice.target,
+          maxApproval
+        );
         const receipt = await tx.wait();
 
         if (!receipt.status) {
@@ -2829,6 +2825,7 @@ const DicePage = ({
           throw new Error("Allowance not set correctly");
         }
 
+        addToast("Token approval successful", "success");
         return true;
       }
 
