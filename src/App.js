@@ -2984,6 +2984,9 @@ const DicePage = ({
     }
   };
 
+  // Add a check for zero balance
+  const hasNoTokens = balanceData?.balance === BigInt(0);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="space-y-10">
@@ -3036,8 +3039,13 @@ const DicePage = ({
                   value={betAmount}
                   onChange={setBetAmount}
                   userBalance={balanceData?.balance.toString() || "0"}
-                  disabled={!gameState.canPlay || gameState.isProcessing}
+                  disabled={!gameState.canPlay || gameState.isProcessing || hasNoTokens}
                 />
+                {hasNoTokens && (
+                  <p className="text-red-500 mt-2 text-sm">
+                    You don't have any tokens to play. Please acquire tokens first.
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col gap-4">
@@ -3067,6 +3075,7 @@ const DicePage = ({
                     betAmount <= BigInt(0) ||
                     (balanceData?.allowance || BigInt(0)) < betAmount ||
                     (balanceData?.balance || BigInt(0)) < betAmount ||
+                    hasNoTokens || // Add this condition
                     gameState.isProcessing ||
                     !account ||
                     !contracts.dice
@@ -3078,6 +3087,8 @@ const DicePage = ({
                       <LoadingSpinner size="small" />
                       <span className="ml-2">Processing...</span>
                     </span>
+                  ) : hasNoTokens ? ( // Add this condition
+                    "No Tokens Available"
                   ) : (
                     "Place Bet"
                   )}
