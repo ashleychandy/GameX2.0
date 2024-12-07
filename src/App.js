@@ -48,7 +48,7 @@ ChartJS.register(
 // Environment variables
 const DICE_CONTRACT_ADDRESS = process.env.REACT_APP_DICE_GAME_ADDRESS;
 const TOKEN_CONTRACT_ADDRESS = process.env.REACT_APP_TOKEN_ADDRESS;
-const SUPPORTED_CHAIN_IDS = [51];
+const SUPPORTED_CHAIN_IDS = [50];
 
 // Enhanced Toast Component
 const Toast = ({ message, type, onClose }) => (
@@ -162,7 +162,7 @@ const Navbar = ({ account, connectWallet, loadingStates, isAdmin }) => (
 
 const NetworkWarning = () => (
   <div className="bg-gaming-error/90 text-white px-4 py-2 text-center">
-    <p>Please switch to XDC Apothem Testnet (Chain ID: 51)</p>
+    <p>Please switch to XDC Network(Chain ID: 50)</p>
     <button
       onClick={switchToXDCNetwork}
       className="mt-2 px-4 py-1 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
@@ -178,7 +178,7 @@ const switchToXDCNetwork = async () => {
   try {
     await window.ethereum.request({
       method: "wallet_switchEthereumChain",
-      params: [{ chainId: "0x33" }], // 51 in hex
+      params: [{ chainId: "0x32" }], // 50 in hex for XDC Mainnet
     });
   } catch (switchError) {
     // If the network is not added to MetaMask, add it
@@ -188,17 +188,17 @@ const switchToXDCNetwork = async () => {
           method: "wallet_addEthereumChain",
           params: [
             {
-              chainId: "0x33",
-              chainName: "XDC Apothem Testnet",
+              chainId: "0x32",
+              chainName: "XDC Network",
               nativeCurrency: {
                 name: "XDC",
                 symbol: "XDC",
                 decimals: 18,
               },
-              rpcUrls: [process.env.REACT_APP_XDC_APOTHEM_RPC_URL], // Use environment variable
+              rpcUrls: [process.env.REACT_APP_XDC_MAINNET_RPC_URL], // Use mainnet RPC URL
               blockExplorerUrls: [
-                process.env.REACT_APP_XDC_APOTHEM_BLOCK_EXPLORER_URL,
-              ], // Use environment variable
+                process.env.REACT_APP_XDC_MAINNET_BLOCK_EXPLORER_URL,
+              ], // Use mainnet block explorer URL
             },
           ],
         });
@@ -2257,8 +2257,8 @@ function AdminPage({
     console.log('Environment Variables Used:');
     console.log('REACT_APP_DICE_GAME_ADDRESS:', process.env.REACT_APP_DICE_GAME_ADDRESS);
     console.log('REACT_APP_TOKEN_ADDRESS:', process.env.REACT_APP_TOKEN_ADDRESS);
-    console.log('REACT_APP_XDC_APOTHEM_RPC_URL:', process.env.REACT_APP_XDC_APOTHEM_RPC_URL);
-    console.log('REACT_APP_XDC_APOTHEM_BLOCK_EXPLORER_URL:', process.env.REACT_APP_XDC_APOTHEM_BLOCK_EXPLORER_URL);
+    console.log('REACT_APP_XDC_MAINNET_RPC_URL:', process.env.REACT_APP_XDC_MAINNET_RPC_URL);
+    console.log('REACT_APP_XDC_MAINNET_BLOCK_EXPLORER_URL:', process.env.REACT_APP_XDC_MAINNET_BLOCK_EXPLORER_URL);
   }, []);
 
   const [gameStats, setGameStats] = useState({
@@ -3247,7 +3247,7 @@ function App() {
       setChainId(currentChainId);
 
       if (!SUPPORTED_CHAIN_IDS.includes(currentChainId)) {
-        throw new Error("Please switch to XDC Apothem Testnet (Chain ID: 51)");
+        throw new Error("Please switch to XDC Network (Chain ID: 50)");
       }
 
       return currentChainId;
@@ -3457,7 +3457,7 @@ function App() {
     setChainId(chainIdDec);
 
     if (!SUPPORTED_CHAIN_IDS.includes(chainIdDec)) {
-      addToast("Please switch to XDC Apothem Testnet (Chain ID: 51)", "error");
+      addToast("Please switch to XDC Network (Chain ID: 50)", "error");
       await switchToXDCNetwork();
       return;
     }
