@@ -2252,6 +2252,15 @@ function AdminPage({
   onError,
   addToast,
 }) {
+  // Add logging of environment variables at component mount
+  useEffect(() => {
+    console.log('Environment Variables Used:');
+    console.log('REACT_APP_DICE_GAME_ADDRESS:', process.env.REACT_APP_DICE_GAME_ADDRESS);
+    console.log('REACT_APP_TOKEN_ADDRESS:', process.env.REACT_APP_TOKEN_ADDRESS);
+    console.log('REACT_APP_XDC_APOTHEM_RPC_URL:', process.env.REACT_APP_XDC_APOTHEM_RPC_URL);
+    console.log('REACT_APP_XDC_APOTHEM_BLOCK_EXPLORER_URL:', process.env.REACT_APP_XDC_APOTHEM_BLOCK_EXPLORER_URL);
+  }, []);
+
   const [gameStats, setGameStats] = useState({
     contractBalance: BigInt(0),
     isPaused: false,
