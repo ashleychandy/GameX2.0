@@ -195,8 +195,10 @@ const switchToXDCNetwork = async () => {
                 symbol: "XDC",
                 decimals: 18,
               },
-              rpcUrls: ["https://rpc.apothem.network"],
-              blockExplorerUrls: ["https://explorer.apothem.network"],
+              rpcUrls: [process.env.REACT_APP_XDC_APOTHEM_RPC_URL], // Use environment variable
+              blockExplorerUrls: [
+                process.env.REACT_APP_XDC_APOTHEM_BLOCK_EXPLORER_URL,
+              ], // Use environment variable
             },
           ],
         });
@@ -1112,15 +1114,15 @@ const GameHistory = ({ diceContract, account, onError }) => {
 
       try {
         // Fetch bets
-      const bets = await diceContract.getPreviousBets(account);
+        const bets = await diceContract.getPreviousBets(account);
 
         // Process bets and calculate stats
         const processedGames = bets
           .map((bet) => ({
-        chosenNumber: Number(bet.chosenNumber),
-        rolledNumber: Number(bet.rolledNumber),
+            chosenNumber: Number(bet.chosenNumber),
+            rolledNumber: Number(bet.rolledNumber),
             amount: bet.amount.toString(),
-        timestamp: Number(bet.timestamp),
+            timestamp: Number(bet.timestamp),
             isWin: Number(bet.chosenNumber) === Number(bet.rolledNumber),
             payout:
               Number(bet.chosenNumber) === Number(bet.rolledNumber)
@@ -3039,11 +3041,14 @@ const DicePage = ({
                   value={betAmount}
                   onChange={setBetAmount}
                   userBalance={balanceData?.balance.toString() || "0"}
-                  disabled={!gameState.canPlay || gameState.isProcessing || hasNoTokens}
+                  disabled={
+                    !gameState.canPlay || gameState.isProcessing || hasNoTokens
+                  }
                 />
                 {hasNoTokens && (
                   <p className="text-red-500 mt-2 text-sm">
-                    You don't have any tokens to play. Please acquire tokens first.
+                    You don't have any tokens to play. Please acquire tokens
+                    first.
                   </p>
                 )}
               </div>
