@@ -271,9 +271,11 @@ const BetInput = ({
       const weiValue = BigInt(amount) * BigInt("1000000000000000000");
       const minValue = BigInt(min);
       const maxValue = BigInt(userBalance);
-      
+
       // Check if potential win (6x bet) would overflow uint256
-      const MAX_UINT256 = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");
+      const MAX_UINT256 = BigInt(
+        "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+      );
       const potentialWin = weiValue * BigInt(6);
       if (potentialWin > MAX_UINT256) {
         throw new Error("Bet amount too large - potential win would overflow");
@@ -333,7 +335,9 @@ const BetInput = ({
       const minValue = BigInt(min);
 
       // Check if potential win (6x bet) would overflow uint256
-      const MAX_UINT256 = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");
+      const MAX_UINT256 = BigInt(
+        "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+      );
       const potentialWin = amount * BigInt(6);
       if (potentialWin > MAX_UINT256) {
         setError("Amount too large - potential win would overflow");
@@ -365,13 +369,15 @@ const BetInput = ({
       const balance = BigInt(userBalance);
       const step = balance / BigInt(100); // 1% step
       const minValue = BigInt(min);
-      const MAX_UINT256 = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");
+      const MAX_UINT256 = BigInt(
+        "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+      );
 
       let newValue;
       if (increment) {
         newValue = currentValue + step;
         if (newValue > balance) newValue = balance;
-        
+
         // Check for potential win overflow
         const potentialWin = newValue * BigInt(6);
         if (potentialWin > MAX_UINT256) {
@@ -2283,11 +2289,23 @@ function AdminPage({
 }) {
   // Add logging of environment variables at component mount
   useEffect(() => {
-    console.log('Environment Variables Used:');
-    console.log('REACT_APP_DICE_GAME_ADDRESS:', process.env.REACT_APP_DICE_GAME_ADDRESS);
-    console.log('REACT_APP_TOKEN_ADDRESS:', process.env.REACT_APP_TOKEN_ADDRESS);
-    console.log('REACT_APP_XDC_MAINNET_RPC_URL:', process.env.REACT_APP_XDC_MAINNET_RPC_URL);
-    console.log('REACT_APP_XDC_MAINNET_BLOCK_EXPLORER_URL:', process.env.REACT_APP_XDC_MAINNET_BLOCK_EXPLORER_URL);
+    console.log("Environment Variables Used:");
+    console.log(
+      "REACT_APP_DICE_GAME_ADDRESS:",
+      process.env.REACT_APP_DICE_GAME_ADDRESS
+    );
+    console.log(
+      "REACT_APP_TOKEN_ADDRESS:",
+      process.env.REACT_APP_TOKEN_ADDRESS
+    );
+    console.log(
+      "REACT_APP_XDC_MAINNET_RPC_URL:",
+      process.env.REACT_APP_XDC_MAINNET_RPC_URL
+    );
+    console.log(
+      "REACT_APP_XDC_MAINNET_BLOCK_EXPLORER_URL:",
+      process.env.REACT_APP_XDC_MAINNET_BLOCK_EXPLORER_URL
+    );
   }, []);
 
   const [gameStats, setGameStats] = useState({
