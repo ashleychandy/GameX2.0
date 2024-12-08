@@ -162,51 +162,73 @@ const Navbar = ({ account, connectWallet, loadingStates, isAdmin }) => (
 
 const NetworkWarning = () => (
   <div className="bg-gaming-error/90 text-white px-4 py-2 text-center">
-    <p>Please switch to XDC Network(Chain ID: 50)</p>
-    <button
-      onClick={switchToXDCNetwork}
-      className="mt-2 px-4 py-1 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
-    >
-      Switch Network
-    </button>
+    <p>Please switch to XDC Network(Chain ID: 50) or Apothem Testnet(Chain ID: 51)</p>
+    <div className="flex justify-center gap-4 mt-2">
+      <button
+        onClick={() => switchNetwork("mainnet")}
+        className="px-4 py-1 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
+      >
+        Switch to XDC Mainnet
+      </button>
+      <button
+        onClick={() => switchNetwork("testnet")}
+        className="px-4 py-1 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
+      >
+        Switch to Apothem Testnet
+      </button>
+    </div>
   </div>
 );
 
-const switchToXDCNetwork = async () => {
+const switchNetwork = async (network) => {
   if (!window.ethereum) return;
 
   try {
-    await window.ethereum.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId: "0x32" }], // 50 in hex for XDC Mainnet
-    });
-  } catch (switchError) {
-    // If the network is not added to MetaMask, add it
-    if (switchError.code === 4902) {
-      try {
-        await window.ethereum.request({
-          method: "wallet_addEthereumChain",
-          params: [
-            {
-              chainId: "0x32",
-              chainName: "XDC Network",
-              nativeCurrency: {
-                name: "XDC",
-                symbol: "XDC",
-                decimals: 18,
-              },
-              rpcUrls: [process.env.REACT_APP_XDC_MAINNET_RPC_URL], // Use mainnet RPC URL
-              blockExplorerUrls: [
-                process.env.REACT_APP_XDC_MAINNET_BLOCK_EXPLORER_URL,
-              ], // Use mainnet block explorer URL
-            },
-          ],
-        });
-      } catch (addError) {
-        console.error("Error adding network:", addError);
+    const networkConfig = network === "mainnet" ? {
+      chainId: "0x32", // 50 in hex
+      chainName: "XDC Network",
+      nativeCurrency: {
+        name: "XDC",
+        symbol: "XDC",
+        decimals: 18,
+      },
+      rpcUrls: [process.env.REACT_APP_XDC_MAINNET_RPC_URL],
+      blockExplorerUrls: [process.env.REACT_APP_XDC_MAINNET_BLOCK_EXPLORER_URL],
+    } : {
+      chainId: "0x33", // 51 in hex
+      chainName: "Apothem Network",
+      nativeCurrency: {
+        name: "TXDC",
+        symbol: "TXDC",
+        decimals: 18,
+      },
+      rpcUrls: [process.env.REACT_APP_XDC_APOTHEM_RPC_URL],
+      blockExplorerUrls: [process.env.REACT_APP_XDC_APOTHEM_BLOCK_EXPLORER_URL],
+    };
+
+    try {
+      // First try to switch to the network
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: networkConfig.chainId }],
+      });
+    } catch (switchError) {
+      // If the network is not added to MetaMask, add it
+      if (switchError.code === 4902) {
+        try {
+          await window.ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [networkConfig],
+          });
+        } catch (addError) {
+          console.error("Error adding network:", addError);
+        }
+      } else {
+        console.error("Error switching network:", switchError);
       }
     }
-    console.error("Error switching network:", switchError);
+  } catch (error) {
+    console.error("Error switching network:", error);
   }
 };
 
@@ -1510,6 +1532,44 @@ const TokenCard = ({ icon: Icon, title, description, buttonText, onClick }) => (
 );
 
 const Home = () => {
+  // Add this section right after the Hero Section, before the Games Section
+  const NetworkSwitcher = () => (
+    <section className="py-8 bg-secondary-800/30">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="glass-card-hover p-6 text-center">
+          <h2 className="text-2xl font-bold text-white mb-4">Select Network</h2>
+          <p className="text-secondary-300 mb-6">
+            Choose between XDC Mainnet for real gameplay or Apothem Testnet for testing
+          </p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => switchNetwork("mainnet")}
+              className="btn-gaming bg-gaming-primary"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-green-400 animate-pulse" />
+                XDC Mainnet
+              </div>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => switchNetwork("testnet")}
+              className="btn-gaming bg-gaming-accent"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-blue-400 animate-pulse" />
+                Apothem Testnet
+              </div>
+            </motion.button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+
   const games = [
     {
       title: "Dice Game",
@@ -1615,6 +1675,9 @@ const Home = () => {
           </motion.div>
         </div>
       </section>
+
+      {/* Add NetworkSwitcher here */}
+      <NetworkSwitcher />
 
       {/* Games Section */}
       <section className="py-16 bg-secondary-800/50">
@@ -3505,7 +3568,7 @@ function App() {
 
     if (!SUPPORTED_CHAIN_IDS.includes(chainIdDec)) {
       addToast("Please switch to XDC Network (Chain ID: 50)", "error");
-      await switchToXDCNetwork();
+      await switchNetwork("mainnet");
       return;
     }
 
