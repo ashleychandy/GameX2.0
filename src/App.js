@@ -57,8 +57,8 @@ const NETWORKS = {
     rpcUrl: process.env.REACT_APP_XDC_MAINNET_RPC_URL,
     contracts: {
       dice: process.env.REACT_APP_DICE_GAME_ADDRESS,
-      token: process.env.REACT_APP_TOKEN_ADDRESS
-    }
+      token: process.env.REACT_APP_TOKEN_ADDRESS,
+    },
   },
   APOTHEM: {
     chainId: 51,
@@ -66,13 +66,16 @@ const NETWORKS = {
     rpcUrl: process.env.REACT_APP_XDC_APOTHEM_RPC_URL,
     contracts: {
       dice: process.env.REACT_APP_APOTHEM_DICE_GAME_ADDRESS,
-      token: process.env.REACT_APP_APOTHEM_TOKEN_ADDRESS
-    }
-  }
+      token: process.env.REACT_APP_APOTHEM_TOKEN_ADDRESS,
+    },
+  },
 };
 
 // Update supported chain IDs
-const SUPPORTED_CHAIN_IDS = [NETWORKS.MAINNET.chainId, NETWORKS.APOTHEM.chainId];
+const SUPPORTED_CHAIN_IDS = [
+  NETWORKS.MAINNET.chainId,
+  NETWORKS.APOTHEM.chainId,
+];
 
 // Enhanced Toast Component
 const Toast = ({ message, type, onClose }) => (
@@ -132,7 +135,24 @@ const Toast = ({ message, type, onClose }) => (
   </motion.div>
 );
 
-const Navbar = ({ account, connectWallet, loadingStates, isAdmin }) => (
+const NetworkIndicator = ({ chainId }) => {
+  const isApothem = chainId === NETWORKS.APOTHEM.chainId;
+  
+  return (
+    <div className={`
+      flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium
+      ${isApothem ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'}
+    `}>
+      <span className={`
+        w-2 h-2 rounded-full animate-pulse
+        ${isApothem ? 'bg-blue-400' : 'bg-green-400'}
+      `} />
+      {isApothem ? 'Apothem Testnet' : 'XDC Mainnet'}
+    </div>
+  );
+};
+
+const Navbar = ({ account, connectWallet, loadingStates, isAdmin, chainId }) => (
   <nav className="glass-effect sticky top-0 z-50 border-b border-secondary-700/50">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="flex justify-between items-center h-20">
@@ -155,6 +175,7 @@ const Navbar = ({ account, connectWallet, loadingStates, isAdmin }) => (
           </div>
         </div>
         <div className="flex items-center space-x-4">
+          {chainId && <NetworkIndicator chainId={chainId} />}
           {account ? (
             <div className="glass-effect px-6 py-3 rounded-lg text-sm">
               <span className="text-primary-400">Connected:</span>{" "}
@@ -220,7 +241,7 @@ const switchNetwork = async (networkType) => {
       method: "wallet_switchEthereumChain",
       params: [{ chainId: chainIdHex }],
     });
-    
+
     // Add a delay before reloading to allow the network switch to complete
     setTimeout(() => window.location.reload(), 1000);
   } catch (switchError) {
@@ -3441,7 +3462,7 @@ function App() {
       const chainId = Number(network.chainId);
 
       let networkType, diceAddress, tokenAddress;
-      
+
       // Explicitly check chain IDs
       if (chainId === NETWORKS.MAINNET.chainId) {
         networkType = "mainnet";
@@ -3459,14 +3480,14 @@ function App() {
         chainId,
         networkType,
         diceAddress,
-        tokenAddress
+        tokenAddress,
       });
 
       return {
         chainId,
         networkType,
         diceAddress,
-        tokenAddress
+        tokenAddress,
       };
     } catch (error) {
       console.error("Error getting network config:", error);
@@ -3488,20 +3509,20 @@ function App() {
       // Ensure addresses are strings and properly formatted
       const contractAddresses = {
         dice: ethers.getAddress(networkConfig.diceAddress.toString()),
-        token: ethers.getAddress(networkConfig.tokenAddress.toString())
+        token: ethers.getAddress(networkConfig.tokenAddress.toString()),
       };
-      
+
       console.log("Using contract addresses:", contractAddresses);
 
       // Verify contract deployment
       const [diceCode, tokenCode] = await Promise.all([
         provider.getCode(contractAddresses.dice),
-        provider.getCode(contractAddresses.token)
+        provider.getCode(contractAddresses.token),
       ]);
 
       const isDeployed = {
         diceCode: diceCode !== "0x",
-        tokenCode: tokenCode !== "0x"
+        tokenCode: tokenCode !== "0x",
       };
 
       console.log("Contract deployment status:", isDeployed);
@@ -3511,13 +3532,13 @@ function App() {
       }
 
       const signer = await provider.getSigner(account);
-      
+
       const diceContract = new ethers.Contract(
         contractAddresses.dice,
         DiceABI.abi,
         signer
       );
-      
+
       const tokenContract = new ethers.Contract(
         contractAddresses.token,
         TokenABI.abi,
@@ -3718,18 +3739,22 @@ function App() {
 
     const init = async () => {
       if (!window.ethereum) {
-        setLoadingStates(prev => ({ ...prev, provider: false, contracts: false }));
+        setLoadingStates((prev) => ({
+          ...prev,
+          provider: false,
+          contracts: false,
+        }));
         return;
       }
 
       try {
         const provider = new ethers.BrowserProvider(window.ethereum);
         const chainId = await validateNetwork(provider);
-        
+
         if (!mounted) return;
 
         const accounts = await window.ethereum.request({
-          method: "eth_accounts"
+          method: "eth_accounts",
         });
 
         if (!mounted) return;
@@ -3752,10 +3777,10 @@ function App() {
         handleError(err, "initialization");
       } finally {
         if (mounted) {
-          setLoadingStates(prev => ({
+          setLoadingStates((prev) => ({
             ...prev,
             provider: false,
-            contracts: false
+            contracts: false,
           }));
         }
       }
@@ -3785,6 +3810,7 @@ function App() {
           connectWallet={connectWallet}
           loadingStates={loadingStates}
           isAdmin={isAdmin}
+          chainId={chainId}
         />
 
         <main className="responsive-container py-12 space-y-12">
