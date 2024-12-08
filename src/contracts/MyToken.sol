@@ -6,17 +6,17 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 interface IMyToken is IERC20 {
+    
     function mint(address to, uint256 amount) external;
     function burn(address from, uint256 amount) external;
+    function hasRole(bytes32 role, address account) external view returns (bool);
     function revokeRole(bytes32 role, address account) external;
-    function getMinterBurnerAddresses() external view returns (address[] memory minters, address[] memory burners);
+    function grantRole(bytes32 role, address account) external;
 }
 
 contract MyToken is ERC20, AccessControl, IMyToken {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
-
-    uint256 private constant INITIAL_SUPPLY = 100000 * 10**18;
 
     // Efficient storage using mappings
     mapping(address => bool) private _isMinter;
@@ -36,8 +36,6 @@ contract MyToken is ERC20, AccessControl, IMyToken {
         _isBurner[msg.sender] = true;
         _mintersList.push(msg.sender);
         _burnersList.push(msg.sender);
-
-        _mint(msg.sender, INITIAL_SUPPLY);
     }
 
     function mint(address to, uint256 amount) public override onlyRole(MINTER_ROLE) {
@@ -59,7 +57,7 @@ contract MyToken is ERC20, AccessControl, IMyToken {
         }
     }
 
-    function grantRole(bytes32 role, address account) public override(AccessControl) onlyRole(getRoleAdmin(role)) {
+    function grantRole(bytes32 role, address account) public override(AccessControl, IMyToken) onlyRole(getRoleAdmin(role)) {
         super.grantRole(role, account);
         if (role == MINTER_ROLE && !_isMinter[account]) {
             _isMinter[account] = true;
@@ -70,20 +68,28 @@ contract MyToken is ERC20, AccessControl, IMyToken {
         }
     }
 
+    function hasRole(bytes32 role, address account) public view override(AccessControl, IMyToken) returns (bool) {
+        return super.hasRole(role, account);
+    }
+
     function getMinterBurnerAddresses() external view returns (address[] memory minters, address[] memory burners) {
         return (_mintersList, _burnersList);
     }
 
     // Optimized removal function
-    function _removeFromList(address[] storage list, address account) private {
+    function _removeFromList(address[] storage list, address account) private returns (bool) {
         uint256 length = list.length;
         for (uint256 i = 0; i < length; i++) {
             if (list[i] == account) {
+                // Move the last element to the position being deleted
                 list[i] = list[length - 1];
+                // Remove the last element
                 list.pop();
-                break;
+                return true;
             }
         }
+        // Return false if address wasn't found
+        return false;
     }
 
     // Required overrides

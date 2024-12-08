@@ -137,22 +137,36 @@ const Toast = ({ message, type, onClose }) => (
 
 const NetworkIndicator = ({ chainId }) => {
   const isApothem = chainId === NETWORKS.APOTHEM.chainId;
-  
+
   return (
-    <div className={`
+    <div
+      className={`
       flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium
-      ${isApothem ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'}
-    `}>
-      <span className={`
+      ${
+        isApothem
+          ? "bg-blue-500/20 text-blue-400"
+          : "bg-green-500/20 text-green-400"
+      }
+    `}
+    >
+      <span
+        className={`
         w-2 h-2 rounded-full animate-pulse
-        ${isApothem ? 'bg-blue-400' : 'bg-green-400'}
-      `} />
-      {isApothem ? 'Apothem Testnet' : 'XDC Mainnet'}
+        ${isApothem ? "bg-blue-400" : "bg-green-400"}
+      `}
+      />
+      {isApothem ? "Apothem Testnet" : "XDC Mainnet"}
     </div>
   );
 };
 
-const Navbar = ({ account, connectWallet, loadingStates, isAdmin, chainId }) => (
+const Navbar = ({
+  account,
+  connectWallet,
+  loadingStates,
+  isAdmin,
+  chainId,
+}) => (
   <nav className="glass-effect sticky top-0 z-50 border-b border-secondary-700/50">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="flex justify-between items-center h-20">

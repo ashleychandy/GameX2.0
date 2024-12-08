@@ -506,4 +506,29 @@ contract Dice is Pausable, ReentrancyGuard, VRFConsumerBaseV2, Ownable {
     function isOwner(address account) public view returns (bool) {
         return owners[account];
     }
+
+    function recoverOwnStuckGame() external nonReentrant {
+        UserData storage user = userData[msg.sender];
+        
+        require(user.currentGame.isActive, "No active game");
+        require(block.timestamp > user.currentGame.timestamp + GAME_TIMEOUT, "Game not timed out");
+
+        // Clean up request mappings if there's a pending request
+        if (user.currentRequestId != 0) {
+            delete requestToPlayer[user.currentRequestId];
+            delete activeRequestIds[user.currentRequestId];
+        }
+
+        // Refund the player's bet amount
+        if (!myToken.hasRole(MINTER_ROLE, address(this))) revert RoleError(4);
+        
+        try myToken.mint(msg.sender, user.currentGame.amount) {} catch {
+            revert TransferFailed(3);
+        }
+
+        // Reset game state
+        user.currentGame.isActive = false;
+        user.requestFulfilled = false;
+        user.currentRequestId = 0;
+    }
 }
