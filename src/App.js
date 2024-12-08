@@ -48,7 +48,31 @@ ChartJS.register(
 // Environment variables
 const DICE_CONTRACT_ADDRESS = process.env.REACT_APP_DICE_GAME_ADDRESS;
 const TOKEN_CONTRACT_ADDRESS = process.env.REACT_APP_TOKEN_ADDRESS;
-const SUPPORTED_CHAIN_IDS = [50];
+
+// Add network constants at the top of the file
+const NETWORKS = {
+  MAINNET: {
+    chainId: 50,
+    name: "XDC Mainnet",
+    rpcUrl: process.env.REACT_APP_XDC_MAINNET_RPC_URL,
+    contracts: {
+      dice: process.env.REACT_APP_DICE_GAME_ADDRESS,
+      token: process.env.REACT_APP_TOKEN_ADDRESS
+    }
+  },
+  APOTHEM: {
+    chainId: 51,
+    name: "XDC Apothem Testnet",
+    rpcUrl: process.env.REACT_APP_XDC_APOTHEM_RPC_URL,
+    contracts: {
+      dice: process.env.REACT_APP_APOTHEM_DICE_GAME_ADDRESS,
+      token: process.env.REACT_APP_APOTHEM_TOKEN_ADDRESS
+    }
+  }
+};
+
+// Update supported chain IDs
+const SUPPORTED_CHAIN_IDS = [NETWORKS.MAINNET.chainId, NETWORKS.APOTHEM.chainId];
 
 // Enhanced Toast Component
 const Toast = ({ message, type, onClose }) => (
@@ -162,7 +186,10 @@ const Navbar = ({ account, connectWallet, loadingStates, isAdmin }) => (
 
 const NetworkWarning = () => (
   <div className="bg-gaming-error/90 text-white px-4 py-2 text-center">
-    <p>Please switch to XDC Network(Chain ID: 50) or Apothem Testnet(Chain ID: 51)</p>
+    <p>
+      Please switch to XDC Network(Chain ID: 50) or Apothem Testnet(Chain ID:
+      51)
+    </p>
     <div className="flex justify-center gap-4 mt-2">
       <button
         onClick={() => switchNetwork("mainnet")}
@@ -180,55 +207,52 @@ const NetworkWarning = () => (
   </div>
 );
 
-const switchNetwork = async (network) => {
+// Add network switching function
+const switchNetwork = async (networkType) => {
   if (!window.ethereum) return;
 
-  try {
-    const networkConfig = network === "mainnet" ? {
-      chainId: "0x32", // 50 in hex
-      chainName: "XDC Network",
-      nativeCurrency: {
-        name: "XDC",
-        symbol: "XDC",
-        decimals: 18,
-      },
-      rpcUrls: [process.env.REACT_APP_XDC_MAINNET_RPC_URL],
-      blockExplorerUrls: [process.env.REACT_APP_XDC_MAINNET_BLOCK_EXPLORER_URL],
-    } : {
-      chainId: "0x33", // 51 in hex
-      chainName: "Apothem Network",
-      nativeCurrency: {
-        name: "TXDC",
-        symbol: "TXDC",
-        decimals: 18,
-      },
-      rpcUrls: [process.env.REACT_APP_XDC_APOTHEM_RPC_URL],
-      blockExplorerUrls: [process.env.REACT_APP_XDC_APOTHEM_BLOCK_EXPLORER_URL],
-    };
+  const network =
+    networkType === "mainnet" ? NETWORKS.MAINNET : NETWORKS.APOTHEM;
+  const chainIdHex = `0x${network.chainId.toString(16)}`;
 
-    try {
-      // First try to switch to the network
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: networkConfig.chainId }],
-      });
-    } catch (switchError) {
-      // If the network is not added to MetaMask, add it
-      if (switchError.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: "wallet_addEthereumChain",
-            params: [networkConfig],
-          });
-        } catch (addError) {
-          console.error("Error adding network:", addError);
-        }
-      } else {
-        console.error("Error switching network:", switchError);
+  try {
+    await window.ethereum.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: chainIdHex }],
+    });
+    
+    // Add a delay before reloading to allow the network switch to complete
+    setTimeout(() => window.location.reload(), 1000);
+  } catch (switchError) {
+    console.error("Network switch error:", switchError);
+
+    // This error code indicates that the chain has not been added to MetaMask
+    if (switchError.code === 4902) {
+      try {
+        await window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [
+            {
+              chainId: chainIdHex,
+              chainName: network.name,
+              rpcUrls: [network.rpcUrl],
+              blockExplorerUrls: [network.blockExplorer],
+              nativeCurrency: {
+                name: "XDC",
+                symbol: "XDC",
+                decimals: 18,
+              },
+            },
+          ],
+        });
+        console.log("Network added successfully");
+      } catch (addError) {
+        console.error("Error adding network:", addError);
+        throw addError;
       }
+    } else {
+      throw switchError;
     }
-  } catch (error) {
-    console.error("Error switching network:", error);
   }
 };
 
@@ -1539,7 +1563,8 @@ const Home = () => {
         <div className="glass-card-hover p-6 text-center">
           <h2 className="text-2xl font-bold text-white mb-4">Select Network</h2>
           <p className="text-secondary-300 mb-6">
-            Choose between XDC Mainnet for real gameplay or Apothem Testnet for testing
+            Choose between XDC Mainnet for real gameplay or Apothem Testnet for
+            testing
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <motion.button
@@ -3350,82 +3375,168 @@ function App() {
     addToast(errorMessage, "error");
   }, []);
 
+  // Update the validateNetwork function to be more detailed
   const validateNetwork = useCallback(async (provider) => {
     try {
       const network = await provider.getNetwork();
       const currentChainId = Number(network.chainId);
       setChainId(currentChainId);
 
+      console.log("Network Detection:", {
+        detectedChainId: currentChainId,
+        isSupportedChain: SUPPORTED_CHAIN_IDS.includes(currentChainId),
+        supportedChains: SUPPORTED_CHAIN_IDS,
+        networkName:
+          currentChainId === NETWORKS.MAINNET.chainId
+            ? "XDC Mainnet"
+            : currentChainId === NETWORKS.APOTHEM.chainId
+            ? "XDC Apothem"
+            : "Unknown",
+      });
+
       if (!SUPPORTED_CHAIN_IDS.includes(currentChainId)) {
-        throw new Error("Please switch to XDC Network (Chain ID: 50)");
+        throw new Error(
+          `Please switch to a supported network. Connected to chain ID: ${currentChainId}`
+        );
+      }
+
+      // Get the current network configuration
+      const currentNetwork =
+        currentChainId === NETWORKS.MAINNET.chainId
+          ? NETWORKS.MAINNET
+          : NETWORKS.APOTHEM;
+
+      console.log("Network Configuration:", {
+        network: currentNetwork.name,
+        rpcUrl: currentNetwork.rpcUrl,
+        contracts: {
+          dice: currentNetwork.contracts.dice,
+          token: currentNetwork.contracts.token,
+        },
+      });
+
+      // Verify RPC connection
+      try {
+        const blockNumber = await provider.getBlockNumber();
+        console.log("RPC Connection Verified:", {
+          blockNumber,
+          rpcUrl: currentNetwork.rpcUrl,
+        });
+      } catch (rpcError) {
+        console.error("RPC Connection Failed:", rpcError);
+        throw new Error(`Failed to connect to ${currentNetwork.name}`);
       }
 
       return currentChainId;
     } catch (error) {
+      console.error("Network Validation Error:", error);
       throw error;
     }
   }, []);
 
-  const initializeContracts = useCallback(
-    async (signer) => {
-      if (!signer) {
-        throw new Error("No signer provided");
+  // Update the getNetworkConfig function to properly determine network type and addresses
+  const getNetworkConfig = async (provider) => {
+    try {
+      const network = await provider.getNetwork();
+      const chainId = Number(network.chainId);
+
+      let networkType, diceAddress, tokenAddress;
+      
+      // Explicitly check chain IDs
+      if (chainId === NETWORKS.MAINNET.chainId) {
+        networkType = "mainnet";
+        diceAddress = NETWORKS.MAINNET.contracts.dice;
+        tokenAddress = NETWORKS.MAINNET.contracts.token;
+      } else if (chainId === NETWORKS.APOTHEM.chainId) {
+        networkType = "apothem";
+        diceAddress = NETWORKS.APOTHEM.contracts.dice;
+        tokenAddress = NETWORKS.APOTHEM.contracts.token;
+      } else {
+        throw new Error(`Unsupported chain ID: ${chainId}`);
       }
 
-      if (!DICE_CONTRACT_ADDRESS || !TOKEN_CONTRACT_ADDRESS) {
-        throw new Error(
-          "Contract addresses not found in environment variables"
-        );
+      console.log("Network Configuration:", {
+        chainId,
+        networkType,
+        diceAddress,
+        tokenAddress
+      });
+
+      return {
+        chainId,
+        networkType,
+        diceAddress,
+        tokenAddress
+      };
+    } catch (error) {
+      console.error("Error getting network config:", error);
+      throw error;
+    }
+  };
+
+  // Update the initializeContracts function
+  const initializeContracts = async (provider, account) => {
+    try {
+      const networkConfig = await getNetworkConfig(provider);
+      console.log("Current Network:", networkConfig);
+
+      // Validate addresses
+      if (!networkConfig.diceAddress || !networkConfig.tokenAddress) {
+        throw new Error("Missing contract addresses for current network");
       }
 
-      try {
-        const provider = signer.provider;
-        const diceCode = await provider.getCode(DICE_CONTRACT_ADDRESS);
-        const tokenCode = await provider.getCode(TOKEN_CONTRACT_ADDRESS);
+      // Ensure addresses are strings and properly formatted
+      const contractAddresses = {
+        dice: ethers.getAddress(networkConfig.diceAddress.toString()),
+        token: ethers.getAddress(networkConfig.tokenAddress.toString())
+      };
+      
+      console.log("Using contract addresses:", contractAddresses);
 
-        if (diceCode === "0x" || tokenCode === "0x") {
-          throw new Error(
-            "One or more contracts not deployed at specified addresses"
-          );
-        }
+      // Verify contract deployment
+      const [diceCode, tokenCode] = await Promise.all([
+        provider.getCode(contractAddresses.dice),
+        provider.getCode(contractAddresses.token)
+      ]);
 
-        const diceContract = new ethers.Contract(
-          DICE_CONTRACT_ADDRESS,
-          DiceABI.abi,
-          signer
-        );
-        const tokenContract = new ethers.Contract(
-          TOKEN_CONTRACT_ADDRESS,
-          TokenABI.abi,
-          signer
-        );
+      const isDeployed = {
+        diceCode: diceCode !== "0x",
+        tokenCode: tokenCode !== "0x"
+      };
 
-        try {
-          await tokenContract.name();
-          await diceContract.owner();
-        } catch (verifyError) {
-          console.error("Contract verification failed:", verifyError);
-          throw new Error(
-            "Contract interface mismatch or contracts not properly deployed"
-          );
-        }
+      console.log("Contract deployment status:", isDeployed);
 
-        setContracts({ dice: diceContract, token: tokenContract });
-
-        return { diceContract, tokenContract };
-      } catch (err) {
-        const errorMessage = err.message || "Contract initialization failed";
-        console.error("Contract initialization error details:", err);
-        handleError(
-          new Error(`Contract initialization failed: ${errorMessage}`),
-          "initializeContracts"
-        );
-        throw err;
+      if (!isDeployed.diceCode || !isDeployed.tokenCode) {
+        throw new Error("One or more contracts not deployed");
       }
-    },
-    [handleError]
-  );
 
+      const signer = await provider.getSigner(account);
+      
+      const diceContract = new ethers.Contract(
+        contractAddresses.dice,
+        DiceABI.abi,
+        signer
+      );
+      
+      const tokenContract = new ethers.Contract(
+        contractAddresses.token,
+        TokenABI.abi,
+        signer
+      );
+
+      // Set the contracts state only if both contracts are initialized
+      setContracts({ dice: diceContract, token: tokenContract });
+
+      return { diceContract, tokenContract };
+    } catch (error) {
+      console.error("Contract initialization error details:", error);
+      // Clear contracts state on error
+      setContracts({ dice: null, token: null });
+      throw error;
+    }
+  };
+
+  // Update the connectWallet function to handle network switching
   const connectWallet = async () => {
     setLoadingStates((prev) => ({ ...prev, wallet: true }));
     setLoadingMessage("Connecting to wallet...");
@@ -3436,7 +3547,18 @@ function App() {
       }
 
       const provider = new ethers.BrowserProvider(window.ethereum);
+      const network = await provider.getNetwork();
+      const currentChainId = Number(network.chainId);
+
+      // Fix the network switching condition
+      if (!SUPPORTED_CHAIN_IDS.includes(currentChainId)) {
+        console.log("Switching to supported network...");
+        await switchNetwork("mainnet"); // Default to mainnet if unsupported
+        return; // Return here as switchNetwork will reload the page
+      }
+
       const chainId = await validateNetwork(provider);
+      console.log("Network validated:", { chainId });
 
       const accounts = await window.ethereum.request({
         method: "eth_requestAccounts",
@@ -3451,7 +3573,7 @@ function App() {
       setSigner(signer);
 
       try {
-        const contractsData = await initializeContracts(signer);
+        const contractsData = await initializeContracts(provider, signer);
         if (!contractsData) {
           throw new Error("Failed to initialize contracts");
         }
@@ -3459,11 +3581,13 @@ function App() {
         await handleAccountsChanged(accounts);
         addToast("Wallet connected successfully!", "success");
       } catch (contractError) {
+        console.error("Contract initialization failed:", contractError);
         setProvider(null);
         setSigner(null);
         throw contractError;
       }
     } catch (err) {
+      console.error("Wallet connection error:", err);
       handleError(err, "connectWallet");
       setProvider(null);
       setSigner(null);
@@ -3567,12 +3691,13 @@ function App() {
     setChainId(chainIdDec);
 
     if (!SUPPORTED_CHAIN_IDS.includes(chainIdDec)) {
-      addToast("Please switch to XDC Network (Chain ID: 50)", "error");
-      await switchNetwork("mainnet");
+      addToast("Please switch to a supported network", "error");
+      // Don't automatically switch networks here, just show the warning
       return;
     }
 
-    window.location.reload();
+    // Add a delay before reloading to allow state updates to complete
+    setTimeout(() => window.location.reload(), 1000);
   };
 
   const addToast = useCallback((message, type = "info") => {
@@ -3589,53 +3714,60 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const init = async () => {
-      try {
-        if (window.ethereum) {
-          const provider = new ethers.BrowserProvider(window.ethereum);
-          const chainId = await validateNetwork(provider);
-          const signer = await provider.getSigner();
+    let mounted = true;
 
+    const init = async () => {
+      if (!window.ethereum) {
+        setLoadingStates(prev => ({ ...prev, provider: false, contracts: false }));
+        return;
+      }
+
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const chainId = await validateNetwork(provider);
+        
+        if (!mounted) return;
+
+        const accounts = await window.ethereum.request({
+          method: "eth_accounts"
+        });
+
+        if (!mounted) return;
+
+        if (accounts.length > 0) {
+          const signer = await provider.getSigner();
           setProvider(provider);
           setSigner(signer);
 
-          const contractsData = await initializeContracts(signer);
-          if (!contractsData) return;
-
-          const accounts = await window.ethereum.request({
-            method: "eth_accounts",
-          });
-
-          if (accounts.length > 0) {
-            await handleAccountsChanged(accounts);
-          }
+          await initializeContracts(provider, accounts[0]);
+          await handleAccountsChanged(accounts);
+        } else {
+          // No accounts connected, clear states
+          setProvider(null);
+          setSigner(null);
+          setContracts({ dice: null, token: null });
         }
       } catch (err) {
+        console.error("Initialization error:", err);
         handleError(err, "initialization");
       } finally {
-        setLoadingStates((prev) => ({
-          ...prev,
-          provider: false,
-          contracts: false,
-        }));
+        if (mounted) {
+          setLoadingStates(prev => ({
+            ...prev,
+            provider: false,
+            contracts: false
+          }));
+        }
       }
     };
 
     init();
 
-    if (window.ethereum) {
-      window.ethereum.on("accountsChanged", handleAccountsChanged);
-      window.ethereum.on("chainChanged", handleChainChanged);
-
-      return () => {
-        window.ethereum.removeListener(
-          "accountsChanged",
-          handleAccountsChanged
-        );
-        window.ethereum.removeListener("chainChanged", handleChainChanged);
-      };
-    }
-  }, [handleError, initializeContracts, validateNetwork]);
+    // Cleanup function
+    return () => {
+      mounted = false;
+    };
+  }, []); // Empty dependency array to run only once on mount
 
   if (Object.values(loadingStates).some((state) => state)) {
     return <LoadingOverlay message={loadingMessage} />;
