@@ -244,8 +244,8 @@ const BetInput = ({
 
   const formatDisplayValue = (weiValue) => {
     try {
-      const formatted = ethers.formatEther(weiValue.toString());
-      return formatted.replace(/\.?0+$/, "") || "0";
+      // Convert from wei to whole tokens
+      return (BigInt(weiValue) / BigInt("1000000000000000000")).toString();
     } catch (error) {
       console.error("Error formatting display value:", error);
       return "0";
@@ -254,10 +254,10 @@ const BetInput = ({
 
   const validateInput = (input) => {
     if (input === "") return true;
-    const regex = /^\d*\.?\d{0,18}$/;
+    // Only allow whole numbers
+    const regex = /^\d+$/;
     if (!regex.test(input)) return false;
-    if (input.startsWith("0") && !input.startsWith("0.")) return false;
-    if ((input.match(/\./g) || []).length > 1) return false;
+    if (input.startsWith("0") && input.length > 1) return false;
     return true;
   };
 
@@ -267,18 +267,17 @@ const BetInput = ({
         return BigInt(0);
       }
 
-      const parts = amount.split(".");
-      if (parts[1] && parts[1].length > 18) {
-        throw new Error("Too many decimal places");
-      }
-
-      if (Number(amount) < 0) {
-        throw new Error("Negative amount not allowed");
-      }
-
-      const weiValue = ethers.parseEther(amount);
+      // Convert to wei (multiply by 10^18)
+      const weiValue = BigInt(amount) * BigInt("1000000000000000000");
       const minValue = BigInt(min);
       const maxValue = BigInt(userBalance);
+      
+      // Check if potential win (6x bet) would overflow uint256
+      const MAX_UINT256 = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");
+      const potentialWin = weiValue * BigInt(6);
+      if (potentialWin > MAX_UINT256) {
+        throw new Error("Bet amount too large - potential win would overflow");
+      }
 
       if (weiValue < minValue) {
         throw new Error(`Minimum bet is ${formatDisplayValue(minValue)} GameX`);
@@ -307,10 +306,22 @@ const BetInput = ({
         }
 
         const weiValue = parseTokenAmount(inputValue);
-        onChange(weiValue);
+        // If the value is too high, use the maximum allowed value instead
+        if (weiValue > BigInt(userBalance)) {
+          setLocalValue(formatDisplayValue(BigInt(userBalance)));
+          onChange(BigInt(userBalance));
+        } else {
+          onChange(weiValue);
+        }
       } catch (error) {
         setError(error.message);
-        onChange(BigInt(min));
+        // Don't reset to min value, keep the current value
+        if (error.message.includes("too large")) {
+          setLocalValue(formatDisplayValue(BigInt(userBalance)));
+          onChange(BigInt(userBalance));
+        } else {
+          onChange(BigInt(min));
+        }
       }
     }
   };
@@ -320,6 +331,16 @@ const BetInput = ({
       const balance = BigInt(userBalance);
       const amount = (balance * BigInt(percentage)) / BigInt(100);
       const minValue = BigInt(min);
+
+      // Check if potential win (6x bet) would overflow uint256
+      const MAX_UINT256 = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");
+      const potentialWin = amount * BigInt(6);
+      if (potentialWin > MAX_UINT256) {
+        setError("Amount too large - potential win would overflow");
+        onChange(minValue);
+        setLocalValue(formatDisplayValue(minValue));
+        return;
+      }
 
       if (amount < minValue) {
         setError("Amount too small, using minimum bet");
@@ -344,11 +365,19 @@ const BetInput = ({
       const balance = BigInt(userBalance);
       const step = balance / BigInt(100); // 1% step
       const minValue = BigInt(min);
+      const MAX_UINT256 = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");
 
       let newValue;
       if (increment) {
         newValue = currentValue + step;
         if (newValue > balance) newValue = balance;
+        
+        // Check for potential win overflow
+        const potentialWin = newValue * BigInt(6);
+        if (potentialWin > MAX_UINT256) {
+          setError("Cannot increase - potential win would overflow");
+          return;
+        }
       } else {
         newValue = currentValue - step;
         if (newValue < minValue) newValue = minValue;
