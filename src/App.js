@@ -3501,32 +3501,120 @@ function App() {
 
   const handleError = useCallback((error, context = "") => {
     console.error(`Error in ${context}:`, error);
-    let errorMessage = "Something went wrong. Please try again.";
+    let errorMessage = "An unexpected error occurred. Please try again.";
+    let errorType = "error";
 
+    // Extract error details
     const errorString = error.reason || error.message || error.toString();
+    const errorCode = error.code;
 
-    if (error.code === 4001) {
-      errorMessage =
-        "Transaction cancelled - No worries, you can try again when ready!";
-    } else if (error.code === -32603) {
-      errorMessage =
-        "Network connection issue. Please check your wallet connection and try again.";
-    } else if (errorString.includes("execution reverted")) {
+    // Wallet/MetaMask Errors
+    if (errorCode === 4001) {
+      errorMessage = "Transaction cancelled - No worries, you can try again when ready!";
+      errorType = "warning";
+    } else if (errorCode === -32002) {
+      errorMessage = "Please check MetaMask - a connection request is pending";
+      errorType = "warning";
+    } else if (errorCode === -32603) {
+      errorMessage = "Network connection issue. Please check your wallet connection.";
+      errorType = "error";
+    }
+    
+    // Contract/Game Errors
+    else if (errorString.includes("execution reverted")) {
       if (errorString.includes("game not ready")) {
-        errorMessage = "Game is not ready to be resolved yet";
+        errorMessage = "The random number is still being generated. Please wait a moment.";
+        errorType = "info";
       } else if (errorString.includes("already resolved")) {
-        errorMessage = "This game has already been resolved";
+        errorMessage = "This game has already been resolved. Start a new game!";
+        errorType = "info";
       } else if (errorString.includes("active game exists")) {
-        errorMessage =
-          "Please resolve your current game before placing a new bet";
-      } else {
-        errorMessage = "Transaction failed - Please try again";
+        errorMessage = "You have an active game. Please resolve it before starting a new one.";
+        errorType = "warning";
+      } else if (errorString.includes("insufficient balance")) {
+        errorMessage = "Insufficient balance to place this bet. Please check your token balance.";
+        errorType = "error";
+      } else if (errorString.includes("invalid number")) {
+        errorMessage = "Please choose a valid number between 1 and 6.";
+        errorType = "warning";
+      } else if (errorString.includes("contract paused")) {
+        errorMessage = "The game is currently paused for maintenance. Please try again later.";
+        errorType = "info";
       }
     }
 
+    // Network Errors
+    else if (errorString.includes("network changed")) {
+      errorMessage = "Network changed. Please ensure you're connected to the correct network.";
+      errorType = "warning";
+    } else if (errorString.includes("nonce")) {
+      errorMessage = "Transaction error. Please reset your wallet or try again.";
+      errorType = "error";
+    }
+
+    // Token Approval Errors
+    else if (errorString.includes("allowance")) {
+      errorMessage = "Please approve tokens before placing a bet.";
+      errorType = "warning";
+    }
+
+    // RPC Errors
+    else if (errorString.includes("timeout")) {
+      errorMessage = "Network request timed out. Please try again.";
+      errorType = "error";
+    }
+
+    // Wallet Connection Errors
+    else if (!window.ethereum) {
+      errorMessage = "Please install MetaMask to use this application.";
+      errorType = "error";
+    } else if (errorString.includes("not connected")) {
+      errorMessage = "Please connect your wallet to continue.";
+      errorType = "warning";
+    }
+
+    // Recovery-related Errors
+    else if (errorString.includes("recovery")) {
+      if (errorString.includes("too early")) {
+        errorMessage = "It's too early to recover this game. Please wait for the timeout period.";
+        errorType = "warning";
+      } else if (errorString.includes("not eligible")) {
+        errorMessage = "This game is not eligible for recovery.";
+        errorType = "info";
+      }
+    }
+
+    // Add debug information to console in development
+    if (process.env.NODE_ENV === 'development') {
+      console.group('Error Details');
+      console.log('Context:', context);
+      console.log('Error Code:', errorCode);
+      console.log('Error String:', errorString);
+      console.log('Error Type:', errorType);
+      console.log('Full Error:', error);
+      console.groupEnd();
+    }
+
+    // Show error toast with appropriate styling
+    addToast({
+      message: errorMessage,
+      type: errorType,
+      duration: errorType === 'error' ? 8000 : 5000, // Show errors longer
+      action: errorType === 'error' ? {
+        label: 'Report Issue',
+        onClick: () => {
+          // You could implement error reporting here
+          window.open('https://github.com/yourusername/yourrepo/issues/new', '_blank');
+        }
+      } : null
+    });
+
+    // Set error state for potential UI updates
     setError(errorMessage);
-    addToast(errorMessage, "error");
-  }, []);
+
+    // Return the error message in case the caller needs it
+    return errorMessage;
+  }, [addToast, setError]);
 
   // Update the validateNetwork function to be more detailed
   const validateNetwork = useCallback(async (provider) => {
