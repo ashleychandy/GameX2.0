@@ -2804,12 +2804,115 @@ const DicePage = ({
     timestamp: 0,
     payout: BigInt(0),
     randomWord: BigInt(0),
-    status: "PENDING", // Now matches GameStatus enum from contract
+    status: "PENDING",
     needsResolution: false,
     canPlay: true,
     isProcessing: false,
     isRolling: false,
+    currentGameData: null,
   });
+
+  // Add new state for recovery timer
+  const [recoveryTime, setRecoveryTime] = useState(null);
+  const [canRecover, setCanRecover] = useState(false);
+
+  // Add function to handle recovery
+  const handleRecoverGame = async () => {
+    if (!contracts.dice || !account) return;
+
+    try {
+      setGameState((prev) => ({ ...prev, isProcessing: true }));
+      const tx = await contracts.dice.recoverOwnStuckGame();
+      await tx.wait();
+
+      // Invalidate queries to refresh state
+      queryClient.invalidateQueries(["gameState", account]);
+      queryClient.invalidateQueries(["balance", account]);
+
+      addToast("Game recovered successfully!", "success");
+    } catch (error) {
+      console.error("Recovery error:", error);
+      handleContractError(error, onError);
+    } finally {
+      setGameState((prev) => ({ ...prev, isProcessing: false }));
+    }
+  };
+
+  // Add effect to check recovery timer
+  useEffect(() => {
+    if (!gameState.currentGameData?.timestamp || !gameState.isActive) {
+      setRecoveryTime(null);
+      setCanRecover(false);
+      return;
+    }
+
+    const gameTimestamp = Number(gameState.currentGameData.timestamp) * 1000; // Convert to milliseconds
+    const timeoutDuration = 60 * 60 * 1000; // 1 hour in milliseconds
+
+    const checkRecovery = () => {
+      const now = Date.now();
+      const timeLeft = gameTimestamp + timeoutDuration - now;
+
+      if (timeLeft <= 0) {
+        setCanRecover(true);
+        setRecoveryTime(0);
+      } else {
+        setCanRecover(false);
+        setRecoveryTime(timeLeft);
+      }
+    };
+
+    // Initial check
+    checkRecovery();
+
+    // Set up interval
+    const interval = setInterval(checkRecovery, 1000);
+
+    return () => clearInterval(interval);
+  }, [gameState.currentGameData?.timestamp, gameState.isActive]);
+
+  // Add helper function to format time
+  const formatTime = (ms) => {
+    if (!ms) return "";
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
+
+  // Add this near your other UI elements, perhaps after the bet button
+  const recoveryButton = (
+    <>
+      {gameState.isActive && (
+        <div className="glass-panel p-4 mt-4">
+          {canRecover ? (
+            <button
+              onClick={handleRecoverGame}
+              disabled={gameState.isProcessing}
+              className="btn-gaming h-10 w-full"
+            >
+              {gameState.isProcessing ? (
+                <span className="flex items-center justify-center">
+                  <LoadingSpinner size="small" />
+                  <span className="ml-2">Recovering...</span>
+                </span>
+              ) : (
+                "Recover Stuck Game"
+              )}
+            </button>
+          ) : recoveryTime ? (
+            <div className="text-center">
+              <p className="text-secondary-400 text-sm">
+                Recovery available in
+              </p>
+              <p className="text-white font-mono text-lg">
+                {formatTime(recoveryTime)}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      )}
+    </>
+  );
 
   const monitorIntervalRef = useRef(null);
   const isMounted = useRef(true);
@@ -3302,6 +3405,7 @@ const DicePage = ({
               allowance={balanceData?.allowance || BigInt(0)}
               potentialWinnings={betAmount * BigInt(6)}
             />
+            {recoveryButton}
           </div>
 
           <div className="space-y-8">
