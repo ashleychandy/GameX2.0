@@ -2931,27 +2931,32 @@ const DicePage = ({
     queryFn: async () => {
       if (!contracts.dice || !account) return null;
 
-      const [currentGame, hasPendingRequest, canPlay] = await Promise.all([
-        contracts.dice.getCurrentGame(account),
-        contracts.dice.hasPendingRequest(account),
-        contracts.dice.canStartNewGame(account),
-      ]);
+      try {
+        const [currentGame, requestDetails, canPlay] = await Promise.all([
+          contracts.dice.getCurrentGame(account),
+          contracts.dice.getCurrentRequestDetails(account),
+          contracts.dice.canStartNewGame(account),
+        ]);
 
-      return {
-        currentGame: {
-          isActive: currentGame.isActive,
-          chosenNumber: Number(currentGame.chosenNumber),
-          result: Number(currentGame.result),
-          amount: currentGame.amount,
-          timestamp: Number(currentGame.timestamp),
-          payout: currentGame.payout,
-          randomWord: currentGame.randomWord,
-          status: currentGame.status,
-        },
-        hasPendingRequest,
-        canPlay,
-      };
+        // Get request details
+        const [requestId, requestFulfilled, requestActive] = requestDetails;
+
+        return {
+          currentGame,
+          requestDetails: {
+            requestId: Number(requestId),
+            requestFulfilled,
+            requestActive,
+          },
+          canPlay,
+        };
+      } catch (error) {
+        console.error("Error fetching game state:", error);
+        return null;
+      }
     },
+    enabled: !!contracts.dice && !!account,
+    refetchInterval: 5000,
   });
 
   // Balance Query
@@ -2977,7 +2982,7 @@ const DicePage = ({
   // Update game state based on query results
   useEffect(() => {
     if (gameStateData) {
-      const { currentGame, hasPendingRequest, canPlay } = gameStateData;
+      const { currentGame, requestDetails } = gameStateData;
 
       setGameState((prev) => ({
         ...prev,
@@ -2988,8 +2993,9 @@ const DicePage = ({
         timestamp: currentGame.timestamp,
         payout: currentGame.payout,
         randomWord: currentGame.randomWord,
-        needsResolution: !hasPendingRequest && currentGame.isActive,
-        canPlay,
+        needsResolution:
+          currentGame.isActive && requestDetails.requestFulfilled,
+        canPlay: !currentGame.isActive && !requestDetails.requestActive,
         currentGameData: currentGame,
       }));
     }
@@ -3381,21 +3387,29 @@ const DicePage = ({
                   )}
                 </button>
 
-                {gameState.needsResolution && (
-                  <button
-                    onClick={handleGameResolution}
-                    disabled={gameState.isProcessing}
-                    className="btn-gaming h-14 w-full"
-                  >
-                    {gameState.isProcessing ? (
-                      <span className="flex items-center justify-center">
-                        <LoadingSpinner size="small" />
-                        <span className="ml-2">Revealing...</span>
-                      </span>
+                {gameState.isActive && (
+                  <>
+                    {gameState.needsResolution ? (
+                      <button
+                        onClick={handleGameResolution}
+                        disabled={gameState.isProcessing}
+                        className="btn-gaming h-14 w-full"
+                      >
+                        {gameState.isProcessing ? (
+                          <span className="flex items-center justify-center">
+                            <LoadingSpinner size="small" />
+                            <span className="ml-2">Revealing...</span>
+                          </span>
+                        ) : (
+                          "Reveal Result"
+                        )}
+                      </button>
                     ) : (
-                      "Reveal Result"
+                      <div className="text-center text-gaming-accent">
+                        Waiting for random number...
+                      </div>
                     )}
-                  </button>
+                  </>
                 )}
               </div>
             </div>
