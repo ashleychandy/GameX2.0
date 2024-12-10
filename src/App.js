@@ -3499,6 +3499,22 @@ function App() {
 
   const queryClient = useQueryClient();
 
+  // Define addToast first
+  const addToast = useCallback((message, type = "info") => {
+    const id = `toast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setToasts((prev) => [...prev, { id, message, type }]);
+
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    }, 5000);
+  }, []);
+
+  // Define removeToast next
+  const removeToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  }, []);
+
+  // Then define handleError which uses addToast
   const handleError = useCallback((error, context = "") => {
     console.error(`Error in ${context}:`, error);
     let errorMessage = "An unexpected error occurred. Please try again.";
@@ -3596,18 +3612,7 @@ function App() {
     }
 
     // Show error toast with appropriate styling
-    addToast({
-      message: errorMessage,
-      type: errorType,
-      duration: errorType === 'error' ? 8000 : 5000, // Show errors longer
-      action: errorType === 'error' ? {
-        label: 'Report Issue',
-        onClick: () => {
-          // You could implement error reporting here
-          window.open('https://github.com/yourusername/yourrepo/issues/new', '_blank');
-        }
-      } : null
-    });
+    addToast(errorMessage, errorType);
 
     // Set error state for potential UI updates
     setError(errorMessage);
@@ -3940,19 +3945,6 @@ function App() {
     // Add a delay before reloading to allow state updates to complete
     setTimeout(() => window.location.reload(), 1000);
   };
-
-  const addToast = useCallback((message, type = "info") => {
-    const id = `toast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    setToasts((prev) => [...prev, { id, message, type }]);
-
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((toast) => toast.id !== id));
-    }, 5000);
-  }, []);
-
-  const removeToast = useCallback((id) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  }, []);
 
   useEffect(() => {
     let mounted = true;
