@@ -3494,6 +3494,7 @@ function App() {
     contracts: true,
     wallet: false,
     transaction: false,
+    gameState: false // Add missing state
   });
   const [loadingMessage, setLoadingMessage] = useState("");
 
@@ -3515,111 +3516,125 @@ function App() {
   }, []);
 
   // Then define handleError which uses addToast
-  const handleError = useCallback((error, context = "") => {
-    console.error(`Error in ${context}:`, error);
-    let errorMessage = "An unexpected error occurred. Please try again.";
-    let errorType = "error";
+  const handleError = useCallback(
+    (error, context = "") => {
+      console.error(`Error in ${context}:`, error);
+      let errorMessage = "An unexpected error occurred. Please try again.";
+      let errorType = "error";
 
-    // Extract error details
-    const errorString = error.reason || error.message || error.toString();
-    const errorCode = error.code;
+      // Extract error details
+      const errorString = error.reason || error.message || error.toString();
+      const errorCode = error.code;
 
-    // Wallet/MetaMask Errors
-    if (errorCode === 4001) {
-      errorMessage = "Transaction cancelled - No worries, you can try again when ready!";
-      errorType = "warning";
-    } else if (errorCode === -32002) {
-      errorMessage = "Please check MetaMask - a connection request is pending";
-      errorType = "warning";
-    } else if (errorCode === -32603) {
-      errorMessage = "Network connection issue. Please check your wallet connection.";
-      errorType = "error";
-    }
-    
-    // Contract/Game Errors
-    else if (errorString.includes("execution reverted")) {
-      if (errorString.includes("game not ready")) {
-        errorMessage = "The random number is still being generated. Please wait a moment.";
-        errorType = "info";
-      } else if (errorString.includes("already resolved")) {
-        errorMessage = "This game has already been resolved. Start a new game!";
-        errorType = "info";
-      } else if (errorString.includes("active game exists")) {
-        errorMessage = "You have an active game. Please resolve it before starting a new one.";
+      // Wallet/MetaMask Errors
+      if (errorCode === 4001) {
+        errorMessage =
+          "Transaction cancelled - No worries, you can try again when ready!";
         errorType = "warning";
-      } else if (errorString.includes("insufficient balance")) {
-        errorMessage = "Insufficient balance to place this bet. Please check your token balance.";
+      } else if (errorCode === -32002) {
+        errorMessage =
+          "Please check MetaMask - a connection request is pending";
+        errorType = "warning";
+      } else if (errorCode === -32603) {
+        errorMessage =
+          "Network connection issue. Please check your wallet connection.";
         errorType = "error";
-      } else if (errorString.includes("invalid number")) {
-        errorMessage = "Please choose a valid number between 1 and 6.";
-        errorType = "warning";
-      } else if (errorString.includes("contract paused")) {
-        errorMessage = "The game is currently paused for maintenance. Please try again later.";
-        errorType = "info";
       }
-    }
 
-    // Network Errors
-    else if (errorString.includes("network changed")) {
-      errorMessage = "Network changed. Please ensure you're connected to the correct network.";
-      errorType = "warning";
-    } else if (errorString.includes("nonce")) {
-      errorMessage = "Transaction error. Please reset your wallet or try again.";
-      errorType = "error";
-    }
-
-    // Token Approval Errors
-    else if (errorString.includes("allowance")) {
-      errorMessage = "Please approve tokens before placing a bet.";
-      errorType = "warning";
-    }
-
-    // RPC Errors
-    else if (errorString.includes("timeout")) {
-      errorMessage = "Network request timed out. Please try again.";
-      errorType = "error";
-    }
-
-    // Wallet Connection Errors
-    else if (!window.ethereum) {
-      errorMessage = "Please install MetaMask to use this application.";
-      errorType = "error";
-    } else if (errorString.includes("not connected")) {
-      errorMessage = "Please connect your wallet to continue.";
-      errorType = "warning";
-    }
-
-    // Recovery-related Errors
-    else if (errorString.includes("recovery")) {
-      if (errorString.includes("too early")) {
-        errorMessage = "It's too early to recover this game. Please wait for the timeout period.";
-        errorType = "warning";
-      } else if (errorString.includes("not eligible")) {
-        errorMessage = "This game is not eligible for recovery.";
-        errorType = "info";
+      // Contract/Game Errors
+      else if (errorString.includes("execution reverted")) {
+        if (errorString.includes("game not ready")) {
+          errorMessage =
+            "The random number is still being generated. Please wait a moment.";
+          errorType = "info";
+        } else if (errorString.includes("already resolved")) {
+          errorMessage =
+            "This game has already been resolved. Start a new game!";
+          errorType = "info";
+        } else if (errorString.includes("active game exists")) {
+          errorMessage =
+            "You have an active game. Please resolve it before starting a new one.";
+          errorType = "warning";
+        } else if (errorString.includes("insufficient balance")) {
+          errorMessage =
+            "Insufficient balance to place this bet. Please check your token balance.";
+          errorType = "error";
+        } else if (errorString.includes("invalid number")) {
+          errorMessage = "Please choose a valid number between 1 and 6.";
+          errorType = "warning";
+        } else if (errorString.includes("contract paused")) {
+          errorMessage =
+            "The game is currently paused for maintenance. Please try again later.";
+          errorType = "info";
+        }
       }
-    }
 
-    // Add debug information to console in development
-    if (process.env.NODE_ENV === 'development') {
-      console.group('Error Details');
-      console.log('Context:', context);
-      console.log('Error Code:', errorCode);
-      console.log('Error String:', errorString);
-      console.log('Error Type:', errorType);
-      console.log('Full Error:', error);
-      console.groupEnd();
-    }
+      // Network Errors
+      else if (errorString.includes("network changed")) {
+        errorMessage =
+          "Network changed. Please ensure you're connected to the correct network.";
+        errorType = "warning";
+      } else if (errorString.includes("nonce")) {
+        errorMessage =
+          "Transaction error. Please reset your wallet or try again.";
+        errorType = "error";
+      }
 
-    // Show error toast with appropriate styling
-    addToast(errorMessage, errorType);
+      // Token Approval Errors
+      else if (errorString.includes("allowance")) {
+        errorMessage = "Please approve tokens before placing a bet.";
+        errorType = "warning";
+      }
 
-    // Set error state for potential UI updates
-    setError(errorMessage);
+      // RPC Errors
+      else if (errorString.includes("timeout")) {
+        errorMessage = "Network request timed out. Please try again.";
+        errorType = "error";
+      }
 
-    // Return the error message in case the caller needs it
-    return errorMessage;
-  }, [addToast, setError]);
+      // Wallet Connection Errors
+      else if (!window.ethereum) {
+        errorMessage = "Please install MetaMask to use this application.";
+        errorType = "error";
+      } else if (errorString.includes("not connected")) {
+        errorMessage = "Please connect your wallet to continue.";
+        errorType = "warning";
+      }
+
+      // Recovery-related Errors
+      else if (errorString.includes("recovery")) {
+        if (errorString.includes("too early")) {
+          errorMessage =
+            "It's too early to recover this game. Please wait for the timeout period.";
+          errorType = "warning";
+        } else if (errorString.includes("not eligible")) {
+          errorMessage = "This game is not eligible for recovery.";
+          errorType = "info";
+        }
+      }
+
+      // Add debug information to console in development
+      if (process.env.NODE_ENV === "development") {
+        console.group("Error Details");
+        console.log("Context:", context);
+        console.log("Error Code:", errorCode);
+        console.log("Error String:", errorString);
+        console.log("Error Type:", errorType);
+        console.log("Full Error:", error);
+        console.groupEnd();
+      }
+
+      // Show error toast with appropriate styling
+      addToast(errorMessage, errorType);
+
+      // Set error state for potential UI updates
+      setError(errorMessage);
+
+      // Return the error message in case the caller needs it
+      return errorMessage;
+    },
+    [addToast, setError]
+  );
 
   // Update the validateNetwork function to be more detailed
   const validateNetwork = useCallback(async (provider) => {
@@ -3723,6 +3738,7 @@ function App() {
   // Update the initializeContracts function
   const initializeContracts = async (provider, account) => {
     try {
+      setLoadingStates((prev) => ({ ...prev, contracts: true }));
       const networkConfig = await getNetworkConfig(provider);
       console.log("Current Network:", networkConfig);
 
@@ -3773,12 +3789,13 @@ function App() {
       // Set the contracts state only if both contracts are initialized
       setContracts({ dice: diceContract, token: tokenContract });
 
+      if (!diceContract || !tokenContract) {
+        throw new Error("Failed to initialize contracts");
+      }
+
       return { diceContract, tokenContract };
-    } catch (error) {
-      console.error("Contract initialization error details:", error);
-      // Clear contracts state on error
-      setContracts({ dice: null, token: null });
-      throw error;
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, contracts: false }));
     }
   };
 
@@ -4005,6 +4022,21 @@ function App() {
       mounted = false;
     };
   }, []); // Empty dependency array to run only once on mount
+
+  useEffect(() => {
+    if (window.ethereum) {
+      window.ethereum.on("accountsChanged", handleAccountsChanged);
+      window.ethereum.on("chainChanged", handleChainChanged);
+
+      return () => {
+        window.ethereum.removeListener(
+          "accountsChanged",
+          handleAccountsChanged
+        );
+        window.ethereum.removeListener("chainChanged", handleChainChanged);
+      };
+    }
+  }, []);
 
   if (Object.values(loadingStates).some((state) => state)) {
     return <LoadingOverlay message={loadingMessage} />;
