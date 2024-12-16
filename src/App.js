@@ -1458,26 +1458,37 @@ const GameHistoryItem = ({ game, index }) => (
   </motion.div>
 );
 
-const StatusIndicator = ({ status, isActive }) => (
-  <div
-    className={`relative flex items-center gap-2 ${
-      isActive ? "animate-pulse" : ""
-    }`}
-  >
-    <span
-      className={`h-3 w-3 rounded-full ${
-        status === "COMPLETED_WIN"
-          ? "bg-gaming-success"
-          : status === "COMPLETED_LOSS"
-          ? "bg-gaming-error"
-          : status === "PENDING"
-          ? "bg-gaming-warning"
-          : "bg-gaming-primary"
-      }`}
-    />
-    <span className="text-sm font-medium">{status.replace("_", " ")}</span>
-  </div>
-);
+const StatusIndicator = ({ status, isActive }) => {
+  // Remove any direct access to router/navigation here
+  return (
+    <div className="flex items-center space-x-2">
+      <div
+        className={`h-3 w-3 rounded-full ${
+          isActive
+            ? status === "COMPLETED_WIN"
+              ? "bg-gaming-success"
+              : status === "COMPLETED_LOSS"
+              ? "bg-gaming-error"
+              : "bg-gaming-warning animate-pulse"
+            : "bg-secondary-600"
+        }`}
+      />
+      <span
+        className={`text-sm ${
+          isActive
+            ? status === "COMPLETED_WIN"
+              ? "text-gaming-success"
+              : status === "COMPLETED_LOSS"
+              ? "text-gaming-error"
+              : "text-gaming-warning"
+            : "text-secondary-400"
+        }`}
+      >
+        {status || "PENDING"}
+      </span>
+    </div>
+  );
+};
 
 // Icons Component
 const Icons = {
@@ -2790,6 +2801,7 @@ const DicePage = ({
   setLoadingStates,
   setLoadingMessage,
 }) => {
+  
   const queryClient = useQueryClient();
   const [chosenNumber, setChosenNumber] = useState(null);
   const [betAmount, setBetAmount] = useState(BigInt(0));
@@ -3035,6 +3047,9 @@ const DicePage = ({
         setShowLoseAnimation(true);
         addToast("Better luck next time!", "warning");
       }
+
+      
+
     } catch (error) {
       console.error("Game resolution error:", error);
       handleContractError(error, onError);
@@ -3494,7 +3509,7 @@ function App() {
     contracts: true,
     wallet: false,
     transaction: false,
-    gameState: false // Add missing state
+    gameState: false, // Add missing state
   });
   const [loadingMessage, setLoadingMessage] = useState("");
 
