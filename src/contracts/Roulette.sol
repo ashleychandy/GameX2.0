@@ -6,12 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "@goplugin/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
-import "@goplugin/contracts/src/v0.8/dev/VRFConsumerBaseV2.sol";
-
-
 interface IMyToken is IERC20 {
-    
     function mint(address to, uint256 amount) external;
     function burn(address from, uint256 amount) external;
     function hasRole(bytes32 role, address account) external view returns (bool);
@@ -19,34 +14,25 @@ interface IMyToken is IERC20 {
     function grantRole(bytes32 role, address account) external;
 }
 
-enum BetType {
-    Straight,
-    Split,
-    Street,
-    Corner,
-    SixLine,
-    Dozen,
-    Column,
-    Red,
-    Black,
-    Even,
-    Odd,
-    Low,
-    High
-}
-
 enum GameStatus {
-    PENDING,
-    STARTED,
     COMPLETED_WIN,
-    COMPLETED_LOSS,
-    CANCELLED
+    COMPLETED_LOSS
 }
 
-struct BetRequest {
-    uint8[] numbers;
-    uint256 amount;
-    BetType betType;
+enum BetType {
+    Straight,    // Single number bet
+    Split,       // Two adjacent numbers
+    Street,      // Three numbers in a row
+    Corner,      // Four numbers in a square
+    SixLine,     // Six numbers (two rows)
+    Dozen,       // 12 numbers (1-12, 13-24, 25-36)
+    Column,      // 12 numbers (vertical)
+    Red,         // Red numbers
+    Black,       // Black numbers
+    Even,        // Even numbers
+    Odd,         // Odd numbers
+    Low,         // 1-18
+    High         // 19-36
 }
 
 struct Bet {
@@ -61,11 +47,8 @@ struct Bet {
 }
 
 struct UserGameData {
-    Bet currentBet;
-    bool isActive;
-    uint256 currentRequestId;
-    bool requestFulfilled;
     Bet[] betHistory;
+    uint8[] winningNumbersHistory;
     uint256 totalBets;
     uint256 totalWinnings;
     uint256 totalLosses;
@@ -74,278 +57,199 @@ struct UserGameData {
     uint256 maxHistorySize;
 }
 
-// Enhanced custom errors with descriptive codes and messages
-error InvalidBetParameters(uint256 code, string reason);
-error InsufficientContractBalance(uint256 code, uint256 required, uint256 available);
-error InsufficientUserBalance(uint256 code, uint256 required, uint256 available);
-error InsufficientAllowance(uint256 required, uint256 available);
-error TransferFailed(uint256 code, address from, address to, uint256 amount);
-error GameError(uint256 code, string reason);
-error VRFError(uint256 code, string reason);
-error RoleError(uint256 code, bytes32 role);
-error PayoutCalculationError(string message);
-error MintFailed(address to, uint256 amount);
-error BurnFailed(address from, uint256 amount);
-error VRFRequestFailed(string reason);
-error MissingContractRole(bytes32 role);
-
-// Add request tracking struct similar to Dice
-struct RequestStatus {
-    bool fulfilled;
-    bool exists;
-    uint256[] randomWords;
+struct BetRequest {
+    uint8[] numbers;
+    uint256 amount;
+    BetType betType;
 }
 
-contract Roulette is Pausable, Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
-    // Make constants more organized and explicit
+
+contract RouletteV2 is  Pausable, Ownable, ReentrancyGuard {
+    // Constants
     uint8 public constant MAX_NUMBER = 36;
     uint256 public constant DENOMINATOR = 10000;
     uint256 public constant DEFAULT_HISTORY_SIZE = 10;
     uint256 private constant MAX_BETS_PER_SPIN = 15;
-    uint256 private constant GAME_TIMEOUT = 1 hours;
-    uint256 private constant MAX_HISTORY_LIMIT = 100;
 
-    // Enhanced state tracking similar to Dice
-    uint256 private totalGamesPlayed;
-    uint256 private totalPayoutAmount;
-
-    // Enhanced mappings
-    mapping(address => UserGameData) public userData;
-    mapping(uint256 => RequestStatus) public s_requests;
-    mapping(uint256 => address) private s_spinners;
-    mapping(uint256 => bool) private activeRequestIds;
-    mapping(address => bool) private owners;
-    uint256 private numOwners;
-
-    // Make VRF variables immutable like in Dice
-    VRFCoordinatorV2Interface private immutable COORDINATOR;
-    uint64 private immutable s_subscriptionId;
-    bytes32 private immutable s_keyHash;
-    uint32 private immutable callbackGasLimit;
-    uint16 private immutable requestConfirmations;
-    uint32 private immutable numWords;
-
-    // Make token immutable
-    IMyToken public immutable myToken;
+    // Token variables
+    IMyToken public myToken;
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
+    // State variables
+    mapping(address => UserGameData) public userData;
+    uint256 public totalGamesPlayed;
+    uint256 public totalPayoutAmount;
+    mapping(address => bool) private owners;
+    uint256 private numOwners;
+    uint8 public winningNumber;
+
+    // Events
     event OwnerAdded(address indexed newOwner);
     event OwnerRemoved(address indexed removedOwner);
-    event GameCleanup(address indexed player, uint256 requestId, GameStatus status);
+    event GameCompleted(address indexed player, uint8 winningNumber, uint256 totalPayout);
 
-    constructor(
-        address _myTokenAddress,
-        uint64 subscriptionId,
-        address vrfCoordinator,
-        bytes32 keyHash,
-        uint32 _callbackGasLimit,
-        uint16 _requestConfirmations,
-        uint32 _numWords
-    ) VRFConsumerBaseV2(vrfCoordinator) Ownable(msg.sender) {
-        if (_myTokenAddress == address(0)) revert InvalidBetParameters(1, "Invalid token address");
-        if (vrfCoordinator == address(0)) revert InvalidBetParameters(2, "Invalid VRF coordinator");
+    // Errors
+    error InvalidBetParameters(string reason);
+    error InsufficientContractBalance(uint256 required, uint256 available);
+    error InvalidBetType(uint256 betType);
+    error InsufficientUserBalance(uint256 required, uint256 available);
+    error TransferFailed(address from, address to, uint256 amount);
+    error BurnFailed(address account, uint256 amount);
+    error MintFailed(address account, uint256 amount);
+    error MissingContractRole(bytes32 role);
+    error InsufficientAllowance(uint256 required, uint256 allowed);
+
+    constructor(address _myTokenAddress) Ownable(msg.sender) {
+        require(_myTokenAddress != address(0), "Token address cannot be zero");
         
-        COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
         myToken = IMyToken(_myTokenAddress);
-        s_subscriptionId = subscriptionId;
-        s_keyHash = keyHash;
-        callbackGasLimit = _callbackGasLimit;
-        requestConfirmations = _requestConfirmations;
-        numWords = _numWords;
-
-        // Initialize deployer as first owner
         owners[msg.sender] = true;
         numOwners = 1;
         emit OwnerAdded(msg.sender);
     }
 
-    function placeBetAndSpin(BetRequest calldata bet) external nonReentrant whenNotPaused returns (uint256 requestId) {
-        if (!_isValidBet(bet.numbers, bet.betType)) {
-            revert InvalidBetParameters(1, "Invalid bet configuration");
-        }
 
+    function placeManyBetsAndSpin(BetRequest[] calldata bets) external nonReentrant whenNotPaused {
         UserGameData storage user = userData[msg.sender];
         
-        if (user.isActive) {
-            revert InvalidBetParameters(2, "Player has pending game");
+        if (bets.length == 0) revert InvalidBetParameters("No bets provided");
+        if (bets.length > MAX_BETS_PER_SPIN) revert InvalidBetParameters("Too many bets");
+
+        // Generate random winning number
+        winningNumber = _generateRandomNumber();
+
+        // Add explicit validation for bet amounts
+        for (uint256 i = 0; i < bets.length; i++) {
+            if (bets[i].amount == 0) revert InvalidBetParameters("Invalid bet amount");
+            if (!_isValidBet(bets[i].numbers, bets[i].betType)) {
+                revert InvalidBetParameters("Invalid bet configuration");
+            }
+        }
+
+        // Initialize history size if not set
+        if (user.maxHistorySize == 0) {
+            user.maxHistorySize = DEFAULT_HISTORY_SIZE;
+        }
+
+        // Calculate total amount and validate bets
+        uint256 totalAmount = 0;
+        for (uint256 i = 0; i < bets.length; i++) {
+            totalAmount += bets[i].amount;
         }
 
         // Check user balance and allowance
-        if (myToken.balanceOf(msg.sender) < bet.amount) {
-            revert InsufficientUserBalance(3, bet.amount, myToken.balanceOf(msg.sender));
+        if (myToken.balanceOf(msg.sender) < totalAmount) {
+            revert InsufficientUserBalance(totalAmount, myToken.balanceOf(msg.sender));
         }
 
-        if (myToken.allowance(msg.sender, address(this)) < bet.amount) {
-            revert InsufficientAllowance(bet.amount, myToken.allowance(msg.sender, address(this)));
+        if (myToken.allowance(msg.sender, address(this)) < totalAmount) {
+            revert InsufficientAllowance(totalAmount, myToken.allowance(msg.sender, address(this)));
         }
 
-        // Burn tokens from user
-        try myToken.burn(msg.sender, bet.amount) {
-        } catch {
-            revert BurnFailed(msg.sender, bet.amount);
-        }
+        // Process bets and calculate payouts immediately
+        uint256 totalPayout = 0;
+        Bet[] memory completedBets = new Bet[](bets.length);
 
-        // Request random number
-        try COORDINATOR.requestRandomWords(
-            s_keyHash,
-            s_subscriptionId,
-            requestConfirmations,
-            callbackGasLimit,
-            numWords
-        ) returns (uint256 _requestId) {
-            requestId = _requestId;
-            
-            s_requests[requestId] = RequestStatus({
-                randomWords: new uint256[](0),
-                exists: true,
-                fulfilled: false
-            });
-            
-            s_spinners[requestId] = msg.sender;
-            activeRequestIds[requestId] = true;
-            
-            user.currentRequestId = requestId;
-            user.requestFulfilled = false;
-            user.isActive = true;
-            
-            // Store current bet
-            user.currentBet = Bet({
-                numbers: bet.numbers,
-                amount: bet.amount,
-                betType: bet.betType,
+        for (uint256 i = 0; i < bets.length; i++) {
+            uint256 payout = _calculatePayout(
+                bets[i].numbers,
+                bets[i].betType,
+                bets[i].amount,
+                winningNumber
+            );
+
+            completedBets[i] = Bet({
+                numbers: bets[i].numbers,
+                amount: bets[i].amount,
+                betType: bets[i].betType,
                 timestamp: block.timestamp,
-                winningNumber: 0,
-                completed: false,
-                payout: 0,
-                status: GameStatus.STARTED
+                winningNumber: winningNumber,
+                completed: true,
+                payout: payout,
+                status: payout > 0 ? GameStatus.COMPLETED_WIN : GameStatus.COMPLETED_LOSS
             });
-            
-        } catch Error(string memory reason) {
-            revert VRFRequestFailed(reason);
-        } catch {
-            revert VRFRequestFailed("Unknown VRF error");
-        }
 
-        // Update user stats
-        user.totalBets += bet.amount;
-        user.gamesPlayed++;
-        user.lastPlayedTimestamp = block.timestamp;
-
-        return requestId;
-    }
-
-    function resolveGame() external nonReentrant {
-        UserGameData storage user = userData[msg.sender];
-        
-        if (!user.isActive) revert GameError(1, "No active game");
-        if (!user.requestFulfilled) revert GameError(2, "Random number not ready");
-        if (!s_requests[user.currentRequestId].fulfilled) revert GameError(3, "VRF request not fulfilled");
-        
-        uint256[] memory randomWords = s_requests[user.currentRequestId].randomWords;
-        uint8 winningNumber = uint8(randomWords[0] % (MAX_NUMBER + 1));
-        
-        uint256 payout = _calculatePayout(
-            user.currentBet.numbers, 
-            user.currentBet.betType, 
-            user.currentBet.amount, 
-            winningNumber
-        );
-
-        // Update current bet
-        user.currentBet.winningNumber = winningNumber;
-        user.currentBet.completed = true;
-        user.currentBet.payout = payout;
-        user.currentBet.status = payout > 0 ? GameStatus.COMPLETED_WIN : GameStatus.COMPLETED_LOSS;
-
-        // Add to history
-        if (user.betHistory.length >= user.maxHistorySize) {
-            // Remove oldest bet if at max size
-            for (uint256 i = 0; i < user.betHistory.length - 1; i++) {
-                user.betHistory[i] = user.betHistory[i + 1];
+            if (payout > 0) {
+                user.totalWinnings += payout;
+                totalPayout += payout;
+            } else {
+                user.totalLosses += bets[i].amount;
             }
-            user.betHistory.pop();
+            
+            // Add to bet history
+            user.betHistory.push(completedBets[i]);
         }
-        user.betHistory.push(user.currentBet);
 
-        if (payout > 0) {
-            user.totalWinnings += payout;
+        // Update winning numbers history
+        _updateWinningHistory(user, winningNumber);
+
+        // Process payouts
+        if (totalPayout > 0) {
             if (!myToken.hasRole(MINTER_ROLE, address(this))) {
                 revert MissingContractRole(MINTER_ROLE);
             }
-            try myToken.mint(msg.sender, payout) {
+            try myToken.mint(msg.sender, totalPayout) {
             } catch {
-                revert MintFailed(msg.sender, payout);
+                revert MintFailed(msg.sender, totalPayout);
             }
-        } else {
-            user.totalLosses += user.currentBet.amount;
         }
+
+        // Update user data
+        user.totalBets += totalAmount;
+        user.gamesPlayed += 1;
+        user.lastPlayedTimestamp = block.timestamp;
 
         // Update global stats
         totalGamesPlayed++;
-        totalPayoutAmount += payout;
+        totalPayoutAmount += totalPayout;
 
-        // Cleanup game state
-        delete s_requests[user.currentRequestId];
-        delete s_spinners[user.currentRequestId];
-        delete activeRequestIds[user.currentRequestId];
-        user.currentRequestId = 0;
-        user.requestFulfilled = false;
-        user.isActive = false;
-        
-        emit GameCleanup(msg.sender, user.currentRequestId, user.currentBet.status);
+        emit GameCompleted(msg.sender, winningNumber, totalPayout);
     }
 
-    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
-        require(s_requests[requestId].exists, "request not found");
-        s_requests[requestId].fulfilled = true;
-        s_requests[requestId].randomWords = randomWords;
-
-        address spinner = s_spinners[requestId];
-        if (spinner == address(0)) revert InvalidBetParameters("Invalid spinner address");
+    function _updateWinningHistory(UserGameData storage user, uint8 _winningNumber) private {
+        if (user.maxHistorySize == 0) {
+            user.maxHistorySize = DEFAULT_HISTORY_SIZE;
+        }
         
-        UserGameData storage user = userData[spinner];
-        require(user.currentRequestId == requestId, "Request ID mismatch");
-        require(activeRequestIds[requestId], "Request ID not active");
-        
-        user.requestFulfilled = true;
+        if (user.winningNumbersHistory.length >= user.maxHistorySize) {
+            for (uint256 i = 0; i < user.winningNumbersHistory.length - 1; i++) {
+                user.winningNumbersHistory[i] = user.winningNumbersHistory[i + 1];
+            }
+            user.winningNumbersHistory[user.winningNumbersHistory.length - 1] = _winningNumber;
+        } else {
+            user.winningNumbersHistory.push(_winningNumber);
+        }
     }
 
-    function _calculatePayout(uint8[] memory numbers, BetType betType, uint256 betAmount, uint8 winningNumber) private pure returns (uint256) {
-        // Prevent zero-amount bets
+    function _calculatePayout(uint8[] memory numbers, BetType betType, uint256 betAmount, uint8 _winningNumber) private pure returns (uint256) {
         if (betAmount == 0) return 0;
         
-        if (_isBetWinning(numbers, betType, winningNumber)) {
+        if (_isBetWinning(numbers, betType, _winningNumber)) {
             uint256 multiplier = getPayoutMultiplier(betType);
-            // Safe multiplication pattern
             uint256 winnings = (betAmount * multiplier) / DENOMINATOR;
-            // Check for overflow before final addition
             require(winnings <= type(uint256).max - betAmount, "Payout overflow");
             return betAmount + winnings;
         }
         return 0;
     }
 
-    function _isBetWinning(uint8[] memory numbers, BetType betType, uint8 winningNumber) private pure returns (bool) {
-        if (winningNumber > MAX_NUMBER) return false;
+    function _isBetWinning(uint8[] memory numbers, BetType betType, uint8 _winningNumber) private pure returns (bool) {
+        if (_winningNumber > MAX_NUMBER) return false;
         
-        // Handle zero case first
-        if (winningNumber == 0) {
-            // Only straight bet on zero can win
+        if (_winningNumber == 0) {
             return (betType == BetType.Straight && numbers.length == 1 && numbers[0] == 0);
         }
         
-        // Outside bets
-        if (betType == BetType.Red) return _isRed(winningNumber);
-        if (betType == BetType.Black) return !_isRed(winningNumber) && winningNumber != 0;
-        if (betType == BetType.Even) return winningNumber % 2 == 0 && winningNumber != 0;
-        if (betType == BetType.Odd) return winningNumber % 2 == 1;
-        if (betType == BetType.Low) return winningNumber >= 1 && winningNumber <= 18;
-        if (betType == BetType.High) return winningNumber >= 19 && winningNumber <= 36;
+        if (betType == BetType.Red) return _isRed(_winningNumber);
+        if (betType == BetType.Black) return !_isRed(_winningNumber) && _winningNumber != 0;
+        if (betType == BetType.Even) return _winningNumber % 2 == 0 && _winningNumber != 0;
+        if (betType == BetType.Odd) return _winningNumber % 2 == 1;
+        if (betType == BetType.Low) return _winningNumber >= 1 && _winningNumber <= 18;
+        if (betType == BetType.High) return _winningNumber >= 19 && _winningNumber <= 36;
         
-        // Inside bets
         for (uint8 i = 0; i < numbers.length; i++) {
-            if (numbers[i] == winningNumber) return true;
+            if (numbers[i] == _winningNumber) return true;
         }
         return false;
     }
@@ -362,26 +266,33 @@ contract Roulette is Pausable, Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
         return false;
     }
 
-    function getPayoutMultiplier(BetType betType) public pure returns (uint256) {
-        if (betType == BetType.Straight) return 35 * DENOMINATOR;
-        if (betType == BetType.Split) return 17 * DENOMINATOR;
-        if (betType == BetType.Street) return 11 * DENOMINATOR;
-        if (betType == BetType.Corner) return 8 * DENOMINATOR;
-        if (betType == BetType.SixLine) return 5 * DENOMINATOR;
-        if (betType == BetType.Dozen || betType == BetType.Column) return 2 * DENOMINATOR;
-        return DENOMINATOR; // For Red, Black, Even, Odd, Low, High (1:1)
+    function getPayoutMultiplier(BetType betType) internal pure returns (uint256) {
+        // DENOMINATOR = 10000
+        if (betType == BetType.Straight) return 35 * DENOMINATOR;     // 35:1
+        if (betType == BetType.Split) return 17 * DENOMINATOR;        // 17:1
+        if (betType == BetType.Street) return 11 * DENOMINATOR;       // 11:1
+        if (betType == BetType.Corner) return 8 * DENOMINATOR;        // 8:1
+        if (betType == BetType.SixLine) return 5 * DENOMINATOR;       // 5:1
+        if (betType == BetType.Dozen) return 2 * DENOMINATOR;         // 2:1 (Fixed)
+        if (betType == BetType.Column) return 2 * DENOMINATOR;        // 2:1
+        // Outside bets all pay 1:1
+        return DENOMINATOR;                                           // 1:1
+    }
+
+    function calculatePayout(uint256 amount, BetType betType) internal pure returns (uint256) {
+        if (amount == 0) return 0;
+        
+        uint256 multiplier = getPayoutMultiplier(betType);
+        uint256 winnings = (amount * multiplier) / DENOMINATOR;
+        return amount + winnings;
     }
 
     function _isValidBet(uint8[] memory numbers, BetType betType) private pure returns (bool) {
-        // First validate number range
         for (uint8 i = 0; i < numbers.length; i++) {
             if (numbers[i] > MAX_NUMBER) return false;
         }
 
-        // Validate bet type and corresponding numbers
-        if (betType == BetType.Straight) {
-            return numbers.length == 1;
-        }
+        if (betType == BetType.Straight) return numbers.length == 1;
         if (betType == BetType.Split) {
             if (numbers.length != 2) return false;
             return _areAdjacentNumbers(numbers[0], numbers[1]);
@@ -398,48 +309,29 @@ contract Roulette is Pausable, Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
             if (numbers.length != 6) return false;
             return _isValidSixLine(numbers);
         }
-        if (betType == BetType.Dozen) {
-            return _isValidDozen(numbers);
-        }
-        if (betType == BetType.Column) {
-            return _isValidColumn(numbers);
-        }
-        // Outside bets don't require numbers
-        if (betType >= BetType.Red) {
-            return numbers.length == 0;
-        }
+        if (betType == BetType.Dozen) return _isValidDozen(numbers);
+        if (betType == BetType.Column) return _isValidColumn(numbers);
+        if (betType >= BetType.Red) return numbers.length == 0;
         return false;
     }
 
+    // Helper functions for bet validation
     function _areAdjacentNumbers(uint8 a, uint8 b) private pure returns (bool) {
         if (a > MAX_NUMBER || b > MAX_NUMBER) return false;
         if (a > b) (a, b) = (b, a);
-        
-        // Horizontal adjacency
-        if (b == a + 1 && a % 3 != 0) return true;
-        
-        // Vertical adjacency
-        if (b == a + 3 && a <= 33) return true;
-        
-        return false;
+        return (b == a + 1 && a % 3 != 0) || (b == a + 3 && a <= 33);
     }
 
     function _isValidStreet(uint8[] memory numbers) private pure returns (bool) {
         if (numbers[0] > MAX_NUMBER - 2) return false;
         if (numbers[0] % 3 != 1) return false;
-        
-        return numbers[1] == numbers[0] + 1 && 
-               numbers[2] == numbers[0] + 2;
+        return numbers[1] == numbers[0] + 1 && numbers[2] == numbers[0] + 2;
     }
 
     function _isValidCorner(uint8[] memory numbers) private pure returns (bool) {
         uint8[4] memory sortedNumbers = [numbers[0], numbers[1], numbers[2], numbers[3]];
-        _sortNumbers4(sortedNumbers); // Changed to specific function for 4 numbers
-        
-        // Check if the smallest number is valid for a corner
+        _sortNumbers4(sortedNumbers);
         if (sortedNumbers[0] > 32 || sortedNumbers[0] % 3 == 0) return false;
-        
-        // Verify corner pattern
         return sortedNumbers[1] == sortedNumbers[0] + 1 &&
                sortedNumbers[2] == sortedNumbers[0] + 3 &&
                sortedNumbers[3] == sortedNumbers[0] + 4;
@@ -448,12 +340,8 @@ contract Roulette is Pausable, Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
     function _isValidSixLine(uint8[] memory numbers) private pure returns (bool) {
         uint8[6] memory sortedNumbers = [numbers[0], numbers[1], numbers[2], 
                                        numbers[3], numbers[4], numbers[5]];
-        _sortNumbers6(sortedNumbers); // Changed to specific function for 6 numbers
-        
-        // Check if the smallest number is valid for a six line
+        _sortNumbers6(sortedNumbers);
         if (sortedNumbers[0] > 31 || sortedNumbers[0] % 3 != 1) return false;
-        
-        // Verify six line pattern
         for (uint8 i = 1; i < 6; i++) {
             if (sortedNumbers[i] != sortedNumbers[0] + i) return false;
         }
@@ -462,10 +350,8 @@ contract Roulette is Pausable, Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
 
     function _isValidDozen(uint8[] memory numbers) private pure returns (bool) {
         if (numbers.length != 12) return false;
-        
         uint8 start = numbers[0];
         if (start != 1 && start != 13 && start != 25) return false;
-        
         for (uint8 i = 0; i < 12; i++) {
             if (numbers[i] != start + i) return false;
         }
@@ -474,17 +360,14 @@ contract Roulette is Pausable, Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
 
     function _isValidColumn(uint8[] memory numbers) private pure returns (bool) {
         if (numbers.length != 12) return false;
-        
         uint8 start = numbers[0];
         if (start != 1 && start != 2 && start != 3) return false;
-        
         for (uint8 i = 0; i < 12; i++) {
             if (numbers[i] != start + (i * 3)) return false;
         }
         return true;
     }
 
-    // Replace the original _sortNumbers with two specific sorting functions
     function _sortNumbers4(uint8[4] memory arr) private pure {
         for (uint8 i = 0; i < 3; i++) {
             for (uint8 j = 0; j < 3 - i; j++) {
@@ -505,6 +388,7 @@ contract Roulette is Pausable, Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
         }
     }
 
+    // Admin functions
     function pause() public onlyOwner {
         _pause();
     }
@@ -513,30 +397,26 @@ contract Roulette is Pausable, Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
         _unpause();
     }
 
-    function getBetTypeAsUint(BetType betType) public pure returns (uint256) {
-        return uint256(betType);
+    function addOwner(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert("Invalid address");
+        if (owners[newOwner]) revert("Already owner");
+        owners[newOwner] = true;
+        numOwners++;
+        emit OwnerAdded(newOwner);
     }
 
-    function getContractBalance() public view returns (uint256) {
-        return myToken.balanceOf(address(this));
+    function removeOwner(address ownerToRemove) external onlyOwner {
+        if (!owners[ownerToRemove]) revert("Not owner");
+        if (numOwners <= 1) revert("Cannot remove last owner");
+        if (ownerToRemove == msg.sender) revert("Cannot remove self");
+        owners[ownerToRemove] = false;
+        numOwners--;
+        emit OwnerRemoved(ownerToRemove);
     }
 
-    function revokeTokenRole(bytes32 role, address account) external onlyOwner {
-        myToken.revokeRole(role, account);
-    }
-
-    function grantTokenRole(bytes32 role, address account) external onlyOwner {
-        myToken.grantRole(role, account);
-    }
-
+    // View functions
     function getUserGameData(address player) external view returns (UserGameData memory) {
         return userData[player];
-    }
-
-    function getLastPlayerBet(address player) external view returns (Bet memory) {
-        Bet[] memory bets = userData[player].betHistory;
-        if (bets.length == 0) revert("No bets found");
-        return bets[bets.length - 1];
     }
 
     function getBetHistory(address player) external view returns (Bet[] memory) {
@@ -556,6 +436,23 @@ contract Roulette is Pausable, Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
         );
     }
 
+    function isOwner(address account) public view returns (bool) {
+        return owners[account];
+    }
+
+    function setHistorySize(uint256 newSize) external whenNotPaused {
+        require(newSize > 0, "History size must be positive");
+        require(newSize <= 100, "History size too large");
+        
+        UserGameData storage user = userData[msg.sender];
+        user.maxHistorySize = newSize;
+        
+        while (user.betHistory.length > newSize) {
+            user.betHistory.pop();
+        }
+    }
+
+    // Emergency functions
     function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
         if (token == address(myToken)) {
             if (amount > myToken.balanceOf(address(this))) {
@@ -582,271 +479,14 @@ contract Roulette is Pausable, Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
         if (!myToken.hasRole(BURNER_ROLE, address(this))) {
             revert MissingContractRole(BURNER_ROLE);
         }
-        // If we reach here, the contract has both roles
     }
 
-    
-
-    function isRequestActive(uint256 requestId) public view returns (bool) {
-        return activeRequestIds[requestId];
-    }
-
-    function getSpinnerForRequest(uint256 requestId) public view returns (address) {
-        return s_spinners[requestId];
-    }
-
-    function hasPendingRequest(address player) external view returns (bool) {
-        UserGameData storage user = userData[player];
-        return user.currentRequestId != 0 && !user.requestFulfilled;
-    }
-
-    function getCurrentRequestDetails(address player) external view returns (
-        uint256 requestId,
-        bool requestFulfilled,
-        bool requestActive,
-        bool exists
-    ) {
-        UserGameData storage user = userData[player];
-        
-        if (user.currentRequestId == 0) {
-            return (0, false, false, false);
-        }
-        
-        RequestStatus storage request = s_requests[user.currentRequestId];
-        return (
-            user.currentRequestId,
-            user.requestFulfilled,
-            activeRequestIds[user.currentRequestId],
-            request.exists
-        );
-    }
-
-    
-    // Add new data fetching functions
-    function getUserData(address player) external view returns (
-        uint256 totalGames,
-        uint256 totalBets,
-        uint256 totalWinnings,
-        uint256 totalLosses,
-        uint256 lastPlayed
-    ) {
-        if (player == address(0)) revert InvalidBetParameters("Invalid address");
-        UserGameData storage user = userData[player];
-        return (
-            user.gamesPlayed,
-            user.totalBets,
-            user.totalWinnings,
-            user.totalLosses,
-            user.lastPlayedTimestamp
-        );
-    }
-
-    function getGameStatus(address player) external view returns (
-        bool hasActiveBet,
-        uint256 currentBetAmount,
-        BetType currentBetType,
-        uint8[] memory currentBetNumbers,
-        uint256 timestamp
-    ) {
-        if (player == address(0)) revert InvalidBetParameters("Invalid address");
-        UserGameData storage user = userData[player];
-        
-        if (user.currentRequestId != 0) {
-            Bet storage currentBet = user.betHistory[user.betHistory.length - 1];
-            return (
-                true,
-                currentBet.amount,
-                currentBet.betType,
-                currentBet.numbers,
-                currentBet.timestamp
-            );
-        }
-        
-        return (
-            false,
-            0,
-            BetType.Straight, // Default value
-            new uint8[](0),
-            0
-        );
-    }
-
-    // Add function to get current game details
-    function getCurrentGame(address player) public view returns (
-        bool isActive,
-        uint256 requestId,
-        bool requestFulfilled,
-        Bet memory currentBet
-    ) {
-        if (player == address(0)) revert InvalidBetParameters("Invalid address");
-        
-        UserGameData storage user = userData[player];
-        
-        if (user.currentRequestId != 0) {
-            return (
-                true,
-                user.currentRequestId,
-                user.requestFulfilled,
-                user.betHistory[user.betHistory.length - 1]
-            );
-        }
-        
-        return (
-            false,
-            0,
-            false,
-            Bet({
-                numbers: new uint8[](0),
-                amount: 0,
-                betType: BetType.Straight,
-                timestamp: 0,
-                winningNumber: 0,
-                completed: false,
-                payout: 0,
-                status: GameStatus.PENDING
-            })
-        );
-    }
-
-    // Update getter functions
-    function getCurrentBet(address player) external view returns (Bet memory) {
-        UserGameData storage user = userData[player];
-        if (!user.isActive) revert GameError(4, "No active game");
-        return user.currentBet;
-    }
-
-    function getBetHistory(address player) external view returns (Bet[] memory) {
-        return userData[player].betHistory;
-    }
-
-    function recoverOwnStuckGame() external nonReentrant {
-        UserGameData storage user = userData[msg.sender];
-        
-        if (!user.isActive) revert GameError(1, "No active game");
-        if (block.timestamp <= user.currentBet.timestamp + GAME_TIMEOUT) {
-            revert GameError(2, "Game not timed out");
-        }
-
-        // Clean up request mappings
-        if (user.currentRequestId != 0) {
-            delete s_requests[user.currentRequestId];
-            delete s_spinners[user.currentRequestId];
-            delete activeRequestIds[user.currentRequestId];
-        }
-
-        // Refund the player's bet amount
-        if (!myToken.hasRole(MINTER_ROLE, address(this))) {
-            revert MissingContractRole(MINTER_ROLE);
-        }
-        
-        try myToken.mint(msg.sender, user.currentBet.amount) {
-        } catch {
-            revert MintFailed(msg.sender, user.currentBet.amount);
-        }
-
-        // Update bet status
-        user.currentBet.status = GameStatus.CANCELLED;
-        user.currentBet.completed = true;
-
-        // Reset game state
-        user.currentRequestId = 0;
-        user.requestFulfilled = false;
-        user.isActive = false;
-    }
-
-    // Add owner management functions similar to Dice
-    function addOwner(address newOwner) external onlyOwner {
-        if (newOwner == address(0)) revert("Invalid address");
-        if (owners[newOwner]) revert("Already owner");
-        
-        owners[newOwner] = true;
-        numOwners++;
-        emit OwnerAdded(newOwner);
-    }
-
-    function removeOwner(address ownerToRemove) external onlyOwner {
-        if (!owners[ownerToRemove]) revert("Not owner");
-        if (numOwners <= 1) revert("Cannot remove last owner");
-        if (ownerToRemove == msg.sender) revert("Cannot remove self");
-        
-        owners[ownerToRemove] = false;
-        numOwners--;
-        emit OwnerRemoved(ownerToRemove);
-    }
-
-    function isOwner(address account) public view returns (bool) {
-        return owners[account];
-    }
-
-    function forceStopGame(address player) external onlyOwner {
-        UserGameData storage user = userData[player];
-        
-        if (user.currentRequestId == 0) revert("No active game");
-
-        // Find all pending bets
-        uint256 startIndex = user.betHistory.length;
-        while (startIndex > 0 && !user.betHistory[startIndex - 1].completed) {
-            startIndex--;
-        }
-        
-        // Refund all pending bets
-        uint256 totalRefund = 0;
-        for (uint256 i = startIndex; i < user.betHistory.length; i++) {
-            totalRefund += user.betHistory[i].amount;
-            user.betHistory[i].completed = true;
-            user.betHistory[i].status = GameStatus.CANCELLED;
-        }
-        
-        if (totalRefund > 0) {
-            if (!myToken.hasRole(MINTER_ROLE, address(this))) {
-                revert MissingContractRole(MINTER_ROLE);
-            }
-            try myToken.mint(player, totalRefund) {
-            } catch {
-                revert MintFailed(player, totalRefund);
-            }
-        }
-
-        // Reset game state
-        delete s_requests[user.currentRequestId];
-        delete s_spinners[user.currentRequestId];
-        delete activeRequestIds[user.currentRequestId];
-        user.currentRequestId = 0;
-        user.requestFulfilled = false;
-        user.isActive = false;
-        user.currentBet.status = GameStatus.CANCELLED;
-        
-        emit GameCleanup(player, user.currentRequestId, GameStatus.CANCELLED);
-    }
-
-    function setHistorySize(uint256 newSize) external {
-        require(newSize > 0, "History size must be positive");
-        require(newSize <= 100, "History size too large"); // Prevent excessive storage
-        UserGameData storage user = userData[msg.sender];
-        user.maxHistorySize = newSize;
-        
-        // Trim existing bets history if necessary
-        while (user.betHistory.length > newSize) {
-            user.betHistory.pop();
-        }
-    }
-
-    function getHistorySize(address player) external view returns (uint256) {
-        UserGameData storage user = userData[player];
-        return user.maxHistorySize == 0 ? DEFAULT_HISTORY_SIZE : user.maxHistorySize;
-    }
-
-    // Add a more detailed request status function
-    function getRequestStatus(uint256 requestId) external view returns (
-        bool exists,
-        bool fulfilled,
-        uint256[] memory randomWords
-    ) {
-        RequestStatus storage request = s_requests[requestId];
-        return (
-            request.exists,
-            request.fulfilled,
-            request.randomWords
-        );
+    function _generateRandomNumber() private view returns (uint8) {
+        return uint8(uint256(keccak256(abi.encodePacked(
+            block.timestamp,
+            block.prevrandao,
+            msg.sender,
+            totalGamesPlayed
+        ))) % (MAX_NUMBER + 1));
     }
 }

@@ -32,8 +32,11 @@ import {
   QueryClientProvider,
 } from "@tanstack/react-query";
 
+import RoulettePage from "./pages/Roulette";
+
 import DiceABI from "./contracts/abi/Dice.json";
 import TokenABI from "./contracts/abi/Token.json";
+import RouletteABI from "./contracts/abi/Roulette.json";
 
 ChartJS.register(
   CategoryScale,
@@ -58,6 +61,7 @@ const NETWORKS = {
     contracts: {
       dice: process.env.REACT_APP_DICE_GAME_ADDRESS,
       token: process.env.REACT_APP_TOKEN_ADDRESS,
+      roulette: process.env.REACT_APP_ROULETTE_ADDRESS, // Make sure this is set
     },
   },
   APOTHEM: {
@@ -67,6 +71,17 @@ const NETWORKS = {
     contracts: {
       dice: process.env.REACT_APP_APOTHEM_DICE_GAME_ADDRESS,
       token: process.env.REACT_APP_APOTHEM_TOKEN_ADDRESS,
+      roulette: process.env.REACT_APP_APOTHEM_ROULETTE_ADDRESS, // Make sure this is set
+    },
+  },
+  AMOY: {
+    chainId: 80002,
+    name: "Amoy Testnet",
+    rpcUrl: process.env.REACT_APP_AMOY_RPC_URL,
+    contracts: {
+      dice: process.env.REACT_APP_AMOY_DICE_GAME_ADDRESS,
+      token: process.env.REACT_APP_AMOY_TOKEN_ADDRESS,
+      roulette: process.env.REACT_APP_AMOY_ROULETTE_ADDRESS, // Make sure this is set
     },
   },
 };
@@ -75,6 +90,7 @@ const NETWORKS = {
 const SUPPORTED_CHAIN_IDS = [
   NETWORKS.MAINNET.chainId,
   NETWORKS.APOTHEM.chainId,
+  NETWORKS.AMOY.chainId,
 ];
 
 // Enhanced Toast Component
@@ -137,6 +153,7 @@ const Toast = ({ message, type, onClose }) => (
 
 const NetworkIndicator = ({ chainId }) => {
   const isApothem = chainId === NETWORKS.APOTHEM.chainId;
+  const isAmoy = chainId === NETWORKS.AMOY.chainId;
 
   return (
     <div
@@ -145,6 +162,8 @@ const NetworkIndicator = ({ chainId }) => {
       ${
         isApothem
           ? "bg-blue-500/20 text-blue-400"
+          : isAmoy
+          ? "bg-purple-500/20 text-purple-400"
           : "bg-green-500/20 text-green-400"
       }
     `}
@@ -152,10 +171,10 @@ const NetworkIndicator = ({ chainId }) => {
       <span
         className={`
         w-2 h-2 rounded-full animate-pulse
-        ${isApothem ? "bg-blue-400" : "bg-green-400"}
+        ${isApothem ? "bg-blue-400" : isAmoy ? "bg-purple-400" : "bg-green-400"}
       `}
       />
-      {isApothem ? "Apothem Testnet" : "XDC Mainnet"}
+      {isApothem ? "Apothem Testnet" : isAmoy ? "Amoy Testnet" : "XDC Mainnet"}
     </div>
   );
 };
@@ -179,7 +198,10 @@ const Navbar = ({
               Home
             </Link>
             <Link to="/dice" className="nav-link">
-              Play Dice
+              Dice
+            </Link>
+            <Link to="/roulette" className="nav-link">
+              Roulette
             </Link>
             {isAdmin && (
               <Link to="/admin" className="nav-link">
@@ -222,8 +244,8 @@ const Navbar = ({
 const NetworkWarning = () => (
   <div className="bg-gaming-error/90 text-white px-4 py-2 text-center">
     <p>
-      Please switch to XDC Network(Chain ID: 50) or Apothem Testnet(Chain ID:
-      51)
+      Please switch to XDC Network(Chain ID: 50), Apothem Testnet(Chain ID: 51),
+      or Amoy Testnet(Chain ID: 80002)
     </p>
     <div className="flex justify-center gap-4 mt-2">
       <button
@@ -238,6 +260,12 @@ const NetworkWarning = () => (
       >
         Switch to Apothem Testnet
       </button>
+      <button
+        onClick={() => switchNetwork("amoy")}
+        className="px-4 py-1 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
+      >
+        Switch to Amoy Testnet
+      </button>
     </div>
   </div>
 );
@@ -247,7 +275,11 @@ const switchNetwork = async (networkType) => {
   if (!window.ethereum) return;
 
   const network =
-    networkType === "mainnet" ? NETWORKS.MAINNET : NETWORKS.APOTHEM;
+    networkType === "mainnet"
+      ? NETWORKS.MAINNET
+      : networkType === "testnet"
+      ? NETWORKS.APOTHEM
+      : NETWORKS.AMOY;
   const chainIdHex = `0x${network.chainId.toString(16)}`;
 
   try {
@@ -1602,6 +1634,12 @@ const TokenCard = ({ icon: Icon, title, description, buttonText, onClick }) => (
 );
 
 const Home = () => {
+  const [toasts, setToasts] = useState([]);
+
+  const addToast = useCallback((message, type) => {
+    setToasts((prev) => [...prev, { message, type }]);
+  }, []);
+
   // Add this section right after the Hero Section, before the Games Section
   const NetworkSwitcher = () => (
     <section className="py-8 bg-secondary-800/30">
@@ -1609,8 +1647,8 @@ const Home = () => {
         <div className="glass-card-hover p-6 text-center">
           <h2 className="text-2xl font-bold text-white mb-4">Select Network</h2>
           <p className="text-secondary-300 mb-6">
-            Choose between XDC Mainnet for real gameplay or Apothem Testnet for
-            testing
+            Choose between XDC Mainnet for real gameplay, Apothem Testnet or
+            Amoy Testnet for testing
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <motion.button
@@ -1635,6 +1673,17 @@ const Home = () => {
                 Apothem Testnet
               </div>
             </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => switchNetwork("amoy")}
+              className="btn-gaming bg-gaming-secondary"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-purple-400 animate-pulse" />
+                Amoy Testnet
+              </div>
+            </motion.button>
           </div>
         </div>
       </div>
@@ -1656,8 +1705,8 @@ const Home = () => {
       description:
         "Experience the thrill of blockchain roulette with multiple betting options",
       icon: <Icons.Roulette className="w-8 h-8" />,
-      status: "Coming Soon",
-      link: "#",
+      status: "Live", // Change from "Coming Soon" to "Live"
+      link: "/roulette",
       features: ["Multiple Betting Options", "European Style", "Live Results"],
     },
   ];
@@ -1668,19 +1717,52 @@ const Home = () => {
         throw new Error("MetaMask is not installed");
       }
 
-      const tokenAddress = process.env.REACT_APP_TOKEN_ADDRESS;
-      if (!tokenAddress) {
-        throw new Error("Token address not configured");
+      // Get current chain ID
+      const chainId = await window.ethereum.request({ method: "eth_chainId" });
+
+      // Convert chainId to decimal for comparison
+      const chainIdDecimal = parseInt(chainId, 16);
+
+      // Determine which network's token address to use
+      let tokenAddress;
+      let networkName;
+
+      if (chainIdDecimal === 50) {
+        // XDC Mainnet
+        tokenAddress = NETWORKS.MAINNET.contracts.token;
+        networkName = "XDC Mainnet";
+      } else if (chainIdDecimal === 51) {
+        // Apothem Testnet
+        tokenAddress = NETWORKS.APOTHEM.contracts.token;
+        networkName = "Apothem Testnet";
+      } else if (chainIdDecimal === 80002) {
+        // Amoy Testnet
+        tokenAddress = NETWORKS.AMOY.contracts.token;
+        networkName = "Amoy Testnet";
+      } else {
+        throw new Error(
+          `Please connect to XDC Mainnet, Apothem Testnet, or Amoy Testnet (current network: chain ID ${chainIdDecimal})`
+        );
       }
 
-      // Create a contract instance to get the actual symbol
+      if (!tokenAddress) {
+        throw new Error(`Token address not configured for ${networkName}`);
+      }
+
+      // Create a contract instance to get the actual symbol and name
       const provider = new ethers.BrowserProvider(window.ethereum);
       const tokenContract = new ethers.Contract(
         tokenAddress,
         TokenABI.abi,
         provider
       );
-      const symbol = await tokenContract.symbol();
+
+      // Fetch token details
+      const [symbol, name, decimals] = await Promise.all([
+        tokenContract.symbol(),
+        tokenContract.name(),
+        tokenContract.decimals(),
+      ]);
 
       const wasAdded = await window.ethereum.request({
         method: "wallet_watchAsset",
@@ -1688,20 +1770,26 @@ const Home = () => {
           type: "ERC20",
           options: {
             address: tokenAddress,
-            symbol: symbol, // Use the actual symbol from the contract
-            decimals: 18,
-            // image field removed since we don't have a token image
+            symbol: symbol,
+            decimals: decimals,
+            name: name,
+            // Optional image URL
+            image: "https://your-token-image-url.com/gamex.png", // Add your token's image URL if available
           },
         },
       });
 
       if (wasAdded) {
-        console.log("Token was added to MetaMask");
+        addToast(
+          `GameX token was added to MetaMask on ${networkName} successfully!`,
+          "success"
+        );
+      } else {
+        throw new Error("User rejected the request");
       }
     } catch (error) {
-      console.error("Error adding token to MetaMask:", error.message);
-      // Optionally add user feedback here
-      alert("Failed to add token to MetaMask: " + error.message);
+      console.error("Error adding token to MetaMask:", error);
+      addToast(error.message || "Failed to add token to MetaMask", "error");
     }
   };
 
@@ -2420,6 +2508,8 @@ function AdminPage({
   account,
   onError,
   addToast,
+  setLoadingStates,
+  contracts,
 }) {
   // Add logging of environment variables at component mount
   useEffect(() => {
@@ -2442,6 +2532,45 @@ function AdminPage({
     );
   }, []);
 
+  // Add network-specific contract addresses
+  const [selectedNetwork, setSelectedNetwork] = useState(() => {
+    // Initialize based on current chainId
+    const chainId = window.ethereum?.chainId;
+    if (chainId === "0x32") return "MAINNET";
+    if (chainId === "0x33") return "APOTHEM";
+    if (chainId === "0x13881") return "AMOY";
+    return "MAINNET"; // default
+  });
+
+  const getContractAddresses = (network) => {
+    switch (network) {
+      case "MAINNET":
+        return {
+          dice: process.env.REACT_APP_DICE_GAME_ADDRESS,
+          token: process.env.REACT_APP_TOKEN_ADDRESS,
+          roulette: process.env.REACT_APP_ROULETTE_ADDRESS,
+        };
+      case "APOTHEM":
+        return {
+          dice: process.env.REACT_APP_APOTHEM_DICE_GAME_ADDRESS,
+          token: process.env.REACT_APP_APOTHEM_TOKEN_ADDRESS,
+          roulette: process.env.REACT_APP_APOTHEM_ROULETTE_ADDRESS,
+        };
+      case "AMOY":
+        return {
+          dice: process.env.REACT_APP_AMOY_DICE_GAME_ADDRESS,
+          token: process.env.REACT_APP_AMOY_TOKEN_ADDRESS,
+          roulette: process.env.REACT_APP_AMOY_ROULETTE_ADDRESS,
+        };
+      default:
+        return {
+          dice: process.env.REACT_APP_DICE_GAME_ADDRESS,
+          token: process.env.REACT_APP_TOKEN_ADDRESS,
+          roulette: process.env.REACT_APP_ROULETTE_ADDRESS,
+        };
+    }
+  };
+
   const [gameStats, setGameStats] = useState({
     contractBalance: BigInt(0),
     isPaused: false,
@@ -2449,8 +2578,8 @@ function AdminPage({
   });
 
   const [formInputs, setFormInputs] = useState({
-    newAddress: "",
     selectedRole: "MINTER_ROLE",
+    selectedContract: "token",
     withdrawAmount: "",
     newOwnerAddress: "",
     mintAddress: "",
@@ -2511,33 +2640,72 @@ function AdminPage({
 
   const handleRoleManagement = async (action) => {
     try {
-      setLoading((prev) => ({ ...prev, action: true }));
+      setLoadingStates((prev) => ({ ...prev, action: true }));
 
-      // Get the correct role hash based on selection
-      const roleHash =
-        formInputs.selectedRole === "MINTER_ROLE"
-          ? await tokenContract.MINTER_ROLE()
-          : await tokenContract.BURNER_ROLE();
-
-      if (!ethers.isAddress(formInputs.newAddress)) {
-        addToast("Invalid address", "error");
+      // Validate inputs
+      if (!formInputs.selectedContract || !formInputs.selectedRole) {
+        addToast("Please select both contract and role", "error");
         return;
       }
 
+      
+      // Get the contract instance that will receive the role
+      const targetAddress =
+        getContractAddresses(selectedNetwork)[formInputs.selectedContract];
+      if (!targetAddress) {
+        throw new Error("Invalid contract selection");
+      }
+
+      // Get role hash based on the selected role
+      let roleHash;
+      switch (formInputs.selectedRole) {
+        case "MINTER_ROLE":
+          roleHash = await contracts.token.MINTER_ROLE();
+          break;
+        case "BURNER_ROLE":
+          roleHash = await contracts.token.BURNER_ROLE();
+          break;
+        case "DEFAULT_ADMIN_ROLE":
+          roleHash = ethers.ZeroHash;
+          break;
+        default:
+          throw new Error("Invalid role selection");
+      }
+
+      // Execute the role management transaction
       const tx =
         action === "grant"
-          ? await tokenContract.grantRole(roleHash, formInputs.newAddress)
-          : await tokenContract.revokeRole(roleHash, formInputs.newAddress);
+          ? await contracts.token.grantRole(roleHash, targetAddress)
+          : await contracts.token.revokeRole(roleHash, targetAddress);
 
       await tx.wait();
-      addToast(`Role ${action}ed successfully`, "success");
+
+      addToast(
+        `${formInputs.selectedRole} ${action}ed successfully for ${formInputs.selectedContract} contract`,
+        "success"
+      );
+
+      // Refresh stats
       await fetchGameStats();
-      setFormInputs((prev) => ({ ...prev, newAddress: "" }));
     } catch (error) {
-      onError(error, `${action}ing role`);
+      console.error("Role management error:", error);
+      let errorMessage = error.message || "An unknown error occurred";
+
+      // Add specific error handling
+      if (errorMessage.includes("missing role")) {
+        errorMessage = "You don't have permission to manage roles";
+      } else if (errorMessage.includes("already has role")) {
+        errorMessage = "Contract already has this role";
+      } else if (errorMessage.includes("invalid address")) {
+        errorMessage = "Invalid contract address";
+      }
+
+      onError({ ...error, message: errorMessage }, `${action}ing role`);
     } finally {
-      setLoading((prev) => ({ ...prev, action: false }));
+      setLoadingStates((prev) => ({ ...prev, action: false }));
     }
+
+    
   };
 
   const handleWithdraw = async () => {
@@ -2616,6 +2784,24 @@ function AdminPage({
     }
   };
 
+  // Get current network's contract addresses
+  const getCurrentNetworkContracts = useCallback(async () => {
+    if (!window.ethereum) return null;
+
+    const chainId = await window.ethereum.request({ method: "eth_chainId" });
+    const chainIdDecimal = parseInt(chainId, 16);
+
+    // Find matching network
+    const network = Object.values(NETWORKS).find(
+      (n) => n.chainId === chainIdDecimal
+    );
+    if (!network) {
+      throw new Error("Unsupported network");
+    }
+
+    return network.contracts;
+  }, []);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       <div className="game-card">
@@ -2649,46 +2835,110 @@ function AdminPage({
         </div>
       </div>
 
-      <div className="game-card">
-        <h2 className="text-xl font-bold">Role Management</h2>
+      {/* Network Selection */}
+      <div className="mb-8 p-4 bg-secondary-800/30 rounded-xl">
+        <h2 className="text-xl font-semibold mb-4">Network Selection</h2>
+        <select
+          value={selectedNetwork}
+          onChange={(e) => setSelectedNetwork(e.target.value)}
+          className="w-full p-2 bg-secondary-700/50 rounded-lg border border-secondary-600 
+                     text-white focus:outline-none focus:ring-2 focus:ring-gaming-primary"
+        >
+          <option value="MAINNET">XDC Mainnet</option>
+          <option value="APOTHEM">Apothem Testnet</option>
+          <option value="AMOY">Amoy Testnet</option>
+        </select>
+
+        {/* Display current network addresses */}
+        <div className="mt-4 space-y-2 text-sm text-secondary-400">
+          <p>Current Network: {selectedNetwork}</p>
+          <p>Dice Contract: {getContractAddresses(selectedNetwork).dice}</p>
+          <p>Token Contract: {getContractAddresses(selectedNetwork).token}</p>
+          <p>
+            Roulette Contract: {getContractAddresses(selectedNetwork).roulette}
+          </p>
+        </div>
+      </div>
+
+      {/* Role Management Section */}
+      <div className="mb-8 p-4 bg-secondary-800/30 rounded-xl">
+        <h2 className="text-xl font-semibold mb-4">Role Management</h2>
         <div className="space-y-4">
+          {/* Contract Selection Dropdown */}
           <div>
-            <label className="text-secondary-400">Address</label>
-            <input
-              type="text"
-              name="newAddress"
-              value={formInputs.newAddress}
+            <label className="block text-sm font-medium text-secondary-300 mb-2">
+              Contract
+            </label>
+            <select
+              name="selectedContract"
+              value={formInputs.selectedContract}
               onChange={handleInputChange}
-              className="input-gaming w-full"
-              placeholder="Enter address"
-            />
+              className="w-full p-2 bg-secondary-700/50 rounded-lg border border-secondary-600"
+            >
+              <option value="">Select Contract</option>
+              <option value="token">Token Contract</option>
+              <option value="dice">Dice Contract</option>
+              <option value="roulette">Roulette Contract</option>
+            </select>
+            {formInputs.selectedContract && (
+              <p className="mt-1 text-xs text-secondary-400">
+                Address:{" "}
+                {
+                  getContractAddresses(selectedNetwork)[
+                    formInputs.selectedContract
+                  ]
+                }
+              </p>
+            )}
           </div>
+
+          {/* Role Selection Dropdown */}
           <div>
-            <label className="text-secondary-400">Role</label>
+            <label className="block text-sm font-medium text-secondary-300 mb-2">
+              Role
+            </label>
             <select
               name="selectedRole"
               value={formInputs.selectedRole}
               onChange={handleInputChange}
-              className="input-gaming w-full"
+              className="w-full p-2 bg-secondary-700/50 rounded-lg border border-secondary-600"
             >
-              <option value="MINTER_ROLE">Minter</option>
-              <option value="BURNER_ROLE">Burner</option>
+              <option value="">Select Role</option>
+              <option value="MINTER_ROLE">Minter Role</option>
+              <option value="BURNER_ROLE">Burner Role</option>
+              <option value="DEFAULT_ADMIN_ROLE">Admin Role</option>
             </select>
           </div>
-          <div className="flex gap-4">
+
+          {/* Action Buttons */}
+          <div className="flex space-x-4">
             <button
               onClick={() => handleRoleManagement("grant")}
-              disabled={loading.action}
-              className="btn-gaming flex-1"
+              disabled={
+                !formInputs.selectedContract ||
+                !formInputs.selectedRole ||
+                loading.action
+              }
+              className={`btn-gaming flex-1 ${
+                (!formInputs.selectedContract || !formInputs.selectedRole) &&
+                "opacity-50 cursor-not-allowed"
+              }`}
             >
-              Grant Role
+              {loading.action ? "Processing..." : "Grant Role"}
             </button>
             <button
               onClick={() => handleRoleManagement("revoke")}
-              disabled={loading.action}
-              className="btn-gaming flex-1"
+              disabled={
+                !formInputs.selectedContract ||
+                !formInputs.selectedRole ||
+                loading.action
+              }
+              className={`btn-gaming bg-gaming-error flex-1 ${
+                (!formInputs.selectedContract || !formInputs.selectedRole) &&
+                "opacity-50 cursor-not-allowed"
+              }`}
             >
-              Revoke Role
+              {loading.action ? "Processing..." : "Revoke Role"}
             </button>
           </div>
         </div>
@@ -2794,14 +3044,13 @@ function AdminPage({
 }
 
 const DicePage = ({
-  contracts,
+  contracts, // Add this prop
   account,
   onError,
   addToast,
-  setLoadingStates,
+  setLoadingStates, // Add this prop
   setLoadingMessage,
 }) => {
-  
   const queryClient = useQueryClient();
   const [chosenNumber, setChosenNumber] = useState(null);
   const [betAmount, setBetAmount] = useState(BigInt(0));
@@ -3047,9 +3296,6 @@ const DicePage = ({
         setShowLoseAnimation(true);
         addToast("Better luck next time!", "warning");
       }
-
-      
-
     } catch (error) {
       console.error("Game resolution error:", error);
       handleContractError(error, onError);
@@ -3498,7 +3744,11 @@ const DicePage = ({
 function App() {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
-  const [contracts, setContracts] = useState({ dice: null, token: null });
+  const [contracts, setContracts] = useState({
+    dice: null,
+    token: null,
+    roulette: null,
+  });
   const [account, setAccount] = useState("");
   const [chainId, setChainId] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -3667,6 +3917,8 @@ function App() {
             ? "XDC Mainnet"
             : currentChainId === NETWORKS.APOTHEM.chainId
             ? "XDC Apothem"
+            : currentChainId === NETWORKS.AMOY.chainId
+            ? "Amoy Testnet"
             : "Unknown",
       });
 
@@ -3680,7 +3932,9 @@ function App() {
       const currentNetwork =
         currentChainId === NETWORKS.MAINNET.chainId
           ? NETWORKS.MAINNET
-          : NETWORKS.APOTHEM;
+          : currentChainId === NETWORKS.APOTHEM.chainId
+          ? NETWORKS.APOTHEM
+          : NETWORKS.AMOY;
 
       console.log("Network Configuration:", {
         network: currentNetwork.name,
@@ -3716,17 +3970,24 @@ function App() {
       const network = await provider.getNetwork();
       const chainId = Number(network.chainId);
 
-      let networkType, diceAddress, tokenAddress;
+      let networkType, diceAddress, tokenAddress, rouletteAddress;
 
       // Explicitly check chain IDs
       if (chainId === NETWORKS.MAINNET.chainId) {
         networkType = "mainnet";
         diceAddress = NETWORKS.MAINNET.contracts.dice;
         tokenAddress = NETWORKS.MAINNET.contracts.token;
+        rouletteAddress = NETWORKS.MAINNET.contracts.roulette;
       } else if (chainId === NETWORKS.APOTHEM.chainId) {
         networkType = "apothem";
         diceAddress = NETWORKS.APOTHEM.contracts.dice;
         tokenAddress = NETWORKS.APOTHEM.contracts.token;
+        rouletteAddress = NETWORKS.APOTHEM.contracts.roulette;
+      } else if (chainId === NETWORKS.AMOY.chainId) {
+        networkType = "amoy";
+        diceAddress = NETWORKS.AMOY.contracts.dice;
+        tokenAddress = NETWORKS.AMOY.contracts.token;
+        rouletteAddress = NETWORKS.AMOY.contracts.roulette;
       } else {
         throw new Error(`Unsupported chain ID: ${chainId}`);
       }
@@ -3736,6 +3997,7 @@ function App() {
         networkType,
         diceAddress,
         tokenAddress,
+        rouletteAddress,
       });
 
       return {
@@ -3743,6 +4005,7 @@ function App() {
         networkType,
         diceAddress,
         tokenAddress,
+        rouletteAddress,
       };
     } catch (error) {
       console.error("Error getting network config:", error);
@@ -3757,34 +4020,46 @@ function App() {
       const networkConfig = await getNetworkConfig(provider);
       console.log("Current Network:", networkConfig);
 
-      // Validate addresses
+      // Validate required addresses (dice and token are always required)
       if (!networkConfig.diceAddress || !networkConfig.tokenAddress) {
-        throw new Error("Missing contract addresses for current network");
+        throw new Error(
+          "Missing required contract addresses for current network"
+        );
       }
 
       // Ensure addresses are strings and properly formatted
       const contractAddresses = {
         dice: ethers.getAddress(networkConfig.diceAddress.toString()),
         token: ethers.getAddress(networkConfig.tokenAddress.toString()),
+        // Only include roulette if the address exists
+        ...(networkConfig.rouletteAddress && {
+          roulette: ethers.getAddress(networkConfig.rouletteAddress.toString()),
+        }),
       };
 
       console.log("Using contract addresses:", contractAddresses);
 
-      // Verify contract deployment
+      // Verify contract deployment for required contracts
       const [diceCode, tokenCode] = await Promise.all([
         provider.getCode(contractAddresses.dice),
         provider.getCode(contractAddresses.token),
       ]);
 
+      // Only check roulette code if the address exists
+      const rouletteCode = contractAddresses.roulette
+        ? await provider.getCode(contractAddresses.roulette)
+        : null;
+
       const isDeployed = {
         diceCode: diceCode !== "0x",
         tokenCode: tokenCode !== "0x",
+        rouletteCode: rouletteCode ? rouletteCode !== "0x" : true, // Skip check if no address
       };
 
       console.log("Contract deployment status:", isDeployed);
 
       if (!isDeployed.diceCode || !isDeployed.tokenCode) {
-        throw new Error("One or more contracts not deployed");
+        throw new Error("Required contracts not deployed");
       }
 
       const signer = await provider.getSigner(account);
@@ -3801,14 +4076,27 @@ function App() {
         signer
       );
 
-      // Set the contracts state only if both contracts are initialized
-      setContracts({ dice: diceContract, token: tokenContract });
+      // Only initialize roulette contract if address exists
+      const rouletteContract = contractAddresses.roulette
+        ? new ethers.Contract(
+            contractAddresses.roulette,
+            RouletteABI.abi,
+            signer
+          )
+        : null;
+
+      // Set the contracts state
+      setContracts({
+        dice: diceContract,
+        token: tokenContract,
+        roulette: rouletteContract,
+      });
 
       if (!diceContract || !tokenContract) {
-        throw new Error("Failed to initialize contracts");
+        throw new Error("Failed to initialize required contracts");
       }
 
-      return { diceContract, tokenContract };
+      return { diceContract, tokenContract, rouletteContract };
     } finally {
       setLoadingStates((prev) => ({ ...prev, contracts: false }));
     }
@@ -3869,7 +4157,7 @@ function App() {
       handleError(err, "connectWallet");
       setProvider(null);
       setSigner(null);
-      setContracts({ dice: null, token: null });
+      setContracts({ dice: null, token: null, roulette: null });
     } finally {
       setLoadingStates((prev) => ({ ...prev, wallet: false }));
       setLoadingMessage("");
@@ -4014,7 +4302,7 @@ function App() {
           // No accounts connected, clear states
           setProvider(null);
           setSigner(null);
-          setContracts({ dice: null, token: null });
+          setContracts({ dice: null, token: null, roulette: null });
         }
       } catch (err) {
         console.error("Initialization error:", err);
@@ -4089,6 +4377,17 @@ function App() {
               }
             />
             <Route
+              path="/roulette"
+              element={
+                <RoulettePage
+                  contracts={contracts}
+                  account={account}
+                  onError={handleError}
+                  addToast={addToast}
+                />
+              }
+            />
+            <Route
               path="/admin"
               element={
                 isAdmin ? (
@@ -4098,6 +4397,8 @@ function App() {
                     account={account}
                     onError={handleError}
                     addToast={addToast}
+                    setLoadingStates={setLoadingStates}
+                    contracts={contracts}
                   />
                 ) : (
                   <Navigate to="/" replace />

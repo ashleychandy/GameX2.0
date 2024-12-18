@@ -270,6 +270,152 @@
            focus:border-gaming-primary focus:ring-2
            focus:ring-gaming-primary/50 transition-all duration-200;
   }
+
+  /* Roulette Layout */
+  .roulette-container {
+    @apply glass-panel p-6 space-y-6;
+  }
+
+  .roulette-grid {
+    @apply grid grid-cols-3 gap-2 relative
+           bg-secondary-900/60 backdrop-blur-xl
+           rounded-xl border border-white/5;
+  }
+
+  /* Betting Positions */
+  .bet-indicator {
+    @apply absolute transform transition-all duration-300
+           hover:scale-105 hover:border-gaming-primary/30
+           hover:shadow-glow active:scale-95;
+  }
+
+  .split-bet {
+    @apply bet-indicator w-5 h-5 
+           bg-gradient-to-br from-secondary-800/40 to-secondary-900/40
+           border border-white/10 rounded-full;
+  }
+
+  .street-bet {
+    @apply bet-indicator w-5 h-[60px]
+           bg-gradient-to-br from-secondary-800/40 to-secondary-900/40
+           border border-white/10;
+  }
+
+  .corner-bet {
+    @apply bet-indicator w-5 h-5
+           bg-gradient-to-br from-secondary-800/40 to-secondary-900/40
+           border border-white/10 rounded-full;
+  }
+
+  .sixline-bet {
+    @apply bet-indicator w-5 h-[120px]
+           bg-gradient-to-br from-secondary-800/40 to-secondary-900/40
+           border border-white/10;
+  }
+
+  /* Number Buttons */
+  .number-button {
+    @apply relative rounded-xl font-bold text-xl
+           aspect-square transition-all duration-300
+           bg-gradient-to-br from-secondary-800/80 to-secondary-900/80
+           border border-secondary-700/50
+           hover:scale-105 hover:shadow-glow
+           active:scale-95;
+  }
+
+  .number-button-zero {
+    @apply bg-gradient-to-br from-green-600/20 to-green-700/20
+           border-green-500/30 text-green-400;
+  }
+
+  .number-button-red {
+    @apply bg-gradient-to-br from-red-600/20 to-red-700/20
+           border-red-500/30 text-red-400;
+  }
+
+  .number-button-black {
+    @apply bg-gradient-to-br from-secondary-800/20 to-secondary-900/20
+           border-secondary-700/30 text-secondary-400;
+  }
+
+  .number-button-selected {
+    @apply bg-gradient-to-br from-gaming-primary to-gaming-accent
+           border-gaming-primary/50 shadow-glow
+           text-white;
+  }
+
+  /* Outside Bets */
+  .outside-bet {
+    @apply glass-card p-3 text-center font-bold
+           hover:scale-105 hover:shadow-glow
+           active:scale-95;
+  }
+
+  .outside-bet-selected {
+    @apply bg-gradient-to-br from-gaming-primary to-gaming-accent
+           border-gaming-primary/50 shadow-glow;
+  }
+
+  /* Roulette Wheel */
+  .roulette-wheel {
+    @apply relative w-full aspect-square max-w-[400px] mx-auto
+           border-4 border-gaming-primary rounded-full
+           bg-gradient-to-br from-secondary-800 to-secondary-900
+           shadow-[0_0_30px_rgba(255,70,85,0.3)]
+           overflow-hidden;
+  }
+
+  .wheel-segment {
+    @apply absolute w-full h-full origin-center;
+  }
+
+  .wheel-ball {
+    @apply absolute w-4 h-4 rounded-full
+           bg-gradient-to-br from-white to-secondary-100
+           shadow-[0_0_10px_rgba(255,255,255,0.5)];
+  }
+
+  /* Bet Controls */
+  .bet-controls {
+    @apply glass-panel p-4 flex flex-wrap gap-4 
+           items-center justify-between;
+  }
+
+  .bet-amount-input {
+    @apply input-gaming w-full max-w-[200px];
+  }
+
+  .bet-history-item {
+    @apply glass-card flex items-center justify-between
+           p-4 space-x-4;
+  }
+
+  .bet-history-win {
+    @apply border-gaming-success/20 bg-gaming-success/5
+           hover:border-gaming-success/30;
+  }
+
+  .bet-history-loss {
+    @apply border-gaming-error/20 bg-gaming-error/5
+           hover:border-gaming-error/30;
+  }
+
+  /* Stats Panel */
+  .roulette-stats {
+    @apply glass-panel p-6 grid grid-cols-2 sm:grid-cols-4 gap-4;
+  }
+
+  .stat-card {
+    @apply glass-card flex flex-col items-center text-center;
+  }
+
+  .stat-value {
+    @apply text-2xl font-bold gaming-text-gradient;
+  }
+
+  .stat-label {
+    @apply text-sm text-secondary-400;
+  }
 }
 
 @layer utilities {
@@ -290,6 +436,14 @@
 
   .animate-glow {
     animation: glow 2s ease-in-out infinite;
+  }
+
+  .animate-spin-wheel {
+    animation: spin 3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  .animate-bounce-in {
+    animation: bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
   }
 }
 
@@ -313,6 +467,29 @@
   50% {
     box-shadow: 0 0 25px rgba(var(--gaming-primary), 0.5);
     border-color: rgba(var(--gaming-primary), 0.5);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
   }
 }
 
