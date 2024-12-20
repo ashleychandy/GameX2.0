@@ -51,7 +51,7 @@
 @layer components {
   /* Layout Components */
   .page-container {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8;
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-6;
   }
 
   .section-container {
@@ -151,7 +151,7 @@
     @apply status-badge bg-gaming-warning/20 text-gaming-warning;
   }
 
-    .dice-container {
+  .dice-container {
     @apply relative w-full mx-auto 
            transform transition-all duration-300 
            hover:scale-[1.02];
@@ -173,28 +173,39 @@
   }
 
   .number-button {
-    @apply relative rounded-xl font-bold text-xl
-           aspect-w-1 aspect-h-1
+    @apply relative rounded text-xl font-bold
            transition-all duration-300 transform
-           bg-gradient-to-br from-secondary-800/80 to-secondary-900/80
            border border-secondary-700/50
-           hover:scale-105 hover:shadow-glow
-           active:scale-95;
+           hover:scale-105 hover:z-10
+           active:scale-95 cursor-pointer
+           text-white;
+    aspect-ratio: 1;
+    min-height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
-  .number-button:before {
-    content: "";
-    @apply block pb-[100%];
+  .number-button-zero {
+    @apply bg-[#1B5E20] hover:bg-[#2E7D32]
+           row-span-3;
+  }
+
+  .number-button-red {
+    @apply bg-[#FF4655] hover:bg-[#FF5864];
+  }
+
+  .number-button-black {
+    @apply bg-[#1F2937] hover:bg-[#2D3748];
   }
 
   .number-button > span {
-    @apply absolute inset-0 flex items-center justify-center;
+    position: static;
+    display: block;
   }
 
   .number-button-selected {
-    @apply bg-gradient-to-br from-gaming-primary to-gaming-accent
-           border-gaming-primary/50 shadow-glow
-           text-white;
+    @apply ring-2 ring-yellow-400 scale-105 z-10;
   }
 
   .bet-input {
@@ -222,8 +233,7 @@
   }
 
   .stats-panel {
-    @apply glass-panel p-6 space-y-4
-           bg-gradient-to-br from-secondary-900/60 to-secondary-800/60;
+    @apply glass-panel p-6 space-y-4;
   }
 
   .stats-item {
@@ -239,21 +249,21 @@
            hover:scale-[1.02] hover:shadow-glow
            active:scale-[0.98];
   }
-  
+
   .gaming-gradient {
     @apply bg-gradient-to-r from-gaming-primary to-gaming-accent;
   }
-  
+
   .gaming-border {
     @apply border border-white/10 hover:border-gaming-primary/30
            transition-colors duration-300;
   }
-  
+
   .gaming-text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r
            from-gaming-primary to-gaming-accent;
   }
-  
+
   .gaming-button {
     @apply px-6 py-3 rounded-xl font-semibold
            bg-gradient-to-r from-gaming-primary to-gaming-accent
@@ -262,7 +272,7 @@
            hover:scale-105 active:scale-95
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
-  
+
   .gaming-input {
     @apply w-full px-4 py-3 bg-secondary-800/50
            rounded-xl border border-secondary-700/50
@@ -271,243 +281,357 @@
            focus:ring-gaming-primary/50 transition-all duration-200;
   }
 
-  /* Roulette Layout */
-  .roulette-container {
-    @apply glass-panel p-6 space-y-6 relative
-           bg-gradient-to-br from-secondary-900/90 to-secondary-800/90;
-  }
-
-  .roulette-grid {
-    @apply grid grid-cols-3 gap-3 relative
-           bg-gradient-to-br from-secondary-900/80 to-secondary-800/80
-           rounded-xl border border-white/5 p-4
-           shadow-[inset_0_0_30px_rgba(0,0,0,0.3)];
-  }
-
-  /* Enhanced Number Buttons */
-  .number-button {
-    @apply relative rounded-xl font-bold text-xl
-           aspect-square transition-all duration-300
-           bg-gradient-to-br border-2
-           hover:scale-105 hover:shadow-glow
-           active:scale-95 z-10;
-  }
-
-  .number-button-zero {
-    @apply from-green-600/30 to-green-700/30
-           border-green-500/40 text-green-400
-           hover:from-green-600/40 hover:to-green-700/40
-           hover:border-green-500/60;
-  }
-
-  .number-button-red {
-    @apply bg-red-600/30 text-red-400 hover:bg-gaming-primary/20 hover:text-white;
-  }
-
-  .number-button-black {
-    @apply bg-gray-900/40 text-gray-300 hover:bg-gaming-primary/20 hover:text-white;
-  }
-
-  /* Enhanced Betting Spots */
-  .bet-spot {
-    @apply absolute w-5 h-5 rounded-full
-           bg-white/10 backdrop-blur-sm
-           border border-white/20
-           transition-all duration-300
-           hover:bg-gaming-primary/20 hover:border-gaming-primary/40
-           hover:scale-125 hover:shadow-glow z-20;
-  }
-
-  .bet-spot-horizontal {
-    @apply bet-spot -translate-x-1/2;
-  }
-
-  .bet-spot-vertical {
-    @apply bet-spot -translate-y-1/2;
-  }
-
-  .bet-spot-corner {
-    @apply bet-spot -translate-x-1/2 -translate-y-1/2;
-  }
-
-  /* Enhanced Outside Bets */
-  .outside-bet {
-    @apply glass-card p-4 text-center font-bold
-           bg-gradient-to-br from-secondary-800/40 to-secondary-900/40
-           border border-secondary-700/30
-           hover:from-gaming-primary/20 hover:to-gaming-accent/20
-           hover:border-gaming-primary/40 hover:scale-105
-           hover:shadow-glow active:scale-95
-           transition-all duration-300;
-  }
-
-  .outside-bet-selected {
-    @apply from-gaming-primary to-gaming-accent
-           border-gaming-primary/50 shadow-glow
-           text-white;
-  }
-
-  /* Chip Stacks */
-  .chip-stack {
-    @apply absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
-           flex flex-col-reverse items-center gap-[-0.5rem]
-           pointer-events-none z-30;
-  }
-
-  .bet-chip {
-    @apply w-8 h-8 rounded-full
-           flex items-center justify-center
-           text-white text-sm font-bold
-           shadow-xl border-2 border-white/50
-           transform transition-all duration-300;
-  }
-
-  /* Enhanced Controls */
-  .controls-panel {
-    @apply glass-panel p-4 space-y-4
-           bg-gradient-to-br from-secondary-900/90 to-secondary-800/90;
-  }
-
-  .chip-selector {
-    @apply flex items-center gap-2 flex-wrap;
-  }
-
+  /* Chip Styles */
   .chip-button {
-    @apply w-12 h-12 rounded-full
-           flex items-center justify-center
-           font-bold text-white
-           transition-all duration-300
-           hover:scale-110 hover:shadow-glow
-           active:scale-95;
+    @apply relative rounded-full w-12 h-12 flex items-center justify-center 
+           font-bold text-white shadow-lg cursor-pointer border-2 border-white/20
+           transition-all duration-200 hover:scale-105;
   }
 
   .chip-button-selected {
-    @apply ring-2 ring-white ring-offset-4
-           ring-offset-secondary-900
-           scale-110 shadow-glow;
+    @apply ring-2 ring-white ring-opacity-80 scale-105 shadow-xl;
   }
 
-  /* Bet Controls */
-  .bet-controls {
-    @apply glass-panel p-4 flex flex-wrap gap-4 
-           items-center justify-between;
+  .bet-stack {
+    @apply relative inline-flex flex-col-reverse items-center justify-center;
   }
 
-  .bet-amount-input {
-    @apply input-gaming w-full max-w-[200px];
+  .bet-chip {
+    @apply absolute rounded-full w-8 h-8 flex items-center justify-center 
+           font-bold text-sm text-white shadow-md border border-white/20
+           pointer-events-none z-10;
   }
 
-  .bet-history-item {
-    @apply glass-card flex items-center justify-between
-           p-4 space-x-4;
+  /* Chip colors based on bet amount */
+  .chip-stack {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #1a202c;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+    background-color: white;
   }
 
-  .bet-history-win {
-    @apply border-gaming-success/20 bg-gaming-success/5
-           hover:border-gaming-success/30;
+  .chip-1 {
+    background-color: white;
   }
 
-  .bet-history-loss {
-    @apply border-gaming-error/20 bg-gaming-error/5
-           hover:border-gaming-error/30;
+  .chip-5 {
+    background-color: white;
   }
 
-  /* Stats Panel */
-  .roulette-stats {
-    @apply glass-panel p-6 grid grid-cols-2 sm:grid-cols-4 gap-4;
+  .chip-10 {
+    background-color: white;
   }
 
-  .stat-card {
-    @apply glass-card flex flex-col items-center text-center;
+  .chip-50 {
+    background-color: white;
   }
 
-  .stat-value {
-    @apply text-2xl font-bold gaming-text-gradient;
+  .chip-100 {
+    background-color: white;
   }
 
-  .stat-label {
-    @apply text-sm text-secondary-400;
+  .chip-500 {
+    background-color: white;
   }
 
-  /* Add these new styles to your components section */
-  .betting-controls {
-    @apply glass-panel p-6 space-y-6
-           bg-gradient-to-br from-secondary-900/90 to-secondary-800/90
-           border border-white/5 shadow-xl;
+  .chip-1k {
+    background-color: white;
+    border-color: #f6e05e;
   }
 
-  .bet-input-container {
-    @apply relative flex items-center gap-4;
+  /* Hover states */
+  .chip-button.chip-button-1:hover { @apply bg-blue-500; }
+  .chip-button.chip-button-5:hover { @apply bg-red-500; }
+  .chip-button.chip-button-10:hover { @apply bg-green-500; }
+  .chip-button.chip-button-50:hover { @apply bg-purple-500; }
+  .chip-button.chip-button-100:hover { @apply bg-yellow-500; }
+  .chip-button.chip-button-500:hover { @apply bg-pink-500; }
+  .chip-button.chip-button-1K:hover { @apply bg-orange-500; }
+  .chip-button.chip-button-5K:hover { @apply bg-indigo-500; }
+
+  .chip-1 {
+    @apply bg-blue-500 hover:bg-blue-600;
   }
 
-  .bet-amount-input {
-    @apply w-full px-6 py-4 bg-secondary-800/50 
-           rounded-xl border border-secondary-700/30
-           text-white text-lg font-medium
-           placeholder-secondary-400
-           focus:outline-none focus:ring-2 
-           focus:ring-gaming-primary/50 focus:border-gaming-primary/50
-           transition-all duration-300;
+  .chip-5 {
+    @apply bg-red-500 hover:bg-red-600;
   }
 
-  .bet-currency-label {
-    @apply absolute right-6 text-secondary-400 font-medium pointer-events-none;
+  .chip-10 {
+    @apply bg-green-500 hover:bg-green-600;
   }
 
-  .quick-bet-buttons {
-    @apply grid grid-cols-4 gap-2 mt-4;
+  .stacked-chips {
+    @apply relative;
   }
 
-  .quick-bet-button {
-    @apply px-3 py-2 rounded-lg text-sm font-medium
-           bg-secondary-800/50 border border-secondary-700/30
-           text-secondary-300 hover:text-white
-           hover:bg-gaming-primary/20 hover:border-gaming-primary/30
-           transition-all duration-300;
+  .chip-stack {
+    @apply absolute -top-2 -right-2 bg-secondary-800 rounded-full px-2 py-1 
+           text-xs font-bold border border-white/20;
   }
 
-  .place-bet-button {
-    @apply w-full px-6 py-4 rounded-xl font-bold text-lg
-           bg-gradient-to-r from-gaming-primary to-gaming-accent
-           text-white shadow-lg hover:shadow-glow
-           transform transition-all duration-300
-           hover:scale-[1.02] active:scale-[0.98]
-           disabled:opacity-50 disabled:cursor-not-allowed
-           disabled:hover:scale-100;
+  /* Roulette Layout */
+  .roulette-board-section {
+    @apply w-full max-w-[800px] mx-auto;
   }
 
-  .bet-error {
-    @apply mt-2 text-sm text-red-400 animate-fadeIn;
+  .roulette-grid {
+    @apply grid gap-1 p-4 bg-secondary-900/60;
+    grid-template-columns: repeat(14, minmax(45px, 1fr));
   }
 
-  /* Add to your existing styles */
-  .grid-cols-14 {
-    grid-template-columns: auto repeat(12, 1fr) auto;
-  }
-
-  .outside-bet {
-    @apply bg-secondary-700/50 text-secondary-300 rounded-lg py-2
-           flex items-center justify-center font-bold
-           transition-all duration-300
-           hover:bg-gaming-primary/20 hover:text-white;
-  }
-
-  /* Update existing number button styles */
   .number-button {
-    @apply aspect-square rounded-lg flex items-center justify-center font-bold
-           transition-all duration-300;
+    @apply w-full aspect-square flex items-center justify-center
+           text-lg font-bold rounded-md transition-all duration-200
+           hover:scale-105 relative;
+  }
+
+  .number-button-zero {
+    @apply bg-green-600 hover:bg-green-700;
   }
 
   .number-button-red {
-    @apply bg-red-600/20 text-red-400 hover:bg-gaming-primary/20 hover:text-white;
+    @apply bg-red-600 hover:bg-red-700;
   }
 
   .number-button-black {
-    @apply bg-black/20 text-gray-400 hover:bg-gaming-primary/20 hover:text-white;
+    @apply bg-gray-900 hover:bg-gray-800;
   }
 
-  .number-button-green {
-    @apply bg-green-600/20 text-green-400 hover:bg-gaming-primary/20 hover:text-white;
+  .number-button-selected {
+    @apply ring-2 ring-white ring-offset-2 ring-offset-secondary-900;
+  }
+
+  .stacked-chips {
+    @apply relative w-full;
+  }
+
+  .chip-stack {
+    @apply absolute -top-1 -right-1 min-w-[20px] h-5
+           flex items-center justify-center
+           bg-gaming-primary text-white text-xs font-bold
+           rounded-full border border-white/20 px-1;
+  }
+
+  .bet-controls {
+    @apply mt-4 p-4 glass-panel;
+  }
+
+  .chip-selector {
+    @apply grid grid-cols-4 sm:grid-cols-8 gap-2;
+  }
+
+  .chip-button {
+    @apply w-12 h-12 rounded-full flex items-center justify-center
+           text-white font-bold shadow-lg transition-all duration-200
+           hover:scale-105 border-2 border-white/20;
+  }
+
+  .column-bet {
+    @apply h-full bg-secondary-800 hover:bg-secondary-700
+           rounded-md flex items-center justify-center
+           text-white font-bold transition-all duration-200;
+  }
+
+  .dozen-bet {
+    @apply h-12 bg-secondary-800 hover:bg-secondary-700
+           rounded-md flex items-center justify-center
+           text-white font-bold transition-all duration-200;
+    grid-column: span 4;
+  }
+
+  .bottom-bet {
+    @apply h-12 bg-secondary-800 hover:bg-secondary-700
+           rounded-md flex items-center justify-center
+           text-white font-bold transition-all duration-200;
+    grid-column: span 2;
+  }
+
+  .place-bet-button {
+    @apply btn-gaming w-full py-4 text-lg
+           bg-gradient-to-r from-gaming-primary to-gaming-accent
+           hover:shadow-[0_0_30px_rgba(var(--gaming-primary),0.4)];
+  }
+
+  .betting-history {
+    @apply glass-panel mt-6 p-4 space-y-4;
+  }
+
+  .history-item {
+    @apply flex items-center justify-between
+           p-4 rounded-lg
+           bg-secondary-800/40 border border-secondary-700/30
+           transition-all duration-300
+           hover:border-gaming-primary/30;
+  }
+
+  .winning-number-display {
+    @apply text-4xl font-bold text-center p-8
+           bg-gradient-to-r from-gaming-primary to-gaming-accent
+           bg-clip-text text-transparent
+           animate-pulse;
+  }
+
+  .roulette-stats {
+    @apply flex flex-wrap gap-4 mt-6;
+  }
+
+  .stat-card {
+    @apply glass-card flex-1 min-w-[200px]
+           border-gaming-primary/10
+           hover:border-gaming-primary/30;
+  }
+
+  .column-bets {
+    @apply flex flex-col gap-1 mt-1;
+  }
+
+  .outside-bet-selected {
+    @apply border-gaming-primary bg-gaming-primary/20
+           shadow-[0_0_15px_rgba(var(--gaming-primary),0.3)];
+  }
+
+  .approve-button {
+    @apply px-4 py-2 text-white font-semibold rounded-lg
+           bg-blue-600 hover:bg-blue-700
+           disabled:opacity-50 disabled:cursor-not-allowed
+           transition-colors duration-200
+           shadow-sm;
+  }
+
+  .approve-button:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  /* Responsive Adjustments */
+  @media (max-width: 768px) {
+    .roulette-grid {
+      @apply gap-0.5 p-3;
+    }
+
+    .column-bet {
+      @apply text-base;
+    }
+
+    .outside-bet {
+      @apply text-xs py-2 px-2;
+    }
+
+    .column-bets {
+      @apply -right-12 top-3 bottom-3;
+    }
+
+    .chip-button {
+      @apply w-10 h-10 text-xs;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .roulette-grid {
+      @apply p-2;
+    }
+
+    .column-bet {
+      @apply text-sm;
+    }
+
+    .outside-bet {
+      @apply text-xs py-1 px-1;
+    }
+
+    .column-bets {
+      @apply -right-8;
+    }
+
+    .chip-button {
+      @apply w-8 h-8 text-xs;
+    }
+  }
+
+  /* Animation for winning number */
+  @keyframes highlight-winner {
+    0% {
+      transform: scale(1);
+      box-shadow: 0 0 0 rgba(var(--gaming-primary), 0);
+    }
+    50% {
+      transform: scale(1.2);
+      box-shadow: 0 0 30px rgba(var(--gaming-primary), 0.6);
+    }
+    100% {
+      transform: scale(1);
+      box-shadow: 0 0 0 rgba(var(--gaming-primary), 0);
+    }
+  }
+
+  .winning-number {
+    animation: highlight-winner 2s ease-in-out;
+  }
+
+  /* Stacked Chips */
+  .stacked-chips {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .stacked-chips:not(:disabled):hover {
+    transform: scale(1.02);
+  }
+
+  .number-button {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    border: 1px solid #333;
+    pointer-events: none;
+  }
+
+  .chip-stack {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    color: #1a202c;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+  }
+
+  .chip-stack:hover {
+    transform: translate(-50%, -50%) scale(1.1);
   }
 }
 
@@ -605,5 +729,15 @@
 @media print {
   .no-print {
     display: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .betting-controls {
+    @apply flex-col items-stretch;
+  }
+
+  .stats-grid {
+    @apply grid-cols-2;
   }
 }

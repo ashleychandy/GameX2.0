@@ -154,6 +154,9 @@ module.exports = {
         '4/3': '4 / 3',
         '16/9': '16 / 9',
       },
+      gridTemplateColumns: {
+        '14': 'repeat(14, minmax(0, 1fr))',
+      },
     },
   },
   plugins: [
