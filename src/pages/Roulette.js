@@ -44,257 +44,116 @@ const BettingBoard = ({ onBetSelect, selectedBets, disabled, selectedChipValue }
       bet => bet.type === type && 
       JSON.stringify(bet.numbers.sort()) === JSON.stringify(numbers.sort())
     );
-    
-    if (!bet) return 0;
-    
-    try {
-      return Math.floor(parseFloat(ethers.formatEther(bet.amount)));
-    } catch (error) {
-      console.error('Error parsing bet amount:', error);
-      return 0;
-    }
+    return bet ? Math.floor(parseFloat(ethers.formatEther(bet.amount))) : 0;
   }, [selectedBets]);
 
-  // Helper function to check if a bet exists
-  const hasBet = useCallback((numbers, type) => {
-    return selectedBets.some(
-      bet => bet.type === type && 
-      JSON.stringify(bet.numbers.sort()) === JSON.stringify(numbers.sort())
-    );
-  }, [selectedBets]);
-
-  // Handle bet placement
-  const handleBetPlacement = useCallback((numbers, type) => {
-    onBetSelect({ numbers, type });
-  }, [onBetSelect]);
-
-  // Helper function to determine if a number is red
-  const isRedNumber = (number) => {
-    return [
-      1, 3, 5, 7, 9, 12, 14, 16, 18,
-      19, 21, 23, 25, 27, 30, 32, 34, 36
-    ].includes(number);
-  };
-
-  // Create the number grid layout
-  const numberGrid = [
-    [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36],
-    [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35],
-    [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34]
-  ];
-
-  // Helper function to get numbers for special bets
-  const getBetNumbers = (type, param = 0) => {
-    switch (type) {
-      case BetTypes.RED:
-        return [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
-      case BetTypes.BLACK:
-        return [2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35];
-      case BetTypes.EVEN:
-        return Array.from({ length: 18 }, (_, i) => (i + 1) * 2);
-      case BetTypes.ODD:
-        return Array.from({ length: 18 }, (_, i) => (i * 2) + 1);
-      case BetTypes.LOW:
-        return Array.from({ length: 18 }, (_, i) => i + 1);
-      case BetTypes.HIGH:
-        return Array.from({ length: 18 }, (_, i) => i + 19);
-      case BetTypes.DOZEN:
-        const start = param * 12 + 1;
-        return Array.from({ length: 12 }, (_, i) => start + i);
-      case BetTypes.COLUMN:
-        return Array.from({ length: 12 }, (_, i) => i * 3 + param);
-      default:
-        return [];
+  const handleBet = useCallback((numbers, type) => {
+    if (!disabled) {
+      onBetSelect(numbers, type);
     }
-  };
+  }, [disabled, onBetSelect]);
+
+  // Define number colors
+  const redNumbers = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+  const isRed = (number) => redNumbers.includes(number);
 
   return (
-    <div className="roulette-board-section">
-      <div className="roulette-grid">
+    <div className="flex flex-col gap-2 p-4 bg-secondary-800 rounded-lg">
+      {/* Main betting grid */}
+      <div className="grid grid-cols-14 gap-1">
         {/* Zero */}
-        <div 
-          className="stacked-chips" 
-          style={{ gridRow: 'span 3' }}
-          onClick={() => !disabled && handleBetPlacement([0], BetTypes.STRAIGHT)}
+        <button
+          onClick={() => handleBet([0], BetTypes.STRAIGHT)}
+          className={`col-span-1 aspect-square rounded-md ${
+            isRed(0) ? 'bg-gaming-primary' : 'bg-gaming-success'
+          } hover:opacity-80 transition-opacity`}
         >
+          0
+        </button>
+        
+        {/* Numbers 1-36 */}
+        {Array.from({ length: 36 }, (_, i) => i + 1).map((number) => (
           <button
-            className={`number-button number-button-zero h-full ${
-              hasBet([0], BetTypes.STRAIGHT) ? "number-button-selected" : ""
-            }`}
-            disabled={disabled}
+            key={number}
+            onClick={() => handleBet([number], BetTypes.STRAIGHT)}
+            className={`aspect-square rounded-md ${
+              isRed(number) ? 'bg-gaming-primary' : 'bg-secondary-700'
+            } hover:opacity-80 transition-opacity text-white font-bold`}
           >
-            <span>0</span>
+            {number}
           </button>
-          {hasBet([0], BetTypes.STRAIGHT) && (
-            <div 
-              className="chip-stack"
-              onClick={(e) => {
-                e.stopPropagation();
-                !disabled && handleBetPlacement([0], BetTypes.STRAIGHT);
-              }}
-            >
-              {getBetAmount([0], BetTypes.STRAIGHT)}
-            </div>
-          )}
-        </div>
-
-        {/* Numbers 1-36 in grid layout */}
-        {numberGrid.map((row, rowIndex) => (
-          <React.Fragment key={rowIndex}>
-            {row.map((number) => (
-              <div 
-                key={number} 
-                className="stacked-chips"
-                onClick={() => !disabled && handleBetPlacement([number], BetTypes.STRAIGHT)}
-              >
-                <button
-                  className={`number-button ${
-                    isRedNumber(number) ? "number-button-red" : "number-button-black"
-                  } ${
-                    hasBet([number], BetTypes.STRAIGHT) ? "number-button-selected" : ""
-                  }`}
-                  disabled={disabled}
-                >
-                  <span>{number}</span>
-                </button>
-                {hasBet([number], BetTypes.STRAIGHT) && (
-                  <div 
-                    className="chip-stack"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      !disabled && handleBetPlacement([number], BetTypes.STRAIGHT);
-                    }}
-                  >
-                    {getBetAmount([number], BetTypes.STRAIGHT)}
-                  </div>
-                )}
-              </div>
-            ))}
-            <button
-              key={`column-${rowIndex}`}
-              className="column-bet"
-              onClick={() => 
-                handleBetPlacement({
-                  numbers: getBetNumbers(BetTypes.COLUMN, 3 - rowIndex),
-                  type: BetTypes.COLUMN
-                })
-              }
-              disabled={disabled}
-            >
-              2:1
-            </button>
-          </React.Fragment>
         ))}
 
-        {/* Column Bets */}
-        {[3, 2, 1].map((columnStart, index) => (
+        {/* 2:1 columns */}
+        {[2, 1, 0].map((col) => (
           <button
-            key={`column-${index}`}
-            className="column-bet"
-            onClick={() => 
-              handleBetPlacement({
-                numbers: getBetNumbers(BetTypes.COLUMN, columnStart),
-                type: BetTypes.COLUMN
-              })
-            }
-            disabled={disabled}
+            key={`2to1-${col}`}
+            onClick={() => handleBet(
+              Array.from({ length: 12 }, (_, i) => i * 3 + (3 - col)),
+              BetTypes.COLUMN
+            )}
+            className="aspect-square rounded-md bg-secondary-700 hover:opacity-80 transition-opacity"
           >
             2:1
           </button>
         ))}
+      </div>
 
-        {/* Dozen Bets */}
-        <div style={{ gridColumn: '2 / span 12' }} className="grid grid-cols-3 gap-1">
-          {[0, 1, 2].map((dozenIndex) => (
-            <button
-              key={`dozen-${dozenIndex}`}
-              className="dozen-bet"
-              onClick={() => 
-                handleBetPlacement({
-                  numbers: getBetNumbers(BetTypes.DOZEN, dozenIndex),
-                  type: BetTypes.DOZEN
-                })
-              }
-              disabled={disabled}
-            >
-              {`${dozenIndex * 12 + 1}-${(dozenIndex + 1) * 12}`}
-            </button>
-          ))}
+      {/* Bottom betting options */}
+      <div className="grid grid-cols-3 gap-1 mt-2">
+        {/* Dozens */}
+        <div className="grid grid-cols-3 col-span-3 gap-1 mb-2">
+          <button
+            onClick={() => handleBet(Array.from({ length: 12 }, (_, i) => i + 1), BetTypes.DOZEN)}
+            className="p-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity"
+          >
+            1 to 12
+          </button>
+          <button
+            onClick={() => handleBet(Array.from({ length: 12 }, (_, i) => i + 13), BetTypes.DOZEN)}
+            className="p-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity"
+          >
+            13 to 24
+          </button>
+          <button
+            onClick={() => handleBet(Array.from({ length: 12 }, (_, i) => i + 25), BetTypes.DOZEN)}
+            className="p-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity"
+          >
+            25 to 36
+          </button>
         </div>
 
-        {/* Bottom Bets */}
-        <div style={{ gridColumn: '2 / span 12' }} className="grid grid-cols-6 gap-1">
+        {/* Other betting options */}
+        <div className="grid grid-cols-6 col-span-3 gap-1">
           <button
-            className="bottom-bet"
-            onClick={() => 
-              handleBetPlacement({
-                numbers: getBetNumbers(BetTypes.LOW),
-                type: BetTypes.LOW
-              })
-            }
-            disabled={disabled}
+            onClick={() => handleBet(Array.from({ length: 18 }, (_, i) => i + 1), BetTypes.LOW)}
+            className="p-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity col-span-1"
           >
-            1-18
+            1 to 18
           </button>
           <button
-            className="bottom-bet"
-            onClick={() => 
-              handleBetPlacement({
-                numbers: getBetNumbers(BetTypes.EVEN),
-                type: BetTypes.EVEN
-              })
-            }
-            disabled={disabled}
+            onClick={() => handleBet([], BetTypes.EVEN)}
+            className="p-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity col-span-1"
           >
-            EVEN
+            Even
           </button>
           <button
-            className="bottom-bet"
-            onClick={() => 
-              handleBetPlacement({
-                numbers: getBetNumbers(BetTypes.RED),
-                type: BetTypes.RED
-              })
-            }
-            disabled={disabled}
+            onClick={() => handleBet(redNumbers, BetTypes.RED)}
+            className="p-2 rounded-md bg-gaming-primary hover:opacity-80 transition-opacity col-span-2"
           >
-            RED
+            Red
           </button>
           <button
-            className="bottom-bet"
-            onClick={() => 
-              handleBetPlacement({
-                numbers: getBetNumbers(BetTypes.BLACK),
-                type: BetTypes.BLACK
-              })
-            }
-            disabled={disabled}
+            onClick={() => handleBet([], BetTypes.ODD)}
+            className="p-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity col-span-1"
           >
-            BLACK
+            Odd
           </button>
           <button
-            className="bottom-bet"
-            onClick={() => 
-              handleBetPlacement({
-                numbers: getBetNumbers(BetTypes.ODD),
-                type: BetTypes.ODD
-              })
-            }
-            disabled={disabled}
+            onClick={() => handleBet(Array.from({ length: 18 }, (_, i) => i + 19), BetTypes.HIGH)}
+            className="p-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity col-span-1"
           >
-            ODD
-          </button>
-          <button
-            className="bottom-bet"
-            onClick={() => 
-              handleBetPlacement({
-                numbers: getBetNumbers(BetTypes.HIGH),
-                type: BetTypes.HIGH
-              })
-            }
-            disabled={disabled}
-          >
-            19-36
+            19 to 36
           </button>
         </div>
       </div>
@@ -436,6 +295,14 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
   // Check token approval
   useEffect(() => {
     const checkApproval = async () => {
+      console.log("Checking approval status:", {
+        hasToken: !!contracts?.token,
+        hasRouletteContract: !!contracts?.roulette,
+        hasAccount: !!account,
+        rouletteAddress: contracts?.roulette?.target,
+        tokenAddress: contracts?.token?.target
+      });
+
       if (!contracts?.token || !account || !contracts?.roulette) {
         console.log("Missing contracts or account:", {
           hasToken: !!contracts?.token,
