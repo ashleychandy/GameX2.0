@@ -84,7 +84,7 @@ const BettingBoard = ({ onBetSelect, selectedBets, disabled, selectedChipValue }
   ];
 
   // Helper function to get numbers for special bets
-  const getBetNumbers = (type) => {
+  const getBetNumbers = (type, param = 0) => {
     switch (type) {
       case BetTypes.RED:
         return [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
@@ -98,6 +98,11 @@ const BettingBoard = ({ onBetSelect, selectedBets, disabled, selectedChipValue }
         return Array.from({ length: 18 }, (_, i) => i + 1);
       case BetTypes.HIGH:
         return Array.from({ length: 18 }, (_, i) => i + 19);
+      case BetTypes.DOZEN:
+        const start = param * 12 + 1;
+        return Array.from({ length: 12 }, (_, i) => start + i);
+      case BetTypes.COLUMN:
+        return Array.from({ length: 12 }, (_, i) => i * 3 + param);
       default:
         return [];
     }
@@ -170,7 +175,7 @@ const BettingBoard = ({ onBetSelect, selectedBets, disabled, selectedChipValue }
               className="column-bet"
               onClick={() => 
                 handleBetPlacement({
-                  numbers: Array.from({ length: 12 }, (_, i) => i * 3 + (3 - rowIndex)),
+                  numbers: getBetNumbers(BetTypes.COLUMN, 3 - rowIndex),
                   type: BetTypes.COLUMN
                 })
               }
@@ -181,44 +186,40 @@ const BettingBoard = ({ onBetSelect, selectedBets, disabled, selectedChipValue }
           </React.Fragment>
         ))}
 
+        {/* Column Bets */}
+        {[3, 2, 1].map((columnStart, index) => (
+          <button
+            key={`column-${index}`}
+            className="column-bet"
+            onClick={() => 
+              handleBetPlacement({
+                numbers: getBetNumbers(BetTypes.COLUMN, columnStart),
+                type: BetTypes.COLUMN
+              })
+            }
+            disabled={disabled}
+          >
+            2:1
+          </button>
+        ))}
+
         {/* Dozen Bets */}
         <div style={{ gridColumn: '2 / span 12' }} className="grid grid-cols-3 gap-1">
-          <button
-            className="dozen-bet"
-            onClick={() => 
-              handleBetPlacement({
-                numbers: Array.from({ length: 12 }, (_, i) => i + 1),
-                type: BetTypes.DOZEN
-              })
-            }
-            disabled={disabled}
-          >
-            1st 12
-          </button>
-          <button
-            className="dozen-bet"
-            onClick={() => 
-              handleBetPlacement({
-                numbers: Array.from({ length: 12 }, (_, i) => i + 13),
-                type: BetTypes.DOZEN
-              })
-            }
-            disabled={disabled}
-          >
-            2nd 12
-          </button>
-          <button
-            className="dozen-bet"
-            onClick={() => 
-              handleBetPlacement({
-                numbers: Array.from({ length: 12 }, (_, i) => i + 25),
-                type: BetTypes.DOZEN
-              })
-            }
-            disabled={disabled}
-          >
-            3rd 12
-          </button>
+          {[0, 1, 2].map((dozenIndex) => (
+            <button
+              key={`dozen-${dozenIndex}`}
+              className="dozen-bet"
+              onClick={() => 
+                handleBetPlacement({
+                  numbers: getBetNumbers(BetTypes.DOZEN, dozenIndex),
+                  type: BetTypes.DOZEN
+                })
+              }
+              disabled={disabled}
+            >
+              {`${dozenIndex * 12 + 1}-${(dozenIndex + 1) * 12}`}
+            </button>
+          ))}
         </div>
 
         {/* Bottom Bets */}
@@ -436,18 +437,36 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
   useEffect(() => {
     const checkApproval = async () => {
       if (!contracts?.token || !account || !contracts?.roulette) {
+        console.log("Missing contracts or account:", {
+          hasToken: !!contracts?.token,
+          hasRoulette: !!contracts?.roulette,
+          hasAccount: !!account
+        });
         setIsCheckingApproval(false);
         return;
       }
 
       try {
+        // Get token allowance
         const allowance = await contracts.token.allowance(
           account,
           contracts.roulette.target
         );
-        setIsApproved(allowance >= CONTRACT_CONSTANTS.MAX_TOTAL_BET_AMOUNT);
+        
+        const isApprovedAmount = allowance >= CONTRACT_CONSTANTS.MAX_TOTAL_BET_AMOUNT;
+        console.log("Token approval check:", {
+          tokenContract: contracts.token.target,
+          rouletteContract: contracts.roulette.target,
+          account,
+          currentAllowance: ethers.formatEther(allowance),
+          requiredAmount: ethers.formatEther(CONTRACT_CONSTANTS.MAX_TOTAL_BET_AMOUNT),
+          isApproved: isApprovedAmount
+        });
+        
+        setIsApproved(isApprovedAmount);
       } catch (error) {
         console.error("Error checking approval:", error);
+        setIsApproved(false);
       } finally {
         setIsCheckingApproval(false);
       }
@@ -458,19 +477,40 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
 
   // Handle token approval
   const handleApprove = async () => {
-    if (!contracts?.token || !account || !contracts?.roulette) return;
+    if (!contracts?.token || !account || !contracts?.roulette) {
+      console.error("Contracts or account not initialized");
+      return;
+    }
 
     try {
       setIsProcessing(true);
+      console.log("Approving token spend:", {
+        spender: contracts.roulette.target,
+        amount: CONTRACT_CONSTANTS.MAX_TOTAL_BET_AMOUNT.toString()
+      });
+
+      // Approve exact amount instead of max uint256
       const tx = await contracts.token.approve(
         contracts.roulette.target,
-        ethers.MaxUint256
+        CONTRACT_CONSTANTS.MAX_TOTAL_BET_AMOUNT
       );
+      console.log("Approval transaction sent:", tx.hash);
+      
       await tx.wait();
-      setIsApproved(true);
+      console.log("Approval confirmed");
+      
+      // Verify the new allowance
+      const newAllowance = await contracts.token.allowance(
+        account,
+        contracts.roulette.target
+      );
+      console.log("New allowance:", ethers.formatEther(newAllowance));
+      
+      setIsApproved(newAllowance >= CONTRACT_CONSTANTS.MAX_TOTAL_BET_AMOUNT);
       addToast("Token approval successful", "success");
     } catch (error) {
       console.error("Error approving token:", error);
+      addToast("Failed to approve token. Please try again.", "error");
       onError(error);
     } finally {
       setIsProcessing(false);
