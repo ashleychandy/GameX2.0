@@ -53,105 +53,128 @@ const BettingBoard = ({ onBetSelect, selectedBets, disabled, selectedChipValue }
     }
   }, [disabled, onBetSelect]);
 
-  // Define number colors
+  // Define number colors and grid layout
   const redNumbers = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
   const isRed = (number) => redNumbers.includes(number);
+  
+  // Define the grid layout in rows (top to bottom)
+  const numberGrid = [
+    [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36],
+    [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35],
+    [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34]
+  ];
 
   return (
-    <div className="flex flex-col gap-2 p-4 bg-secondary-800 rounded-lg">
+    <div className="flex flex-col gap-4 p-4 bg-secondary-800 rounded-lg">
       {/* Main betting grid */}
-      <div className="grid grid-cols-14 gap-1">
+      <div className="grid grid-cols-14 gap-2">
         {/* Zero */}
-        <button
-          onClick={() => handleBet([0], BetTypes.STRAIGHT)}
-          className={`col-span-1 aspect-square rounded-md ${
-            isRed(0) ? 'bg-gaming-primary' : 'bg-gaming-success'
-          } hover:opacity-80 transition-opacity`}
-        >
-          0
-        </button>
-        
-        {/* Numbers 1-36 */}
-        {Array.from({ length: 36 }, (_, i) => i + 1).map((number) => (
+        <div className="row-span-3">
           <button
-            key={number}
-            onClick={() => handleBet([number], BetTypes.STRAIGHT)}
-            className={`aspect-square rounded-md ${
-              isRed(number) ? 'bg-gaming-primary' : 'bg-secondary-700'
-            } hover:opacity-80 transition-opacity text-white font-bold`}
+            onClick={() => handleBet([0], BetTypes.STRAIGHT)}
+            className={`h-full w-full rounded-md bg-gaming-success hover:opacity-80 transition-opacity flex items-center justify-center font-bold text-lg ${
+              getBetAmount([0], BetTypes.STRAIGHT) > 0 ? 'ring-2 ring-gaming-primary ring-offset-1 ring-offset-secondary-900' : ''
+            }`}
           >
-            {number}
-          </button>
-        ))}
-
-        {/* 2:1 columns */}
-        {[2, 1, 0].map((col) => (
-          <button
-            key={`2to1-${col}`}
-            onClick={() => handleBet(
-              Array.from({ length: 12 }, (_, i) => i * 3 + (3 - col)),
-              BetTypes.COLUMN
+            0
+            {getBetAmount([0], BetTypes.STRAIGHT) > 0 && (
+              <div className="absolute -top-2 -right-2 bg-gaming-primary text-white text-xs px-1 rounded-full">
+                {getBetAmount([0], BetTypes.STRAIGHT)}
+              </div>
             )}
-            className="aspect-square rounded-md bg-secondary-700 hover:opacity-80 transition-opacity"
-          >
-            2:1
           </button>
-        ))}
+        </div>
+        
+        {/* Numbers 1-36 in grid layout with 2:1 buttons */}
+        <div className="col-span-13 grid grid-rows-3 gap-2">
+          {numberGrid.map((row, rowIndex) => (
+            <div key={rowIndex} className="grid grid-cols-13 gap-2">
+              {row.map((number) => (
+                <button
+                  key={number}
+                  onClick={() => handleBet([number], BetTypes.STRAIGHT)}
+                  className={`aspect-square rounded-md ${
+                    isRed(number) ? 'bg-gaming-primary' : 'bg-secondary-700'
+                  } hover:opacity-80 transition-opacity text-white font-bold text-lg relative ${
+                    getBetAmount([number], BetTypes.STRAIGHT) > 0 ? 'ring-2 ring-gaming-primary ring-offset-1 ring-offset-secondary-900' : ''
+                  }`}
+                >
+                  {number}
+                  {getBetAmount([number], BetTypes.STRAIGHT) > 0 && (
+                    <div className="absolute -top-2 -right-2 bg-gaming-primary text-white text-xs px-1 rounded-full">
+                      {getBetAmount([number], BetTypes.STRAIGHT)}
+                    </div>
+                  )}
+                </button>
+              ))}
+              {/* 2:1 button for each row */}
+              <button
+                onClick={() => handleBet(
+                  Array.from({ length: 12 }, (_, i) => i * 3 + (3 - rowIndex)),
+                  BetTypes.COLUMN
+                )}
+                className="aspect-square rounded-md bg-secondary-700 hover:opacity-80 transition-opacity font-bold text-sm"
+              >
+                2:1
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Bottom betting options */}
-      <div className="grid grid-cols-3 gap-1 mt-2">
+      <div className="grid grid-cols-3 gap-4 mt-4">
         {/* Dozens */}
-        <div className="grid grid-cols-3 col-span-3 gap-1 mb-2">
+        <div className="grid grid-cols-3 col-span-3 gap-2 mb-2">
           <button
             onClick={() => handleBet(Array.from({ length: 12 }, (_, i) => i + 1), BetTypes.DOZEN)}
-            className="p-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity"
+            className="py-3 px-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity text-sm font-bold"
           >
             1 to 12
           </button>
           <button
             onClick={() => handleBet(Array.from({ length: 12 }, (_, i) => i + 13), BetTypes.DOZEN)}
-            className="p-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity"
+            className="py-3 px-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity text-sm font-bold"
           >
             13 to 24
           </button>
           <button
             onClick={() => handleBet(Array.from({ length: 12 }, (_, i) => i + 25), BetTypes.DOZEN)}
-            className="p-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity"
+            className="py-3 px-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity text-sm font-bold"
           >
             25 to 36
           </button>
         </div>
 
         {/* Other betting options */}
-        <div className="grid grid-cols-6 col-span-3 gap-1">
+        <div className="grid grid-cols-6 col-span-3 gap-2">
           <button
             onClick={() => handleBet(Array.from({ length: 18 }, (_, i) => i + 1), BetTypes.LOW)}
-            className="p-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity col-span-1"
+            className="py-3 px-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity col-span-1 text-sm font-bold"
           >
             1 to 18
           </button>
           <button
             onClick={() => handleBet([], BetTypes.EVEN)}
-            className="p-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity col-span-1"
+            className="py-3 px-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity col-span-1 text-sm font-bold"
           >
             Even
           </button>
           <button
             onClick={() => handleBet(redNumbers, BetTypes.RED)}
-            className="p-2 rounded-md bg-gaming-primary hover:opacity-80 transition-opacity col-span-2"
+            className="py-3 px-2 rounded-md bg-gaming-primary hover:opacity-80 transition-opacity col-span-2 text-sm font-bold"
           >
             Red
           </button>
           <button
             onClick={() => handleBet([], BetTypes.ODD)}
-            className="p-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity col-span-1"
+            className="py-3 px-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity col-span-1 text-sm font-bold"
           >
             Odd
           </button>
           <button
             onClick={() => handleBet(Array.from({ length: 18 }, (_, i) => i + 19), BetTypes.HIGH)}
-            className="p-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity col-span-1"
+            className="py-3 px-2 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity col-span-1 text-sm font-bold"
           >
             19 to 36
           </button>
