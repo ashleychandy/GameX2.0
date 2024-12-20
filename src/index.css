@@ -273,106 +273,118 @@
 
   /* Roulette Layout */
   .roulette-container {
-    @apply glass-panel p-6 space-y-6;
+    @apply glass-panel p-6 space-y-6 relative
+           bg-gradient-to-br from-secondary-900/90 to-secondary-800/90;
   }
 
   .roulette-grid {
-    @apply grid grid-cols-3 gap-2 relative
-           bg-secondary-900/60 backdrop-blur-xl
-           rounded-xl border border-white/5;
+    @apply grid grid-cols-3 gap-3 relative
+           bg-gradient-to-br from-secondary-900/80 to-secondary-800/80
+           rounded-xl border border-white/5 p-4
+           shadow-[inset_0_0_30px_rgba(0,0,0,0.3)];
   }
 
-  /* Betting Positions */
-  .bet-indicator {
-    @apply absolute transform transition-all duration-300
-           hover:scale-105 hover:border-gaming-primary/30
-           hover:shadow-glow active:scale-95;
-  }
-
-  .split-bet {
-    @apply bet-indicator w-5 h-5 
-           bg-gradient-to-br from-secondary-800/40 to-secondary-900/40
-           border border-white/10 rounded-full;
-  }
-
-  .street-bet {
-    @apply bet-indicator w-5 h-[60px]
-           bg-gradient-to-br from-secondary-800/40 to-secondary-900/40
-           border border-white/10;
-  }
-
-  .corner-bet {
-    @apply bet-indicator w-5 h-5
-           bg-gradient-to-br from-secondary-800/40 to-secondary-900/40
-           border border-white/10 rounded-full;
-  }
-
-  .sixline-bet {
-    @apply bet-indicator w-5 h-[120px]
-           bg-gradient-to-br from-secondary-800/40 to-secondary-900/40
-           border border-white/10;
-  }
-
-  /* Number Buttons */
+  /* Enhanced Number Buttons */
   .number-button {
     @apply relative rounded-xl font-bold text-xl
            aspect-square transition-all duration-300
-           bg-gradient-to-br from-secondary-800/80 to-secondary-900/80
-           border border-secondary-700/50
+           bg-gradient-to-br border-2
            hover:scale-105 hover:shadow-glow
-           active:scale-95;
+           active:scale-95 z-10;
   }
 
   .number-button-zero {
-    @apply bg-gradient-to-br from-green-600/20 to-green-700/20
-           border-green-500/30 text-green-400;
+    @apply from-green-600/30 to-green-700/30
+           border-green-500/40 text-green-400
+           hover:from-green-600/40 hover:to-green-700/40
+           hover:border-green-500/60;
   }
 
   .number-button-red {
-    @apply bg-gradient-to-br from-red-600/20 to-red-700/20
-           border-red-500/30 text-red-400;
+    @apply bg-red-600/30 text-red-400 hover:bg-gaming-primary/20 hover:text-white;
   }
 
   .number-button-black {
-    @apply bg-gradient-to-br from-secondary-800/20 to-secondary-900/20
-           border-secondary-700/30 text-secondary-400;
+    @apply bg-gray-900/40 text-gray-300 hover:bg-gaming-primary/20 hover:text-white;
   }
 
-  .number-button-selected {
-    @apply bg-gradient-to-br from-gaming-primary to-gaming-accent
+  /* Enhanced Betting Spots */
+  .bet-spot {
+    @apply absolute w-5 h-5 rounded-full
+           bg-white/10 backdrop-blur-sm
+           border border-white/20
+           transition-all duration-300
+           hover:bg-gaming-primary/20 hover:border-gaming-primary/40
+           hover:scale-125 hover:shadow-glow z-20;
+  }
+
+  .bet-spot-horizontal {
+    @apply bet-spot -translate-x-1/2;
+  }
+
+  .bet-spot-vertical {
+    @apply bet-spot -translate-y-1/2;
+  }
+
+  .bet-spot-corner {
+    @apply bet-spot -translate-x-1/2 -translate-y-1/2;
+  }
+
+  /* Enhanced Outside Bets */
+  .outside-bet {
+    @apply glass-card p-4 text-center font-bold
+           bg-gradient-to-br from-secondary-800/40 to-secondary-900/40
+           border border-secondary-700/30
+           hover:from-gaming-primary/20 hover:to-gaming-accent/20
+           hover:border-gaming-primary/40 hover:scale-105
+           hover:shadow-glow active:scale-95
+           transition-all duration-300;
+  }
+
+  .outside-bet-selected {
+    @apply from-gaming-primary to-gaming-accent
            border-gaming-primary/50 shadow-glow
            text-white;
   }
 
-  /* Outside Bets */
-  .outside-bet {
-    @apply glass-card p-3 text-center font-bold
-           hover:scale-105 hover:shadow-glow
+  /* Chip Stacks */
+  .chip-stack {
+    @apply absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
+           flex flex-col-reverse items-center gap-[-0.5rem]
+           pointer-events-none z-30;
+  }
+
+  .bet-chip {
+    @apply w-8 h-8 rounded-full
+           flex items-center justify-center
+           text-white text-sm font-bold
+           shadow-xl border-2 border-white/50
+           transform transition-all duration-300;
+  }
+
+  /* Enhanced Controls */
+  .controls-panel {
+    @apply glass-panel p-4 space-y-4
+           bg-gradient-to-br from-secondary-900/90 to-secondary-800/90;
+  }
+
+  .chip-selector {
+    @apply flex items-center gap-2 flex-wrap;
+  }
+
+  .chip-button {
+    @apply w-12 h-12 rounded-full
+           flex items-center justify-center
+           font-bold text-white
+           transition-all duration-300
+           hover:scale-110 hover:shadow-glow
            active:scale-95;
   }
 
-  .outside-bet-selected {
-    @apply bg-gradient-to-br from-gaming-primary to-gaming-accent
-           border-gaming-primary/50 shadow-glow;
-  }
-
-  /* Roulette Wheel */
-  .roulette-wheel {
-    @apply relative w-full aspect-square max-w-[400px] mx-auto
-           border-4 border-gaming-primary rounded-full
-           bg-gradient-to-br from-secondary-800 to-secondary-900
-           shadow-[0_0_30px_rgba(255,70,85,0.3)]
-           overflow-hidden;
-  }
-
-  .wheel-segment {
-    @apply absolute w-full h-full origin-center;
-  }
-
-  .wheel-ball {
-    @apply absolute w-4 h-4 rounded-full
-           bg-gradient-to-br from-white to-secondary-100
-           shadow-[0_0_10px_rgba(255,255,255,0.5)];
+  .chip-button-selected {
+    @apply ring-2 ring-white ring-offset-4
+           ring-offset-secondary-900
+           scale-110 shadow-glow;
   }
 
   /* Bet Controls */
@@ -415,6 +427,87 @@
 
   .stat-label {
     @apply text-sm text-secondary-400;
+  }
+
+  /* Add these new styles to your components section */
+  .betting-controls {
+    @apply glass-panel p-6 space-y-6
+           bg-gradient-to-br from-secondary-900/90 to-secondary-800/90
+           border border-white/5 shadow-xl;
+  }
+
+  .bet-input-container {
+    @apply relative flex items-center gap-4;
+  }
+
+  .bet-amount-input {
+    @apply w-full px-6 py-4 bg-secondary-800/50 
+           rounded-xl border border-secondary-700/30
+           text-white text-lg font-medium
+           placeholder-secondary-400
+           focus:outline-none focus:ring-2 
+           focus:ring-gaming-primary/50 focus:border-gaming-primary/50
+           transition-all duration-300;
+  }
+
+  .bet-currency-label {
+    @apply absolute right-6 text-secondary-400 font-medium pointer-events-none;
+  }
+
+  .quick-bet-buttons {
+    @apply grid grid-cols-4 gap-2 mt-4;
+  }
+
+  .quick-bet-button {
+    @apply px-3 py-2 rounded-lg text-sm font-medium
+           bg-secondary-800/50 border border-secondary-700/30
+           text-secondary-300 hover:text-white
+           hover:bg-gaming-primary/20 hover:border-gaming-primary/30
+           transition-all duration-300;
+  }
+
+  .place-bet-button {
+    @apply w-full px-6 py-4 rounded-xl font-bold text-lg
+           bg-gradient-to-r from-gaming-primary to-gaming-accent
+           text-white shadow-lg hover:shadow-glow
+           transform transition-all duration-300
+           hover:scale-[1.02] active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed
+           disabled:hover:scale-100;
+  }
+
+  .bet-error {
+    @apply mt-2 text-sm text-red-400 animate-fadeIn;
+  }
+
+  /* Add to your existing styles */
+  .grid-cols-14 {
+    grid-template-columns: auto repeat(12, 1fr) auto;
+  }
+
+  .outside-bet {
+    @apply bg-secondary-700/50 text-secondary-300 rounded-lg py-2
+           flex items-center justify-center font-bold
+           transition-all duration-300
+           hover:bg-gaming-primary/20 hover:text-white;
+  }
+
+  /* Update existing number button styles */
+  .number-button {
+    @apply aspect-square rounded-lg flex items-center justify-center font-bold
+           transition-all duration-300;
+  }
+
+  .number-button-red {
+    @apply bg-red-600/20 text-red-400 hover:bg-gaming-primary/20 hover:text-white;
+  }
+
+  .number-button-black {
+    @apply bg-black/20 text-gray-400 hover:bg-gaming-primary/20 hover:text-white;
+  }
+
+  .number-button-green {
+    @apply bg-green-600/20 text-green-400 hover:bg-gaming-primary/20 hover:text-white;
   }
 }
 

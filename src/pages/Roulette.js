@@ -6,18 +6,14 @@ import { Link } from "react-router-dom";
 // Constants for bet types matching contract enum
 const BetTypes = {
   STRAIGHT: 0,
-  SPLIT: 1,
-  STREET: 2,
-  CORNER: 3,
-  SIXLINE: 4,
-  DOZEN: 5,
-  COLUMN: 6,
-  RED: 7,
-  BLACK: 8,
-  EVEN: 9,
-  ODD: 10,
-  LOW: 11,
-  HIGH: 12
+  DOZEN: 1,
+  COLUMN: 2,
+  RED: 3,
+  BLACK: 4,
+  EVEN: 5,
+  ODD: 6,
+  LOW: 7,
+  HIGH: 8,
 };
 
 // Bet validation helpers
@@ -77,15 +73,14 @@ const isValidColumn = (numbers) => {
   const sorted = [...numbers].sort((a, b) => a - b);
   const start = sorted[0];
   return (
-    (start >= 1 && start <= 3) &&
-    sorted.every((num, i) => num === start + (i * 3))
+    start >= 1 && start <= 3 && sorted.every((num, i) => num === start + i * 3)
   );
 };
 
 const validateBet = (numbers, betType) => {
   // Create a new sorted array for validation
   const sortedNumbers = [...numbers].sort((a, b) => a - b);
-  
+
   // Helper function to check if numbers are valid
   const isValidNumber = (num) => num >= 0 && num <= 36;
 
@@ -95,18 +90,6 @@ const validateBet = (numbers, betType) => {
   switch (betType) {
     case BetTypes.STRAIGHT:
       return sortedNumbers.length === 1;
-
-    case BetTypes.SPLIT:
-      return sortedNumbers.length === 2 && areAdjacentNumbers(sortedNumbers[0], sortedNumbers[1]);
-
-    case BetTypes.STREET:
-      return isValidStreet(sortedNumbers);
-
-    case BetTypes.CORNER:
-      return isValidCorner(sortedNumbers);
-
-    case BetTypes.SIXLINE:
-      return isValidSixLine(sortedNumbers);
 
     case BetTypes.DOZEN:
       return isValidDozen(sortedNumbers);
@@ -127,391 +110,252 @@ const validateBet = (numbers, betType) => {
   }
 };
 
-// Update CHIP_VALUES to use proper token amounts
+// Add contract constants to match RouletteV2.sol
+const CONTRACT_CONSTANTS = {
+  MAX_BETS_PER_SPIN: 15,
+  MAX_BET_AMOUNT: BigInt("100000000000000000000000"), // 100k tokens
+  MAX_TOTAL_BET_AMOUNT: BigInt("500000000000000000000000"), // 500k tokens
+  MAX_POSSIBLE_PAYOUT: BigInt("18000000000000000000000000"), // 18M tokens
+};
+
+// Update CHIP_VALUES to ensure they don't exceed contract limits
 const CHIP_VALUES = [
-  { value: ethers.parseEther("100"), label: "100", color: "#FF6B6B" }, // Red
-  { value: ethers.parseEther("500"), label: "500", color: "#4ECDC4" }, // Teal
-  { value: ethers.parseEther("1000"), label: "1000", color: "#45B7D1" }, // Blue
-];
+  { value: ethers.parseEther("100"), label: "100", color: "#FF6B6B" },
+  { value: ethers.parseEther("500"), label: "500", color: "#4ECDC4" },
+  { value: ethers.parseEther("1000"), label: "1000", color: "#45B7D1" },
+].filter((chip) => BigInt(chip.value) <= CONTRACT_CONSTANTS.MAX_BET_AMOUNT);
 
 // Enhanced RouletteWheel Component
 const RouletteWheel = ({ isSpinning, winningNumber }) => {
   const redNumbers = [
     1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
   ];
+  const radius = 160; // Radius for number positioning
 
   return (
-    <div className="relative w-full aspect-square max-w-[400px] mx-auto">
+    <div className="roulette-wheel">
+      <div className="wheel-outer-ring" />
+      <div className="wheel-inner-ring" />
       <motion.div
         animate={
-          isSpinning ? { rotate: 360 * 5 + winningNumber * (360 / 37) } : {}
-        }
-        transition={{ duration: 3, ease: "easeOut" }}
-        className="w-full h-full rounded-full border-4 border-gaming-primary relative overflow-hidden"
-      >
-        {/* Wheel segments */}
-        {Array.from({ length: 37 }).map((_, i) => (
-          <div
-            key={i}
-            className={`absolute w-full h-full origin-center
-              ${
-                i === 0
-                  ? "bg-green-600"
-                  : redNumbers.includes(i)
-                  ? "bg-red-600"
-                  : "bg-black"
+          isSpinning
+            ? {
+                rotate: [0, 1800 + winningNumber * (360 / 37)],
               }
-            `}
-            style={{
-              transform: `rotate(${(i * 360) / 37}deg)`,
-              clipPath: "polygon(50% 0%, 100% 0%, 100% 100%, 50% 100%)",
-            }}
-          >
-            <span className="absolute top-2 left-1/2 transform -translate-x-1/2 text-white">
-              {i}
-            </span>
-          </div>
-        ))}
+            : {}
+        }
+        transition={{
+          duration: 5,
+          ease: [0.32, 0, 0.67, 1],
+          times: [0, 1],
+        }}
+        className="wheel-segments-container"
+      >
+        {Array.from({ length: 37 }).map((_, i) => {
+          const angle = (i * 360) / 37;
+          const numberAngle = angle + 360 / 74; // Center number in segment
+          const x = radius * Math.cos((numberAngle * Math.PI) / 180);
+          const y = radius * Math.sin((numberAngle * Math.PI) / 180);
 
-        {/* Ball */}
-        {winningNumber !== null && (
-          <motion.div
-            className="absolute w-4 h-4 bg-white rounded-full shadow-lg"
-            initial={{ x: "50%", y: "0%" }}
-            animate={{
-              x: `${
-                Math.cos((((winningNumber * 360) / 37) * Math.PI) / 180) * 45 +
-                50
-              }%`,
-              y: `${
-                Math.sin((((winningNumber * 360) / 37) * Math.PI) / 180) * 45 +
-                50
-              }%`,
-            }}
-            transition={{ duration: 3, ease: "easeOut" }}
-          />
-        )}
+          return (
+            <div
+              key={i}
+              className={`wheel-segment ${
+                i === 0
+                  ? "wheel-segment-green"
+                  : redNumbers.includes(i)
+                  ? "wheel-segment-red"
+                  : "wheel-segment-black"
+              }`}
+              style={{
+                transform: `rotate(${angle}deg)`,
+                clipPath: "polygon(50% 0%, 100% 0%, 100% 100%, 50% 100%)",
+              }}
+            >
+              <div
+                className="wheel-number"
+                style={{
+                  left: `calc(50% + ${x}px)`,
+                  top: `calc(50% + ${y}px)`,
+                  "--number-rotation": `-${angle}deg`,
+                }}
+              >
+                {i}
+              </div>
+            </div>
+          );
+        })}
       </motion.div>
+
+      <div className="wheel-center">
+        <div className="wheel-center-inner" />
+      </div>
+
+      {winningNumber !== null && (
+        <motion.div
+          className="roulette-ball"
+          animate={{
+            x: [
+              0,
+              Math.cos(winningNumber * (360 / 37) * (Math.PI / 180)) * 140,
+            ],
+            y: [
+              0,
+              Math.sin(winningNumber * (360 / 37) * (Math.PI / 180)) * 140,
+            ],
+          }}
+          transition={{
+            duration: 5,
+            ease: [0.32, 0, 0.67, 1],
+          }}
+        />
+      )}
     </div>
   );
 };
 
 // Enhanced BettingBoard Component
 const BettingBoard = ({ onBetSelect, selectedBets, disabled }) => {
-  const numbers = Array.from({ length: 37 }, (_, i) => i);
-  const redNumbers = [
-    1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
+  // Numbers should be laid out in 3 rows, 12 columns
+  const gridNumbers = [
+    // Row 1 (top)
+    [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36],
+    // Row 2 (middle)
+    [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35],
+    // Row 3 (bottom)
+    [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34]
   ];
 
-  const handleBetClick = (numbers, betType) => {
-    if (disabled) return;
-    onBetSelect({ numbers, type: betType });
-  };
-
-  const isBetSelected = (numbers, betType) => {
-    return selectedBets.some(
-      (bet) =>
-        bet.type === betType &&
-        JSON.stringify(bet.numbers.sort()) === JSON.stringify(numbers.sort())
-    );
-  };
-
-  // Helper to generate split bet buttons
-  const renderSplitBets = () => {
-    const splitBets = [];
-    for (let i = 1; i <= 36; i++) {
-      // Horizontal splits
-      if (i % 3 !== 0) {
-        splitBets.push({
-          numbers: [i, i + 1],
-          position: `split-h-${i}`,
-        });
-      }
-      // Vertical splits
-      if (i <= 33) {
-        splitBets.push({
-          numbers: [i, i + 3],
-          position: `split-v-${i}`,
-        });
-      }
-    }
-    return splitBets.map((bet) => (
-      <button
-        key={bet.position}
-        onClick={() => handleBetClick(bet.numbers, BetTypes.SPLIT)}
-        className={`absolute split-bet ${bet.position}`}
-      />
-    ));
-  };
-
-  // Helper to render chips on a bet
-  const renderBetChips = (numbers, betType) => {
-    const betsOnThisSpot = selectedBets.filter(
-      (bet) =>
-        bet.type === betType &&
-        JSON.stringify(bet.numbers.sort()) === JSON.stringify(numbers.sort())
-    );
-
-    if (betsOnThisSpot.length === 0) return null;
-
-    return (
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="relative">
-          {betsOnThisSpot.map((bet, index) => {
-            const chipInfo = CHIP_VALUES.find(
-              (chip) => chip.value === bet.amount
-            );
-            return (
-              <div
-                key={`${bet.amount}-${index}`}
-                className="absolute rounded-full text-white text-xs flex items-center justify-center"
-                style={{
-                  width: "24px",
-                  height: "24px",
-                  backgroundColor: chipInfo?.color || "#6B7280",
-                  transform: `translateY(${index * -4}px)`,
-                  border: "2px solid rgba(255, 255, 255, 0.5)",
-                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
-                  zIndex: index + 1,
-                }}
-              >
-                {chipInfo?.label ||
-                  ethers.formatEther(bet.amount).replace(/\.0$/, "")}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
+  const redNumbers = [
+    1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36
+  ];
 
   return (
     <div className="space-y-4">
-      {/* Number Grid */}
-      <div className="grid grid-cols-3 gap-2 relative">
+      {/* Main Grid */}
+      <div className="grid grid-cols-14 gap-1">
         {/* Zero */}
         <button
-          onClick={() => handleBetClick([0], BetTypes.STRAIGHT)}
+          onClick={() => onBetSelect({ numbers: [0], type: BetTypes.STRAIGHT })}
           className={`
-            p-4 rounded-lg text-center font-bold relative
-            ${
-              disabled
-                ? "opacity-50 cursor-not-allowed"
-                : "hover:bg-gaming-primary/20"
-            }
-            ${
-              isBetSelected([0], BetTypes.STRAIGHT)
-                ? "bg-gaming-primary text-white"
-                : "bg-green-600/20 text-green-400"
-            }
+            col-span-1 row-span-3 
+            ${disabled ? "opacity-50 cursor-not-allowed" : ""}
+            number-button-green
           `}
         >
-          0{renderBetChips([0], BetTypes.STRAIGHT)}
+          0
         </button>
 
-        {/* Numbers 1-36 */}
-        {numbers.slice(1).map((number) => (
-          <button
-            key={number}
-            onClick={() => handleBetClick([number], BetTypes.STRAIGHT)}
-            className={`
-              p-4 rounded-lg text-center font-bold relative
-              ${
-                disabled
-                  ? "opacity-50 cursor-not-allowed"
-                  : "hover:bg-gaming-primary/20"
-              }
-              ${
-                isBetSelected([number], BetTypes.STRAIGHT)
-                  ? "bg-gaming-primary text-white"
-                  : redNumbers.includes(number)
-                  ? "bg-red-600/20 text-red-400"
-                  : "bg-black/20 text-gray-400"
-              }
-            `}
-          >
-            {number}
-            {renderBetChips([number], BetTypes.STRAIGHT)}
-          </button>
-        ))}
+        {/* Numbers 1-36 Grid */}
+        <div className="col-span-12 grid grid-rows-3 gap-1">
+          {gridNumbers.map((row, rowIndex) => (
+            <div key={`row-${rowIndex}`} className="grid grid-cols-12 gap-1">
+              {row.map((number) => (
+                <button
+                  key={number}
+                  onClick={() => onBetSelect({ numbers: [number], type: BetTypes.STRAIGHT })}
+                  className={`
+                    aspect-square rounded-lg flex items-center justify-center font-bold
+                    ${disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-gaming-primary/20"}
+                    ${redNumbers.includes(number) ? "bg-red-600/30 text-red-400" : "bg-gray-900/40 text-gray-300"}
+                  `}
+                >
+                  {number}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
 
-        {/* Split Bets */}
-        {renderSplitBets()}
-
-        {/* Street Bets */}
-        {[1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34].map((start) => (
-          <button
-            key={`street-${start}`}
-            onClick={() =>
-              handleBetClick([start, start + 1, start + 2], BetTypes.STREET)
-            }
-            className="street-bet"
-          />
-        ))}
-
-        {/* Corner Bets */}
-        {[
-          1, 2, 4, 5, 7, 8, 10, 11, 13, 14, 16, 17, 19, 20, 22, 23, 25, 26, 28,
-          29, 31, 32,
-        ].map((start) => (
-          <button
-            key={`corner-${start}`}
-            onClick={() =>
-              handleBetClick(
-                [start, start + 1, start + 3, start + 4],
-                BetTypes.CORNER
-              )
-            }
-            className="corner-bet"
-          />
-        ))}
-
-        {/* Six Line Bets */}
-        {[1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31].map((start) => (
-          <button
-            key={`sixline-${start}`}
-            onClick={() =>
-              handleBetClick(
-                [start, start + 1, start + 2, start + 3, start + 4, start + 5],
-                BetTypes.SIXLINE
-              )
-            }
-            className="sixline-bet"
-          />
-        ))}
+        {/* 2:1 Column Bets */}
+        <div className="col-span-1 grid grid-rows-3 gap-1">
+          {[1, 2, 3].map((column) => (
+            <button
+              key={`2to1-${column}`}
+              onClick={() => onBetSelect({
+                numbers: Array.from({ length: 12 }, (_, i) => i * 3 + column),
+                type: BetTypes.COLUMN
+              })}
+              className="bg-secondary-700/50 text-secondary-300 rounded-lg
+                       flex items-center justify-center font-bold
+                       hover:bg-gaming-primary/20"
+            >
+              2:1
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Dozen Bets */}
-      <div className="grid grid-cols-3 gap-2">
-        {[
-          {
-            label: "1st 12",
-            numbers: Array.from({ length: 12 }, (_, i) => i + 1).sort((a, b) => a - b),
-          },
-          {
-            label: "2nd 12",
-            numbers: Array.from({ length: 12 }, (_, i) => i + 13).sort((a, b) => a - b),
-          },
-          {
-            label: "3rd 12",
-            numbers: Array.from({ length: 12 }, (_, i) => i + 25).sort((a, b) => a - b),
-          },
-        ].map((dozen) => (
-          <button
-            key={dozen.label}
-            onClick={() => handleBetClick(dozen.numbers, BetTypes.DOZEN)}
-            className={`
-              p-2 rounded-lg text-center font-bold
-              ${
-                disabled
-                  ? "opacity-50 cursor-not-allowed"
-                  : "hover:bg-gaming-primary/20"
-              }
-              ${
-                isBetSelected(dozen.numbers, BetTypes.DOZEN)
-                  ? "bg-gaming-primary text-white"
-                  : "bg-secondary-700/50 text-secondary-300"
-              }
-            `}
-          >
-            {dozen.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Column Bets */}
-      <div className="grid grid-cols-3 gap-2">
-        {[
-          {
-            label: "2:1",
-            numbers: Array.from({ length: 12 }, (_, i) => i * 3 + 1),
-          },
-          {
-            label: "2:1",
-            numbers: Array.from({ length: 12 }, (_, i) => i * 3 + 2),
-          },
-          {
-            label: "2:1",
-            numbers: Array.from({ length: 12 }, (_, i) => i * 3 + 3),
-          },
-        ].map((column, i) => (
-          <button
-            key={`column-${i}`}
-            onClick={() => handleBetClick(column.numbers, BetTypes.COLUMN)}
-            className={`
-              p-2 rounded-lg text-center font-bold
-              ${
-                disabled
-                  ? "opacity-50 cursor-not-allowed"
-                  : "hover:bg-gaming-primary/20"
-              }
-              ${
-                isBetSelected(column.numbers, BetTypes.COLUMN)
-                  ? "bg-gaming-primary text-white"
-                  : "bg-secondary-700/50 text-secondary-300"
-              }
-            `}
-          >
-            {column.label}
-          </button>
-        ))}
+      {/* Bottom Bets */}
+      <div className="grid grid-cols-3 gap-1">
+        {/* Dozen Bets */}
+        <button
+          onClick={() => onBetSelect({
+            numbers: Array.from({ length: 12 }, (_, i) => i + 1),
+            type: BetTypes.DOZEN
+          })}
+          className="outside-bet"
+        >
+          1 to 12
+        </button>
+        <button
+          onClick={() => onBetSelect({
+            numbers: Array.from({ length: 12 }, (_, i) => i + 13),
+            type: BetTypes.DOZEN
+          })}
+          className="outside-bet"
+        >
+          13 to 24
+        </button>
+        <button
+          onClick={() => onBetSelect({
+            numbers: Array.from({ length: 12 }, (_, i) => i + 25),
+            type: BetTypes.DOZEN
+          })}
+          className="outside-bet"
+        >
+          25 to 36
+        </button>
       </div>
 
       {/* Outside Bets */}
-      <div className="grid grid-cols-2 gap-4">
-        {[
-          {
-            label: "1-18",
-            type: BetTypes.LOW,
-            numbers: Array.from({ length: 18 }, (_, i) => i + 1),
-          },
-          {
-            label: "19-36",
-            type: BetTypes.HIGH,
-            numbers: Array.from({ length: 18 }, (_, i) => i + 19),
-          },
-          {
-            label: "RED",
-            type: BetTypes.RED,
-            numbers: redNumbers,
-          },
-          {
-            label: "BLACK",
-            type: BetTypes.BLACK,
-            numbers: numbers.filter((n) => n !== 0 && !redNumbers.includes(n)),
-          },
-          {
-            label: "EVEN",
-            type: BetTypes.EVEN,
-            numbers: numbers.filter((n) => n !== 0 && n % 2 === 0),
-          },
-          {
-            label: "ODD",
-            type: BetTypes.ODD,
-            numbers: numbers.filter((n) => n % 2 === 1),
-          },
-        ].map((bet) => (
-          <button
-            key={bet.label}
-            onClick={() => handleBetClick(bet.numbers, bet.type)}
-            className={`
-              p-4 rounded-lg text-center font-bold relative
-              ${
-                disabled
-                  ? "opacity-50 cursor-not-allowed"
-                  : "hover:bg-gaming-primary/20"
-              }
-              ${
-                isBetSelected(bet.numbers, bet.type)
-                  ? "bg-gaming-primary text-white"
-                  : "bg-secondary-700/50 text-secondary-300"
-              }
-            `}
-          >
-            {bet.label}
-            {renderBetChips(bet.numbers, bet.type)}
-          </button>
-        ))}
+      <div className="grid grid-cols-6 gap-1">
+        <button
+          onClick={() => onBetSelect({ numbers: [], type: BetTypes.LOW })}
+          className="outside-bet"
+        >
+          1 to 18
+        </button>
+        <button
+          onClick={() => onBetSelect({ numbers: [], type: BetTypes.EVEN })}
+          className="outside-bet"
+        >
+          Even
+        </button>
+        <button
+          onClick={() => onBetSelect({ numbers: [], type: BetTypes.RED })}
+          className="outside-bet text-red-400"
+        >
+          Red
+        </button>
+        <button
+          onClick={() => onBetSelect({ numbers: [], type: BetTypes.BLACK })}
+          className="outside-bet"
+        >
+          Black
+        </button>
+        <button
+          onClick={() => onBetSelect({ numbers: [], type: BetTypes.ODD })}
+          className="outside-bet"
+        >
+          Odd
+        </button>
+        <button
+          onClick={() => onBetSelect({ numbers: [], type: BetTypes.HIGH })}
+          className="outside-bet"
+        >
+          19 to 36
+        </button>
       </div>
     </div>
   );
@@ -519,90 +363,15 @@ const BettingBoard = ({ onBetSelect, selectedBets, disabled }) => {
 
 // Add CSS for bet position indicators
 const styles = `
-  .split-bet {
-    width: 20px;
-    height: 20px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
-  }
-
-  .street-bet {
-    width: 20px;
-    height: 60px;
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  .corner-bet {
-    width: 20px;
-    height: 20px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
-  }
-
+  /* Remove unused bet position styles */
+  .split-bet,
+  .street-bet,
+  .corner-bet,
   .sixline-bet {
-    width: 20px;
-    height: 120px;
-    background: rgba(255, 255, 255, 0.2);
+    display: none;
   }
 
-  .bet-chip {
-    position: absolute;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    color: white;
-    font-size: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transform: translate(-50%, -50%);
-    z-index: 10;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    border: 2px solid rgba(255, 255, 255, 0.5);
-    transition: transform 0.2s ease;
-  }
-
-  .bet-chip:hover {
-    transform: translate(-50%, -50%) scale(1.1);
-    z-index: 20;
-  }
-
-  .chip-stack {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .chip-stack > * {
-    margin-top: -12px;
-  }
-
-  .chip-stack > *:first-child {
-    margin-top: 0;
-  }
-
-  button {
-    position: relative;
-    overflow: visible !important;
-  }
-
-  .chip-container {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-  }
-
-  .chip-stack {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    transform: translateY(-50%);
-  }
+  /* Keep other styles ... */
 `;
 
 // Add the styles to the document
@@ -618,7 +387,6 @@ const BetControls = ({
   onClearBets,
   onPlaceBets,
   disabled,
-  maxBets,
   balanceData,
   gameState,
   checkAndApproveToken,
@@ -632,8 +400,28 @@ const BetControls = ({
     BigInt(0)
   );
 
+  // Add validation for contract limits
+  const exceedsMaxBets =
+    selectedBets.length > CONTRACT_CONSTANTS.MAX_BETS_PER_SPIN;
+  const exceedsMaxTotalAmount =
+    totalBetAmount > CONTRACT_CONSTANTS.MAX_TOTAL_BET_AMOUNT;
+  const hasInvalidBetAmount = selectedBets.some(
+    (bet) => BigInt(bet.amount) > CONTRACT_CONSTANTS.MAX_BET_AMOUNT
+  );
+
   const needsApproval = balanceData?.allowance < totalBetAmount;
   const insufficientBalance = balanceData?.balance < totalBetAmount;
+
+  // Update error message handling
+  const getErrorMessage = () => {
+    if (exceedsMaxBets)
+      return `Maximum ${CONTRACT_CONSTANTS.MAX_BETS_PER_SPIN} bets per spin`;
+    if (exceedsMaxTotalAmount) return "Total bet amount exceeds maximum";
+    if (hasInvalidBetAmount) return "Individual bet amount exceeds maximum";
+    if (insufficientBalance) return "Insufficient balance";
+    if (needsApproval) return "Approval required";
+    return null;
+  };
 
   // Format balance with proper decimal places (18 decimals for ERC20)
   const formatBalance = (value) => {
@@ -664,42 +452,35 @@ const BetControls = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="controls-panel">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="chip-selector">
           {CHIP_VALUES.map((chip) => (
             <button
               key={chip.label}
               onClick={() => onChipValueChange(chip.value)}
               className={`
-                w-12 h-12 rounded-full flex items-center justify-center font-bold
-                transition-all duration-200
+                chip-button
                 ${
-                  selectedChipValue === chip.value
-                    ? "ring-2 ring-white ring-offset-4 ring-offset-secondary-900 transform scale-110"
+                  selectedChipValue === chip.value ? "chip-button-selected" : ""
+                }
+                ${
+                  BigInt(chip.value) > CONTRACT_CONSTANTS.MAX_BET_AMOUNT
+                    ? "opacity-50 cursor-not-allowed"
                     : ""
                 }
-                ${
-                  disabled
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:opacity-90"
-                }
-                text-white
               `}
-              style={{
-                backgroundColor: chip.color,
-                boxShadow:
-                  selectedChipValue === chip.value
-                    ? `0 0 10px ${chip.color}`
-                    : "none",
-              }}
-              disabled={disabled}
+              disabled={
+                disabled ||
+                BigInt(chip.value) > CONTRACT_CONSTANTS.MAX_BET_AMOUNT
+              }
             >
               {chip.label}
             </button>
           ))}
         </div>
-        <div className="space-x-4">
+
+        <div className="flex gap-4">
           {account && needsApproval && selectedBets.length > 0 && (
             <button
               onClick={handleApprove}
@@ -738,6 +519,7 @@ const BetControls = ({
           >
             Clear Bets
           </button>
+
           <button
             onClick={onPlaceBets}
             disabled={
@@ -746,7 +528,10 @@ const BetControls = ({
               needsApproval ||
               insufficientBalance ||
               gameState.isProcessing ||
-              isApproving
+              isApproving ||
+              exceedsMaxBets ||
+              exceedsMaxTotalAmount ||
+              hasInvalidBetAmount
             }
             className={`
               px-6 py-2 rounded-lg font-bold
@@ -755,7 +540,10 @@ const BetControls = ({
                 selectedBets.length === 0 ||
                 needsApproval ||
                 insufficientBalance ||
-                isApproving
+                isApproving ||
+                exceedsMaxBets ||
+                exceedsMaxTotalAmount ||
+                hasInvalidBetAmount
                   ? "bg-secondary-700 text-secondary-500 cursor-not-allowed"
                   : "bg-gaming-primary text-white hover:bg-gaming-primary/80"
               }
@@ -766,27 +554,44 @@ const BetControls = ({
                 <LoadingSpinner />
                 <span className="ml-2">Processing...</span>
               </span>
-            ) : insufficientBalance ? (
-              "Insufficient Balance"
-            ) : needsApproval ? (
-              "Approval Required"
             ) : (
-              "Place Bets & Spin"
+              getErrorMessage() || "Place Bets & Spin"
             )}
           </button>
         </div>
       </div>
 
-      {/* Update balance display */}
-      <div className="flex justify-between text-secondary-400 text-sm">
-        <div>
-          Selected Bets: {selectedBets.length} / {maxBets}
+      {/* Enhanced stats display */}
+      <div className="flex justify-between text-sm">
+        <div className="text-secondary-400">
+          Selected Bets:{" "}
+          <span className="text-white font-bold">{selectedBets.length}</span>
+          <span className="text-secondary-600">
+            {" "}
+            / {CONTRACT_CONSTANTS.MAX_BETS_PER_SPIN}
+          </span>
         </div>
-        <div>
-          Balance: {formatBalance(balanceData?.balance)} tokens
-          {totalBetAmount > 0 && ` (Bet: ${formatBalance(totalBetAmount)})`}
+        <div className="text-secondary-400">
+          Balance:{" "}
+          <span className="text-white font-bold">
+            {formatBalance(balanceData?.balance)}
+          </span>
+          {totalBetAmount > 0 && (
+            <span
+              className={`ml-2 ${
+                exceedsMaxTotalAmount ? "text-red-500" : "text-gaming-primary"
+              }`}
+            >
+              (Bet: {formatBalance(totalBetAmount)})
+            </span>
+          )}
         </div>
       </div>
+
+      {/* Error message display */}
+      {getErrorMessage() && (
+        <div className="mt-2 text-sm text-red-500">{getErrorMessage()}</div>
+      )}
     </div>
   );
 };
@@ -817,7 +622,7 @@ const validateBetRequest = (bet) => {
   try {
     // Create a new array for bet numbers
     const betNumbers = [...(bet.numbers || [])];
-    
+
     // Check if numbers array exists and is valid
     if (!Array.isArray(betNumbers)) {
       console.error("Invalid bet numbers:", betNumbers);
@@ -831,13 +636,20 @@ const validateBetRequest = (bet) => {
     }
 
     // Check if betType is valid (matches contract enum)
-    if (typeof bet.betType !== "number" || bet.betType < 0 || bet.betType > 12) {
+    if (
+      typeof bet.betType !== "number" ||
+      bet.betType < 0 ||
+      bet.betType > 12
+    ) {
       console.error("Invalid bet type:", bet.betType);
       return false;
     }
 
     // For outside bets (RED, BLACK, etc), numbers array should be empty
-    if ([7, 8, 9, 10, 11, 12].includes(bet.betType) && betNumbers.length !== 0) {
+    if (
+      [7, 8, 9, 10, 11, 12].includes(bet.betType) &&
+      betNumbers.length !== 0
+    ) {
       console.error("Outside bet should have empty numbers array");
       return false;
     }
@@ -859,7 +671,9 @@ const BettingHistory = ({ userData }) => {
       if (!amount) return "0";
       // Format to a maximum of 4 decimal places
       const formatted = ethers.formatEther(amount);
-      return parseFloat(formatted).toFixed(4).replace(/\.?0+$/, '');
+      return parseFloat(formatted)
+        .toFixed(4)
+        .replace(/\.?0+$/, "");
     } catch (error) {
       console.error("Error formatting amount:", error);
       return "0";
@@ -880,7 +694,7 @@ const BettingHistory = ({ userData }) => {
       [BetTypes.EVEN]: "Even",
       [BetTypes.ODD]: "Odd",
       [BetTypes.LOW]: "Low (1-18)",
-      [BetTypes.HIGH]: "High (19-36)"
+      [BetTypes.HIGH]: "High (19-36)",
     };
     return labels[betType] || `Unknown (${betType})`;
   };
@@ -901,54 +715,58 @@ const BettingHistory = ({ userData }) => {
             </tr>
           </thead>
           <tbody>
-            {[...userData.betHistory]
-              .reverse()
-              .map((bet, index) => {
-                const safeBet = {
-                  ...bet,
-                  numbers: Array.isArray(bet.numbers) ? [...bet.numbers] : [],
-                  betType: Number(bet.betType || 0),
-                  amount: bet.amount || "0",
-                  payout: bet.payout || "0",
-                  timestamp: Number(bet.timestamp || 0),
-                  winningNumber: Number(bet.winningNumber || 0)
-                };
+            {[...userData.betHistory].reverse().map((bet, index) => {
+              const safeBet = {
+                ...bet,
+                numbers: Array.isArray(bet.numbers) ? [...bet.numbers] : [],
+                betType: Number(bet.betType || 0),
+                amount: bet.amount || "0",
+                payout: bet.payout || "0",
+                timestamp: Number(bet.timestamp || 0),
+                winningNumber: Number(bet.winningNumber || 0),
+              };
 
-                return (
-                  <tr key={index} className="border-b border-secondary-700">
-                    <td className="px-4 py-2">
-                      {new Date(safeBet.timestamp * 1000).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2">
-                      {getBetTypeLabel(safeBet.betType)}
-                    </td>
-                    <td className="px-4 py-2">
-                      {safeBet.numbers.length > 0 ? safeBet.numbers.join(", ") : "-"}
-                    </td>
-                    <td className="px-4 py-2">{formatAmount(safeBet.amount)}</td>
-                    <td className="px-4 py-2">
-                      <span className={
+              return (
+                <tr key={index} className="border-b border-secondary-700">
+                  <td className="px-4 py-2">
+                    {new Date(safeBet.timestamp * 1000).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-2">
+                    {getBetTypeLabel(safeBet.betType)}
+                  </td>
+                  <td className="px-4 py-2">
+                    {safeBet.numbers.length > 0
+                      ? safeBet.numbers.join(", ")
+                      : "-"}
+                  </td>
+                  <td className="px-4 py-2">{formatAmount(safeBet.amount)}</td>
+                  <td className="px-4 py-2">
+                    <span
+                      className={
                         safeBet.winningNumber === 0
                           ? "text-green-600"
                           : BigInt(safeBet.payout) > 0
                           ? "text-green-500"
                           : "text-red-500"
-                      }>
-                        {safeBet.winningNumber}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2">
-                      <span className={
+                      }
+                    >
+                      {safeBet.winningNumber}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2">
+                    <span
+                      className={
                         BigInt(safeBet.payout) > 0
                           ? "text-green-500"
                           : "text-red-500"
-                      }>
-                        {formatAmount(safeBet.payout)}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+                      }
+                    >
+                      {formatAmount(safeBet.payout)}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -993,7 +811,9 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
 
       // For outside bets, ensure numbers array is empty
       const isOutsideBet = bet.type >= BetTypes.RED;
-      const betNumbers = isOutsideBet ? [] : [...bet.numbers].sort((a, b) => a - b);
+      const betNumbers = isOutsideBet
+        ? []
+        : [...bet.numbers].sort((a, b) => a - b);
 
       // Validate bet configuration
       if (!validateBet(betNumbers, bet.type)) {
@@ -1249,75 +1069,30 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
       setGameState((prev) => ({ ...prev, isProcessing: true }));
 
       // Format bets for contract
-      const betRequests = selectedBets.map((bet) => {
-        // For outside bets, ensure empty numbers array
-        const isOutsideBet = bet.type >= BetTypes.RED;
-        
-        // For other bets, ensure numbers are properly sorted
-        let numbers = isOutsideBet ? [] : [...bet.numbers].sort((a, b) => a - b);
-
-        return {
-          numbers,
-          amount: BigInt(bet.amount.toString()),
-          betType: bet.type
-        };
-      });
+      const betRequests = selectedBets.map((bet) => ({
+        numbers:
+          bet.type >= BetTypes.RED
+            ? []
+            : [...bet.numbers].sort((a, b) => a - b),
+        amount: BigInt(bet.amount.toString()),
+        betType: bet.type,
+      }));
 
       // Validate all bets before sending
-      if (!betRequests.every(request => validateBet(request.numbers, request.betType))) {
+      if (
+        !betRequests.every((request) =>
+          validateBet(request.numbers, request.betType)
+        )
+      ) {
         throw new Error("Invalid bet configuration detected");
       }
 
-      // Debug logging
-      console.log("Formatted bets for contract:", 
-        betRequests.map(bet => ({
-          numbers: Array.from(bet.numbers),
-          betType: bet.betType,
-          amount: bet.amount.toString(),
-          amountInEther: ethers.formatEther(bet.amount)
-        }))
-      );
-
-      // Calculate total amount
-      const totalAmount = betRequests.reduce(
-        (sum, bet) => sum + BigInt(bet.amount.toString()),
-        BigInt(0)
-      );
-
-      // Check allowance
-      const allowance = await contracts.token.allowance(
-        account, 
-        contracts.roulette.target
-      );
-
-      if (allowance < totalAmount) {
-        addToast("Insufficient token approval", "error");
-        return;
-      }
-
-      // Estimate gas with properly formatted parameters
-      const gasEstimate = await contracts.roulette.placeManyBetsAndSpin.estimateGas(
-        betRequests.map(bet => ({
-          numbers: bet.numbers,
-          amount: bet.amount,
-          betType: bet.betType
-        }))
-      );
-
-      // Add 20% buffer to gas estimate
-      const gasLimit = BigInt(Math.floor(Number(gasEstimate) * 1.2));
-
-      // Send transaction
-      const tx = await contracts.roulette.placeManyBetsAndSpin(
-        betRequests,
-        { gasLimit }
-      );
-
+      // Send transaction using new contract method
+      const tx = await contracts.roulette.placeBet(betRequests);
       console.log("Transaction sent:", tx.hash);
       addToast("Transaction submitted", "info");
 
       await tx.wait();
-
     } catch (error) {
       console.error("Error placing bets:", error);
       handleBetError(error);
@@ -1329,7 +1104,7 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
   // Update handleBetError to be more specific
   const handleBetError = (error) => {
     if (error.code === "CALL_EXCEPTION") {
-      const errorMessage = error.message?.toLowerCase() || '';
+      const errorMessage = error.message?.toLowerCase() || "";
       if (errorMessage.includes("invalidbetparameters")) {
         addToast("Invalid bet configuration", "error");
       } else if (errorMessage.includes("insufficientuserbalance")) {
