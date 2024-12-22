@@ -2648,7 +2648,6 @@ function AdminPage({
         return;
       }
 
-      
       // Get the contract instance that will receive the role
       const targetAddress =
         getContractAddresses(selectedNetwork)[formInputs.selectedContract];
@@ -2704,8 +2703,6 @@ function AdminPage({
     } finally {
       setLoadingStates((prev) => ({ ...prev, action: false }));
     }
-
-    
   };
 
   const handleWithdraw = async () => {
