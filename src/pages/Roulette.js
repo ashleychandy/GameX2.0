@@ -386,10 +386,38 @@ const BettingHistory = ({ account, contracts }) => {
     queryKey: ["rouletteHistory", account],
     queryFn: async () => {
       if (!contracts?.roulette || !account) return null;
-      return contracts.roulette.getUserGameData(account);
+      try {
+        const data = await contracts.roulette.getUserGameData(account);
+
+        // Check if data exists and is an array
+        if (!data || !Array.isArray(data)) {
+          console.log("No betting data found or invalid format:", data);
+          return [];
+        }
+
+        // Convert BigInts to strings for proper serialization
+        return data.map((bet) => ({
+          timestamp: Number(bet.timestamp),
+          betType: Number(bet.betType),
+          numbers: Array.isArray(bet.numbers)
+            ? bet.numbers.map((n) => Number(n))
+            : [],
+          amount: bet.amount.toString(),
+          payout: bet.payout.toString(),
+          winningNumber: Number(bet.winningNumber),
+        }));
+      } catch (error) {
+        console.error("Error fetching betting history:", error);
+        throw error;
+      }
     },
     enabled: !!contracts?.roulette && !!account,
     refetchInterval: 10000, // Refetch every 10 seconds
+    staleTime: 5000, // Consider data stale after 5 seconds
+    cacheTime: 30000, // Keep data in cache for 30 seconds
+    retry: 3, // Retry failed requests 3 times
+    retryDelay: 1000, // Wait 1 second between retries,
+    structuralSharing: false, // Disable structural sharing to prevent serialization issues
   });
 
   if (isLoading) {
@@ -404,22 +432,26 @@ const BettingHistory = ({ account, contracts }) => {
   }
 
   if (error) {
+    console.error("Betting history error:", error);
     return (
       <div className="betting-history">
         <h3 className="text-xl font-bold mb-4">Recent Bets</h3>
         <div className="text-center text-gaming-error py-4">
-          Failed to load betting history
+          Failed to load betting history. Please try again later.
         </div>
       </div>
     );
   }
 
+  // Ensure userData is an array before rendering
+  const bettingHistory = Array.isArray(userData) ? userData : [];
+
   return (
     <div className="betting-history bg-secondary-800 rounded-lg p-4">
       <h3 className="text-xl font-bold mb-4">Recent Bets</h3>
-      {userData?.length > 0 ? (
+      {bettingHistory.length > 0 ? (
         <div className="space-y-4">
-          {userData.map((bet, index) => (
+          {bettingHistory.map((bet, index) => (
             <div
               key={`${bet.timestamp}-${index}`}
               className="history-item bg-secondary-700 rounded-lg p-4 space-y-3"
@@ -427,14 +459,16 @@ const BettingHistory = ({ account, contracts }) => {
               {/* Header with timestamp and result */}
               <div className="flex justify-between items-start">
                 <div className="text-sm text-secondary-400">
-                  {new Date(Number(bet.timestamp) * 1000).toLocaleString()}
+                  {new Date(bet.timestamp * 1000).toLocaleString()}
                 </div>
                 <div
                   className={`text-lg font-bold ${
-                    bet.payout > 0 ? "text-gaming-success" : "text-gaming-error"
+                    BigInt(bet.payout) > 0
+                      ? "text-gaming-success"
+                      : "text-gaming-error"
                   }`}
                 >
-                  {bet.payout > 0 ? "WIN" : "LOSS"}
+                  {BigInt(bet.payout) > 0 ? "WIN" : "LOSS"}
                 </div>
               </div>
 
@@ -464,7 +498,6 @@ const BettingHistory = ({ account, contracts }) => {
                     <div className="font-medium flex flex-wrap gap-1 p-1">
                       {bet.numbers.length > 0 ? (
                         bet.numbers.length <= 5 ? (
-                          // Display normally if 5 or fewer numbers
                           bet.numbers.map((num, i) => (
                             <span
                               key={i}
@@ -474,7 +507,6 @@ const BettingHistory = ({ account, contracts }) => {
                             </span>
                           ))
                         ) : (
-                          // Grid layout for more than 5 numbers
                           <div className="grid grid-cols-6 gap-1 w-full">
                             {bet.numbers.map((num, i) => (
                               <span
@@ -502,7 +534,7 @@ const BettingHistory = ({ account, contracts }) => {
                     </div>
                     <div
                       className={`font-bold ${
-                        bet.payout > 0
+                        BigInt(bet.payout) > 0
                           ? "text-gaming-success"
                           : "text-secondary-400"
                       }`}
@@ -518,7 +550,7 @@ const BettingHistory = ({ account, contracts }) => {
                 <div>
                   <div className="text-sm text-secondary-400">Multiplier</div>
                   <div className="font-medium">
-                    {bet.payout > 0
+                    {BigInt(bet.payout) > 0
                       ? `${(
                           Number(ethers.formatEther(bet.payout)) /
                           Number(ethers.formatEther(bet.amount))
@@ -530,7 +562,7 @@ const BettingHistory = ({ account, contracts }) => {
                   <div className="text-sm text-secondary-400">Profit/Loss</div>
                   <div
                     className={`font-bold ${
-                      bet.payout > BigInt(bet.amount)
+                      BigInt(bet.payout) > BigInt(bet.amount)
                         ? "text-gaming-success"
                         : "text-gaming-error"
                     }`}
@@ -666,49 +698,90 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
   // Handler functions
   const handleBetSelect = useCallback(
     (numbers, type) => {
+      if (isProcessing) return;
+
       setSelectedBets((prev) => {
-        // Find if there's an existing bet for this position
+        // Initialize numbers array based on bet type
+        let betNumbers = [];
+        switch (type) {
+          case BetTypes.STRAIGHT:
+            betNumbers = numbers;
+            break;
+          case BetTypes.DOZEN:
+            const dozenStart = numbers[0];
+            betNumbers = Array.from({ length: 12 }, (_, i) => dozenStart + i);
+            break;
+          case BetTypes.COLUMN:
+            const columnStart = numbers[0];
+            betNumbers = Array.from(
+              { length: 12 },
+              (_, i) => columnStart + i * 3
+            );
+            break;
+          case BetTypes.RED:
+            betNumbers = [
+              1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
+            ];
+            break;
+          case BetTypes.BLACK:
+            betNumbers = [
+              2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33,
+              35,
+            ];
+            break;
+          case BetTypes.EVEN:
+            betNumbers = Array.from({ length: 18 }, (_, i) => (i + 1) * 2);
+            break;
+          case BetTypes.ODD:
+            betNumbers = Array.from({ length: 18 }, (_, i) => i * 2 + 1);
+            break;
+          case BetTypes.LOW:
+            betNumbers = Array.from({ length: 18 }, (_, i) => i + 1);
+            break;
+          case BetTypes.HIGH:
+            betNumbers = Array.from({ length: 18 }, (_, i) => i + 19);
+            break;
+        }
+
+        // Check if bet already exists
         const existingBetIndex = prev.findIndex(
           (bet) =>
             bet.type === type &&
             JSON.stringify(bet.numbers.sort()) ===
-              JSON.stringify(numbers.sort())
+              JSON.stringify(betNumbers.sort())
         );
 
-        let updatedBets;
+        const newBets = [...prev];
+        const betAmount = BigInt(selectedChipValue);
+
         if (existingBetIndex !== -1) {
-          // Add to existing bet
-          updatedBets = [...prev];
-          const existingBet = updatedBets[existingBetIndex];
-          const newAmount =
-            BigInt(existingBet.amount) + BigInt(selectedChipValue);
-          updatedBets[existingBetIndex] = {
-            ...existingBet,
-            amount: newAmount.toString(),
+          // Update existing bet
+          newBets[existingBetIndex] = {
+            ...newBets[existingBetIndex],
+            amount: (
+              BigInt(newBets[existingBetIndex].amount) + betAmount
+            ).toString(),
           };
         } else {
           // Add new bet
-          updatedBets = [
-            ...prev,
-            {
-              numbers,
-              type,
-              amount: selectedChipValue,
-            },
-          ];
+          newBets.push({
+            numbers: betNumbers,
+            type,
+            amount: betAmount.toString(),
+          });
         }
 
         // Update total bet amount
-        const newTotalAmount = updatedBets.reduce(
+        const newTotalAmount = newBets.reduce(
           (sum, bet) => sum + BigInt(bet.amount),
           BigInt(0)
         );
         setTotalBetAmount(newTotalAmount);
 
-        return updatedBets;
+        return newBets;
       });
     },
-    [selectedChipValue]
+    [isProcessing, selectedChipValue]
   );
 
   const handlePlaceBets = useCallback(async () => {
@@ -751,39 +824,64 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
       }
 
       // Format bets for contract
-      const betRequests = selectedBets.map((bet) => {
+      const consolidatedBets = selectedBets.reduce((acc, bet) => {
+        const existingBetIndex = acc.findIndex(
+          (b) =>
+            b.type === bet.type &&
+            JSON.stringify(b.numbers.sort()) ===
+              JSON.stringify(bet.numbers.sort())
+        );
+
+        if (existingBetIndex !== -1) {
+          // Add amounts for same bet type and numbers
+          acc[existingBetIndex].amount = (
+            BigInt(acc[existingBetIndex].amount) + BigInt(bet.amount)
+          ).toString();
+        } else {
+          acc.push(bet);
+        }
+        return acc;
+      }, []);
+
+      const betRequests = consolidatedBets.map((bet) => {
         let numbers = [];
 
-        // Only include numbers for straight bets
-        if (bet.type === BetTypes.STRAIGHT) {
-          numbers = bet.numbers;
-        }
-
-        // For other bet types, we need to include the appropriate numbers array
-        if (bet.type === BetTypes.DOZEN) {
-          // For dozens, include the appropriate range
-          const start = bet.numbers[0] || 1; // Default to first dozen if not specified
-          numbers = Array.from({ length: 12 }, (_, i) => i + start);
-        } else if (bet.type === BetTypes.COLUMN) {
-          // For columns, include the appropriate column numbers
-          const column = bet.numbers[0] || 1; // Default to first column if not specified
-          numbers = Array.from({ length: 12 }, (_, i) => i * 3 + column);
-        } else if (bet.type === BetTypes.RED) {
-          numbers = [
-            1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
-          ];
-        } else if (bet.type === BetTypes.BLACK) {
-          numbers = [
-            2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35,
-          ];
-        } else if (bet.type === BetTypes.EVEN) {
-          numbers = Array.from({ length: 18 }, (_, i) => (i + 1) * 2);
-        } else if (bet.type === BetTypes.ODD) {
-          numbers = Array.from({ length: 18 }, (_, i) => i * 2 + 1);
-        } else if (bet.type === BetTypes.LOW) {
-          numbers = Array.from({ length: 18 }, (_, i) => i + 1);
-        } else if (bet.type === BetTypes.HIGH) {
-          numbers = Array.from({ length: 18 }, (_, i) => i + 19);
+        // Handle different bet types
+        switch (bet.type) {
+          case BetTypes.STRAIGHT:
+            numbers = bet.numbers;
+            break;
+          case BetTypes.DOZEN:
+            const dozenStart = bet.numbers[0];
+            numbers = Array.from({ length: 12 }, (_, i) => dozenStart + i);
+            break;
+          case BetTypes.COLUMN:
+            const columnStart = bet.numbers[0];
+            numbers = Array.from({ length: 12 }, (_, i) => columnStart + i * 3);
+            break;
+          case BetTypes.RED:
+            numbers = [
+              1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
+            ];
+            break;
+          case BetTypes.BLACK:
+            numbers = [
+              2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33,
+              35,
+            ];
+            break;
+          case BetTypes.EVEN:
+            numbers = Array.from({ length: 18 }, (_, i) => (i + 1) * 2);
+            break;
+          case BetTypes.ODD:
+            numbers = Array.from({ length: 18 }, (_, i) => i * 2 + 1);
+            break;
+          case BetTypes.LOW:
+            numbers = Array.from({ length: 18 }, (_, i) => i + 1);
+            break;
+          case BetTypes.HIGH:
+            numbers = Array.from({ length: 18 }, (_, i) => i + 19);
+            break;
         }
 
         return {
@@ -794,6 +892,7 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
       });
 
       console.log("Original selected bets:", selectedBets);
+      console.log("Consolidated bets:", consolidatedBets);
       console.log(
         "Formatted bet requests:",
         betRequests.map((bet) => ({
@@ -827,6 +926,37 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
             betType: Object.keys(BetTypes)[bet.betType],
           })),
         });
+
+        // Validate bet numbers before sending
+        for (const bet of betRequests) {
+          if (bet.betType === BetTypes.STRAIGHT && bet.numbers.length !== 1) {
+            throw new Error("Invalid straight bet numbers");
+          }
+          if (
+            (bet.betType === BetTypes.DOZEN ||
+              bet.betType === BetTypes.COLUMN) &&
+            bet.numbers.length !== 12
+          ) {
+            throw new Error(
+              `Invalid ${
+                bet.betType === BetTypes.DOZEN ? "dozen" : "column"
+              } bet numbers`
+            );
+          }
+          if (
+            [
+              BetTypes.RED,
+              BetTypes.BLACK,
+              BetTypes.EVEN,
+              BetTypes.ODD,
+              BetTypes.LOW,
+              BetTypes.HIGH,
+            ].includes(bet.betType) &&
+            bet.numbers.length !== 18
+          ) {
+            throw new Error("Invalid outside bet numbers");
+          }
+        }
 
         const tx = await contracts.roulette.placeBet(betRequests);
         console.log("Transaction sent:", {
