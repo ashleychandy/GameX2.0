@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ethers } from "ethers";
 import { Link } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 
 // Constants for bet types to match contract
 const BetTypes = {
@@ -46,10 +46,38 @@ const BettingBoard = ({
   // Helper function to get total bet amount for a position
   const getBetAmount = useCallback(
     (numbers, type) => {
+      // For column bets, find by first number
+      if (type === BetTypes.COLUMN) {
+        const columnStart = Array.isArray(numbers) ? numbers[0] : numbers;
+        const bet = selectedBets.find(
+          (bet) =>
+            bet.type === type &&
+            bet.numbers.length === 12 &&
+            bet.numbers[0] === columnStart
+        );
+        return bet ? Math.floor(parseFloat(ethers.formatEther(bet.amount))) : 0;
+      }
+
+      // For dozen bets, find by first number
+      if (type === BetTypes.DOZEN) {
+        const dozenStart = Array.isArray(numbers) ? numbers[0] : numbers;
+        const bet = selectedBets.find(
+          (bet) =>
+            bet.type === type &&
+            bet.numbers.length === 12 &&
+            bet.numbers[0] === dozenStart
+        );
+        return bet ? Math.floor(parseFloat(ethers.formatEther(bet.amount))) : 0;
+      }
+
+      // For other bets
       const bet = selectedBets.find(
         (bet) =>
           bet.type === type &&
-          JSON.stringify(bet.numbers.sort()) === JSON.stringify(numbers.sort())
+          JSON.stringify(bet.numbers.sort()) ===
+            JSON.stringify(
+              Array.isArray(numbers) ? numbers.sort() : [numbers].sort()
+            )
       );
       return bet ? Math.floor(parseFloat(ethers.formatEther(bet.amount))) : 0;
     },
@@ -79,22 +107,22 @@ const BettingBoard = ({
   ];
 
   return (
-    <div className="flex flex-col gap-2 p-2 bg-secondary-800 rounded-lg">
+    <div className="flex flex-col gap-3 p-6 bg-secondary-900/90 backdrop-blur-lg rounded-xl border border-white/5 shadow-2xl">
       {/* Main betting grid */}
-      <div className="grid grid-cols-14 gap-1">
+      <div className="grid grid-cols-[45px_1fr] gap-2">
         {/* Zero */}
         <div className="row-span-3">
           <button
             onClick={() => handleBet([0], BetTypes.STRAIGHT)}
-            className={`h-full w-full rounded-md bg-gaming-success hover:opacity-80 transition-opacity flex items-center justify-center font-bold text-lg ${
+            className={`h-full w-full rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 shadow-lg hover:shadow-emerald-500/30 transition-all duration-200 flex items-center justify-center font-bold text-2xl relative ${
               getBetAmount([0], BetTypes.STRAIGHT) > 0
-                ? "ring-2 ring-gaming-primary ring-offset-1 ring-offset-secondary-900"
+                ? "ring-2 ring-emerald-400/50 ring-offset-2 ring-offset-secondary-900"
                 : ""
             }`}
           >
-            0
+            <span className="text-white/90">0</span>
             {getBetAmount([0], BetTypes.STRAIGHT) > 0 && (
-              <div className="absolute -top-2 -right-2 bg-gaming-primary text-white text-xs px-1 rounded-full">
+              <div className="absolute -top-2 -right-2 bg-white/95 text-emerald-600 text-xs px-2 py-0.5 rounded-full z-10 shadow-lg font-bold border border-emerald-200/20">
                 {getBetAmount([0], BetTypes.STRAIGHT)}
               </div>
             )}
@@ -102,24 +130,33 @@ const BettingBoard = ({
         </div>
 
         {/* Numbers 1-36 in grid layout with 2:1 buttons */}
-        <div className="col-span-13 grid grid-rows-3 gap-1">
+        <div className="grid grid-rows-3 gap-2">
           {numberGrid.map((row, rowIndex) => (
-            <div key={rowIndex} className="grid grid-cols-13 gap-1">
+            <div
+              key={rowIndex}
+              className="grid grid-cols-[repeat(12,minmax(0,1fr))_45px] gap-2"
+            >
               {row.map((number) => (
                 <button
                   key={number}
                   onClick={() => handleBet([number], BetTypes.STRAIGHT)}
-                  className={`aspect-square rounded-md ${
-                    isRed(number) ? "bg-gaming-primary" : "bg-secondary-700"
-                  } hover:opacity-80 transition-opacity text-white font-bold text-lg relative flex items-center justify-center ${
+                  className={`aspect-square rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 ${
+                    isRed(number)
+                      ? "bg-gradient-to-br from-gaming-primary to-gaming-primary/90 hover:from-gaming-primary hover:to-gaming-primary/80"
+                      : "bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800"
+                  } text-white font-bold text-xl relative ${
                     getBetAmount([number], BetTypes.STRAIGHT) > 0
-                      ? "ring-2 ring-gaming-primary ring-offset-1 ring-offset-secondary-900"
+                      ? `ring-2 ${
+                          isRed(number)
+                            ? "ring-gaming-primary/50"
+                            : "ring-gray-500/50"
+                        } ring-offset-2 ring-offset-secondary-900`
                       : ""
                   }`}
                 >
-                  {number}
+                  <span className="text-white/90">{number}</span>
                   {getBetAmount([number], BetTypes.STRAIGHT) > 0 && (
-                    <div className="absolute -top-2 -right-2 bg-gaming-primary text-white text-xs px-1 rounded-full">
+                    <div className="absolute -top-2 -right-2 bg-white/95 text-secondary-900 text-xs px-2 py-0.5 rounded-full z-10 shadow-lg font-bold border border-secondary-300/20">
                       {getBetAmount([number], BetTypes.STRAIGHT)}
                     </div>
                   )}
@@ -127,10 +164,23 @@ const BettingBoard = ({
               ))}
               {/* 2:1 button for each row */}
               <button
-                onClick={() => handleBet([3 - rowIndex], BetTypes.COLUMN)}
-                className="aspect-square rounded-md bg-secondary-700 hover:opacity-80 transition-opacity font-bold text-sm flex items-center justify-center"
+                onClick={() => {
+                  // Generate all 12 numbers for the column
+                  const columnStart = 3 - rowIndex;
+                  const numbers = Array.from(
+                    { length: 12 },
+                    (_, i) => columnStart + i * 3
+                  );
+                  handleBet(numbers, BetTypes.COLUMN);
+                }}
+                className="aspect-square rounded-lg bg-gradient-to-br from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 shadow-lg hover:shadow-indigo-500/20 transition-all duration-200 font-bold text-lg flex items-center justify-center text-white/90 relative"
               >
                 2:1
+                {getBetAmount([3 - rowIndex], BetTypes.COLUMN) > 0 && (
+                  <div className="absolute -top-2 -right-2 bg-white/95 text-indigo-600 text-xs px-2 py-0.5 rounded-full z-10 shadow-lg font-bold border border-indigo-200/20">
+                    {getBetAmount([3 - rowIndex], BetTypes.COLUMN)}
+                  </div>
+                )}
               </button>
             </div>
           ))}
@@ -138,67 +188,84 @@ const BettingBoard = ({
       </div>
 
       {/* Bottom betting options */}
-      <div className="flex flex-col gap-1 mt-1">
+      <div className="flex flex-col gap-2 mt-1">
         {/* Dozens */}
-        <div className="grid grid-cols-3 gap-1">
-          <button
-            onClick={() => handleBet([1], BetTypes.DOZEN)}
-            className="h-10 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity text-sm font-bold flex items-center justify-center"
-          >
-            1 to 12
-          </button>
-          <button
-            onClick={() => handleBet([13], BetTypes.DOZEN)}
-            className="h-10 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity text-sm font-bold flex items-center justify-center"
-          >
-            13 to 24
-          </button>
-          <button
-            onClick={() => handleBet([25], BetTypes.DOZEN)}
-            className="h-10 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity text-sm font-bold flex items-center justify-center"
-          >
-            25 to 36
-          </button>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { start: 1, label: "1 to 12" },
+            { start: 13, label: "13 to 24" },
+            { start: 25, label: "25 to 36" },
+          ].map((dozen) => (
+            <button
+              key={dozen.start}
+              onClick={() => {
+                // Generate all 12 numbers for the dozen
+                const numbers = Array.from(
+                  { length: 12 },
+                  (_, i) => dozen.start + i
+                );
+                handleBet(numbers, BetTypes.DOZEN);
+              }}
+              className="h-12 rounded-lg bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 shadow-lg hover:shadow-purple-500/20 transition-all duration-200 text-base font-bold flex items-center justify-center text-white/90 relative"
+            >
+              {dozen.label}
+              {getBetAmount([dozen.start], BetTypes.DOZEN) > 0 && (
+                <div className="absolute -top-2 -right-2 bg-white/95 text-purple-600 text-xs px-2 py-0.5 rounded-full z-10 shadow-lg font-bold border border-purple-200/20">
+                  {getBetAmount([dozen.start], BetTypes.DOZEN)}
+                </div>
+              )}
+            </button>
+          ))}
         </div>
 
         {/* Other betting options */}
-        <div className="grid grid-cols-6 gap-1">
-          <button
-            onClick={() => handleBet([], BetTypes.LOW)}
-            className="h-10 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity text-sm font-bold flex items-center justify-center"
-          >
-            1 to 18
-          </button>
-          <button
-            onClick={() => handleBet([], BetTypes.EVEN)}
-            className="h-10 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity text-sm font-bold flex items-center justify-center"
-          >
-            Even
-          </button>
-          <button
-            onClick={() => handleBet([], BetTypes.RED)}
-            className="h-10 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity text-sm font-bold flex items-center justify-center"
-          >
-            Red
-          </button>
-          <button
-            onClick={() => handleBet([], BetTypes.BLACK)}
-            className="h-10 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity text-sm font-bold flex items-center justify-center"
-          >
-            Black
-          </button>
-          <button
-            onClick={() => handleBet([], BetTypes.ODD)}
-            className="h-10 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity text-sm font-bold flex items-center justify-center"
-          >
-            Odd
-          </button>
-          <button
-            onClick={() => handleBet([], BetTypes.HIGH)}
-            className="h-10 rounded-md bg-secondary-700 hover:opacity-80 transition-opacity text-sm font-bold flex items-center justify-center"
-          >
-            19 to 36
-          </button>
+        <div className="grid grid-cols-6 gap-2">
+          {[
+            { type: BetTypes.LOW, label: "1 to 18", color: "cyan" },
+            { type: BetTypes.EVEN, label: "Even", color: "cyan" },
+            {
+              type: BetTypes.RED,
+              label: "Red",
+              color: "gaming-primary",
+              isRed: true,
+            },
+            { type: BetTypes.BLACK, label: "Black", color: "gray" },
+            { type: BetTypes.ODD, label: "Odd", color: "cyan" },
+            { type: BetTypes.HIGH, label: "19 to 36", color: "cyan" },
+          ].map((option) => (
+            <button
+              key={option.label}
+              onClick={() => handleBet([], option.type)}
+              className={`h-12 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 text-base font-bold flex items-center justify-center relative ${
+                option.isRed
+                  ? "bg-gradient-to-br from-gaming-primary to-gaming-primary/90 hover:from-gaming-primary hover:to-gaming-primary/80 text-white/90"
+                  : option.color === "gray"
+                  ? "bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-white/90"
+                  : `bg-gradient-to-br from-${option.color}-600 to-${option.color}-700 hover:from-${option.color}-500 hover:to-${option.color}-600 text-white/90 hover:shadow-${option.color}-500/20`
+              }`}
+            >
+              {option.label}
+              {getBetAmount([], option.type) > 0 && (
+                <div
+                  className={`absolute -top-2 -right-2 bg-white/95 ${
+                    option.isRed
+                      ? "text-gaming-primary"
+                      : option.color === "gray"
+                      ? "text-gray-800"
+                      : `text-${option.color}-600`
+                  } text-xs px-2 py-0.5 rounded-full z-10 shadow-lg font-bold border ${
+                    option.isRed
+                      ? "border-gaming-primary/20"
+                      : option.color === "gray"
+                      ? "border-gray-300/20"
+                      : `border-${option.color}-200/20`
+                  }`}
+                >
+                  {getBetAmount([], option.type)}
+                </div>
+              )}
+            </button>
+          ))}
         </div>
       </div>
     </div>
@@ -217,6 +284,7 @@ const BetControls = ({
   isCheckingApproval,
   disabled,
   gameState,
+  onUndoBet,
 }) => {
   return (
     <div className="bet-controls glass-panel p-4 space-y-4">
@@ -244,7 +312,14 @@ const BetControls = ({
       </div>
 
       {/* Bet Controls */}
-      <div className="flex gap-4">
+      <div className="flex gap-2">
+        <button
+          onClick={onUndoBet}
+          className="btn-secondary flex-1 bg-gradient-to-br from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600"
+          disabled={disabled || selectedBets.length === 0}
+        >
+          Undo Last Bet
+        </button>
         <button
           onClick={onClearBets}
           className="btn-secondary flex-1"
@@ -285,37 +360,193 @@ const BetControls = ({
   );
 };
 
+// Add helper function to get bet type name
+const getBetTypeName = (betType) => {
+  const types = {
+    0: "Straight",
+    1: "Dozen",
+    2: "Column",
+    3: "Red",
+    4: "Black",
+    5: "Even",
+    6: "Odd",
+    7: "Low",
+    8: "High",
+  };
+  return types[betType] || "Unknown";
+};
+
 // Add BettingHistory component
-const BettingHistory = ({ userData }) => {
+const BettingHistory = ({ account, contracts }) => {
+  const {
+    data: userData,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["rouletteHistory", account],
+    queryFn: async () => {
+      if (!contracts?.roulette || !account) return null;
+      return contracts.roulette.getUserGameData(account);
+    },
+    enabled: !!contracts?.roulette && !!account,
+    refetchInterval: 10000, // Refetch every 10 seconds
+  });
+
+  if (isLoading) {
+    return (
+      <div className="betting-history">
+        <h3 className="text-xl font-bold mb-4">Recent Bets</h3>
+        <div className="flex justify-center items-center py-8">
+          <LoadingSpinner />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="betting-history">
+        <h3 className="text-xl font-bold mb-4">Recent Bets</h3>
+        <div className="text-center text-gaming-error py-4">
+          Failed to load betting history
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="betting-history">
+    <div className="betting-history bg-secondary-800 rounded-lg p-4">
       <h3 className="text-xl font-bold mb-4">Recent Bets</h3>
-      {userData?.recentBets?.length > 0 ? (
-        <div className="space-y-2">
-          {userData.recentBets.map((bet, index) => (
-            <div key={index} className="history-item">
-              <div className="flex items-center gap-4">
-                <div className="text-gaming-primary font-bold">
-                  #{bet.winningNumber}
+      {userData?.length > 0 ? (
+        <div className="space-y-4">
+          {userData.map((bet, index) => (
+            <div
+              key={`${bet.timestamp}-${index}`}
+              className="history-item bg-secondary-700 rounded-lg p-4 space-y-3"
+            >
+              {/* Header with timestamp and result */}
+              <div className="flex justify-between items-start">
+                <div className="text-sm text-secondary-400">
+                  {new Date(Number(bet.timestamp) * 1000).toLocaleString()}
+                </div>
+                <div
+                  className={`text-lg font-bold ${
+                    bet.payout > 0 ? "text-gaming-success" : "text-gaming-error"
+                  }`}
+                >
+                  {bet.payout > 0 ? "WIN" : "LOSS"}
+                </div>
+              </div>
+
+              {/* Main bet information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm text-secondary-400">
+                    Winning Number
+                  </div>
+                  <div className="text-2xl font-bold">#{bet.winningNumber}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-secondary-400">Bet Type</div>
+                  <div className="font-medium">
+                    {getBetTypeName(bet.betType)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Numbers and amounts */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm text-secondary-400">
+                    Selected Numbers
+                  </div>
+                  <div className="max-h-20 overflow-y-auto scrollbar-thin scrollbar-thumb-secondary-600 scrollbar-track-secondary-800">
+                    <div className="font-medium flex flex-wrap gap-1 p-1">
+                      {bet.numbers.length > 0 ? (
+                        bet.numbers.length <= 5 ? (
+                          // Display normally if 5 or fewer numbers
+                          bet.numbers.map((num, i) => (
+                            <span
+                              key={i}
+                              className="bg-secondary-600 min-w-[2rem] h-8 flex items-center justify-center rounded-md text-sm"
+                            >
+                              {num}
+                            </span>
+                          ))
+                        ) : (
+                          // Grid layout for more than 5 numbers
+                          <div className="grid grid-cols-6 gap-1 w-full">
+                            {bet.numbers.map((num, i) => (
+                              <span
+                                key={i}
+                                className="bg-secondary-600 w-7 h-7 flex items-center justify-center rounded-md text-xs"
+                              >
+                                {num}
+                              </span>
+                            ))}
+                          </div>
+                        )
+                      ) : (
+                        <span className="text-secondary-400">-</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <div className="text-sm text-secondary-400">
-                    {new Date(bet.timestamp * 1000).toLocaleString()}
+                    Amount & Payout
                   </div>
-                  <div>Bet: {ethers.formatEther(bet.amount)} GAMA</div>
+                  <div className="space-y-1">
+                    <div className="font-medium">
+                      Bet: {ethers.formatEther(bet.amount)} GAMA
+                    </div>
+                    <div
+                      className={`font-bold ${
+                        bet.payout > 0
+                          ? "text-gaming-success"
+                          : "text-secondary-400"
+                      }`}
+                    >
+                      Payout: {ethers.formatEther(bet.payout)} GAMA
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-sm text-secondary-400">Payout</div>
-                <div className={bet.payout > 0 ? "text-gaming-success" : ""}>
-                  {ethers.formatEther(bet.payout)} GAMA
+
+              {/* Multiplier and profit/loss */}
+              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-secondary-600">
+                <div>
+                  <div className="text-sm text-secondary-400">Multiplier</div>
+                  <div className="font-medium">
+                    {bet.payout > 0
+                      ? `${(
+                          Number(ethers.formatEther(bet.payout)) /
+                          Number(ethers.formatEther(bet.amount))
+                        ).toFixed(2)}x`
+                      : "0x"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-secondary-400">Profit/Loss</div>
+                  <div
+                    className={`font-bold ${
+                      bet.payout > BigInt(bet.amount)
+                        ? "text-gaming-success"
+                        : "text-gaming-error"
+                    }`}
+                  >
+                    {ethers.formatEther(
+                      BigInt(bet.payout) - BigInt(bet.amount)
+                    )}{" "}
+                    GAMA
+                  </div>
                 </div>
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="text-center text-secondary-400">
+        <div className="text-center text-secondary-400 py-8">
           No betting history available
         </div>
       )}
@@ -331,7 +562,6 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
   );
   const [isProcessing, setIsProcessing] = useState(false);
   const [totalBetAmount, setTotalBetAmount] = useState(BigInt(0));
-  const [userGameData, setUserGameData] = useState(null);
   const [isApproved, setIsApproved] = useState(false);
   const [isCheckingApproval, setIsCheckingApproval] = useState(true);
 
@@ -659,21 +889,21 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
     setTotalBetAmount(BigInt(0));
   }, []);
 
-  // Load user game data
-  useEffect(() => {
-    const loadUserData = async () => {
-      if (!contracts?.roulette || !account) return;
-      try {
-        const data = await contracts.roulette.userData(account);
-        setUserGameData(data);
-      } catch (error) {
-        console.error("Error loading user data:", error);
-        onError?.("Failed to load user data");
-      }
-    };
+  const handleUndoBet = useCallback(() => {
+    setSelectedBets((prev) => {
+      const newBets = [...prev];
+      newBets.pop(); // Remove the last bet
 
-    loadUserData();
-  }, [contracts?.roulette, account, onError]);
+      // Update total bet amount
+      const newTotalAmount = newBets.reduce(
+        (sum, bet) => sum + BigInt(bet.amount),
+        BigInt(0)
+      );
+      setTotalBetAmount(newTotalAmount);
+
+      return newBets;
+    });
+  }, []);
 
   return (
     <div className="page-container">
@@ -697,6 +927,7 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
             isCheckingApproval={isCheckingApproval}
             disabled={isProcessing}
             gameState={{ isProcessing }}
+            onUndoBet={handleUndoBet}
           />
 
           <div className="roulette-stats">
@@ -713,36 +944,7 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
           </div>
         </div>
 
-        {userGameData?.recentBets?.length > 0 && (
-          <div className="betting-history">
-            <h3 className="text-xl font-bold mb-4">Recent Bets</h3>
-            <div className="space-y-2">
-              {userGameData.recentBets.map((bet, index) => (
-                <div key={index} className="history-item">
-                  <div className="flex items-center gap-4">
-                    <div className="text-gaming-primary font-bold">
-                      #{bet.winningNumber}
-                    </div>
-                    <div>
-                      <div className="text-sm text-secondary-400">
-                        {new Date(bet.timestamp * 1000).toLocaleString()}
-                      </div>
-                      <div>Bet: {ethers.formatEther(bet.amount)} GAMA</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm text-secondary-400">Payout</div>
-                    <div
-                      className={bet.payout > 0 ? "text-gaming-success" : ""}
-                    >
-                      {ethers.formatEther(bet.payout)} GAMA
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <BettingHistory account={account} contracts={contracts} />
       </div>
     </div>
   );
