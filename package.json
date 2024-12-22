@@ -28,7 +28,9 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "prettier": "prettier --write 'contracts/**/*.sol'",
+    "prettier:check": "prettier --check 'contracts/**/*.sol'"
   },
   "eslintConfig": {
     "extends": [
@@ -57,6 +59,8 @@
     "@tailwindcss/typography": "^0.5.15",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
+    "prettier": "^3.4.2",
+    "prettier-plugin-solidity": "^1.4.1",
     "tailwindcss": "^3.4.15"
   }
 }

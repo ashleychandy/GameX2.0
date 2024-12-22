@@ -48,9 +48,9 @@ struct UserGameData {
 }
 
 struct BetRequest {
-    uint8[] numbers;
+    uint8 betTypeId;     // Using the constants above instead of enum
+    uint8 number;        // Single number for straight bets, or starting number for dozens/columns
     uint256 amount;
-    BetType betType;
 }
 
 
@@ -62,7 +62,7 @@ contract RouletteV2 is ReentrancyGuard {
     uint256 private constant MAX_BETS_PER_SPIN = 15;
     uint256 public constant MAX_BET_AMOUNT = 100_000 * 10**18;     // 100k tokens per bet
     uint256 public constant MAX_TOTAL_BET_AMOUNT = 500_000 * 10**18;  // 500k tokens total per spin
-    uint256 public constant MAX_POSSIBLE_PAYOUT = 18_000_000 * 10**18; // 18M tokens (500k * 36)
+    uint256 public constant MAX_POSSIBLE_PAYOUT = 17_500_000 * 10**18; // 17.5M tokens (500k * 35)
 
     // Token variables
     IERC20 public gamaToken;
@@ -87,6 +87,21 @@ contract RouletteV2 is ReentrancyGuard {
     error InsufficientAllowance(uint256 required, uint256 allowed);
     error MaxPayoutExceeded(uint256 potentialPayout, uint256 maxAllowed);
 
+    // Bet type number mappings for frontend
+    uint8 public constant STRAIGHT_BET = 0;
+    uint8 public constant DOZEN_BET_FIRST = 1;    // 1-12
+    uint8 public constant DOZEN_BET_SECOND = 2;   // 13-24
+    uint8 public constant DOZEN_BET_THIRD = 3;    // 25-36
+    uint8 public constant COLUMN_BET_FIRST = 4;   // 1,4,7...
+    uint8 public constant COLUMN_BET_SECOND = 5;  // 2,5,8...
+    uint8 public constant COLUMN_BET_THIRD = 6;   // 3,6,9...
+    uint8 public constant RED_BET = 7;
+    uint8 public constant BLACK_BET = 8;
+    uint8 public constant EVEN_BET = 9;
+    uint8 public constant ODD_BET = 10;
+    uint8 public constant LOW_BET = 11;
+    uint8 public constant HIGH_BET = 12;
+
     constructor(address _gamaTokenAddress) {
         require(_gamaTokenAddress != address(0), "Token address cannot be zero");
         
@@ -94,54 +109,55 @@ contract RouletteV2 is ReentrancyGuard {
     }
 
 
-    function placeBet(BetRequest[] calldata bets) external nonReentrant {
+    function placeBet(BetRequest[] calldata betRequests) external nonReentrant {
         // 1. Input validation
-        if (bets.length == 0) revert InvalidBetParameters("No bets provided");
-        if (bets.length > MAX_BETS_PER_SPIN) revert InvalidBetParameters("Too many bets");
+        if (betRequests.length == 0) revert InvalidBetParameters("No bets provided");
+        if (betRequests.length > MAX_BETS_PER_SPIN) revert InvalidBetParameters("Too many bets");
 
         // 2. State checks and initial setup
         UserGameData storage user = userData[msg.sender];
-
-        // 3. Calculate totals and validate bet configurations
-        uint256 totalAmount = 0;
-        uint256 maxPossiblePayout = 0;
+        uint256 totalAmount;
+        uint256 maxPossiblePayout;
         
-        for (uint256 i = 0; i < bets.length; i++) {
-            // Validate individual bet parameters
-            if (bets[i].amount == 0) revert InvalidBetParameters("Invalid bet amount");
-            if (bets[i].amount > MAX_BET_AMOUNT) revert InvalidBetParameters("Single bet amount too large");
-            if (!_isValidBet(bets[i].numbers, bets[i].betType)) {
-                revert InvalidBetParameters("Invalid bet configuration");
-            }
-            
-            // Calculate and validate potential payout
-            uint256 potentialPayout = calculatePayout(bets[i].amount, bets[i].betType);
-            if (maxPossiblePayout + potentialPayout < maxPossiblePayout) revert("Payout overflow");
-            maxPossiblePayout += potentialPayout;
-            
-            if (maxPossiblePayout > MAX_POSSIBLE_PAYOUT) {
-                revert MaxPayoutExceeded(maxPossiblePayout, MAX_POSSIBLE_PAYOUT);
-            }
-            
-            // Update and validate total amount
-            totalAmount += bets[i].amount;
-            if (totalAmount > MAX_TOTAL_BET_AMOUNT) revert InvalidBetParameters("Total bet amount too large");
-        }
+        // 3. Pre-validate all bets and calculate totals in a single pass
+        (totalAmount, maxPossiblePayout) = _validateAndCalculateTotals(betRequests);
 
         // 4. Balance and allowance checks
-        if (gamaToken.balanceOf(msg.sender) < totalAmount) {
-            revert InsufficientUserBalance(totalAmount, gamaToken.balanceOf(msg.sender));
+        _checkBalancesAndAllowances(msg.sender, totalAmount, maxPossiblePayout);
+
+        // 5. Process the game
+        uint256 totalPayout = _processGame(betRequests, user, totalAmount);
+
+        // 6. Update global stats
+        totalGamesPlayed++;
+        totalPayoutAmount += totalPayout;
+    }
+
+    function _validateAndCalculateTotals(BetRequest[] calldata bets) private pure returns (uint256 totalAmount, uint256 maxPossiblePayout) {
+        for (uint256 i = 0; i < bets.length; i++) {
+            // Each bet can have a different amount
+            if (bets[i].amount == 0) revert InvalidBetParameters("Invalid bet amount");
+            if (bets[i].amount > MAX_BET_AMOUNT) revert InvalidBetParameters("Single bet amount too large");
+            
+            totalAmount += bets[i].amount;
+            // Ensures total of all bets doesn't exceed MAX_TOTAL_BET_AMOUNT (500k tokens)
+            if (totalAmount > MAX_TOTAL_BET_AMOUNT) revert InvalidBetParameters("Total bet amount too large");
+        }
+    }
+
+    function _checkBalancesAndAllowances(address player, uint256 totalAmount, uint256 maxPossiblePayout) private view {
+        if (gamaToken.balanceOf(player) < totalAmount) {
+            revert InsufficientUserBalance(totalAmount, gamaToken.balanceOf(player));
         }
 
-        if (gamaToken.allowance(msg.sender, address(this)) < totalAmount) {
-            revert InsufficientAllowance(totalAmount, gamaToken.allowance(msg.sender, address(this)));
+        if (gamaToken.allowance(player, address(this)) < totalAmount) {
+            revert InsufficientAllowance(totalAmount, gamaToken.allowance(player, address(this)));
         }
 
         if (gamaToken.balanceOf(address(this)) + totalAmount < maxPossiblePayout) {
             revert InsufficientContractBalance(maxPossiblePayout, gamaToken.balanceOf(address(this)) + totalAmount);
         }
 
-        // 5. Role checks
         if (!gamaToken.hasRole(BURNER_ROLE, address(this))) {
             revert MissingContractRole(BURNER_ROLE);
         }
@@ -149,19 +165,19 @@ contract RouletteV2 is ReentrancyGuard {
         if (!gamaToken.hasRole(MINTER_ROLE, address(this))) {
             revert MissingContractRole(MINTER_ROLE);
         }
+    }
 
-        // 6. Core game logic
+    function _processGame(BetRequest[] calldata bets, UserGameData storage user, uint256 totalAmount) private returns (uint256 totalPayout) {
+        // Burn tokens first
         try gamaToken.burn(msg.sender, totalAmount) {
         } catch {
             revert BurnFailed(msg.sender, totalAmount);
         }
 
-        // Generate winning number once for all bets in this round
+        // Generate winning number once for all bets
         winningNumber = _generateRandomNumber();
         
-        // Process bets and calculate payouts
-        uint256 totalPayout = 0;
-
+        // Process all bets
         for (uint256 i = 0; i < bets.length; i++) {
             uint256 payout = _calculatePayout(
                 bets[i].numbers,
@@ -170,47 +186,42 @@ contract RouletteV2 is ReentrancyGuard {
                 winningNumber
             );
 
-            if (totalPayout + payout < totalPayout) {
-                revert("Payout overflow");
-            }
+            if (totalPayout + payout < totalPayout) revert("Payout overflow");
             totalPayout += payout;
 
-            Bet memory newBet = Bet({
-                numbers: bets[i].numbers,
-                amount: bets[i].amount,
-                betType: bets[i].betType,
-                timestamp: block.timestamp,
-                payout: payout,
-                winningNumber: winningNumber
-            });
-
-            // Add to user's bet history
-            if (user.recentBets.length >= MAX_HISTORY_SIZE) {
-                // Shift elements to make room for new bet
-                for (uint256 j = 0; j < user.recentBets.length - 1; j++) {
-                    user.recentBets[j] = user.recentBets[j + 1];
-                }
-                user.recentBets[user.recentBets.length - 1] = newBet;
-            } else {
-                user.recentBets.push(newBet);
-            }
+            _updateUserHistory(user, bets[i], payout);
         }
 
         // Process payouts if any wins
         if (totalPayout > 0) {
-            // Verify contract has minter role before proceeding
-            if (!gamaToken.hasRole(MINTER_ROLE, address(this))) {
-                revert MissingContractRole(MINTER_ROLE);
-            }
             try gamaToken.mint(msg.sender, totalPayout) {
             } catch {
                 revert MintFailed(msg.sender, totalPayout);
             }
         }
+        
+        return totalPayout;
+    }
 
-        // Update global stats
-        totalGamesPlayed++;
-        totalPayoutAmount += totalPayout;
+    function _updateUserHistory(UserGameData storage user, BetRequest calldata bet, uint256 payout) private {
+        Bet memory newBet = Bet({
+            numbers: bet.numbers,
+            amount: bet.amount,
+            betType: bet.betType,
+            timestamp: block.timestamp,
+            payout: payout,
+            winningNumber: winningNumber
+        });
+
+        if (user.recentBets.length >= MAX_HISTORY_SIZE) {
+            // Shift elements to make room for new bet
+            for (uint256 j = 0; j < user.recentBets.length - 1; j++) {
+                user.recentBets[j] = user.recentBets[j + 1];
+            }
+            user.recentBets[user.recentBets.length - 1] = newBet;
+        } else {
+            user.recentBets.push(newBet);
+        }
     }
 
     function _calculatePayout(uint8[] memory numbers, BetType betType, uint256 betAmount, uint8 _winningNumber) private pure returns (uint256) {
@@ -266,11 +277,11 @@ contract RouletteV2 is ReentrancyGuard {
 
     function getPayoutMultiplier(BetType betType) internal pure returns (uint256) {
         // DENOMINATOR = 10000
-        if (betType == BetType.Straight) return 35 * DENOMINATOR;     // 35:1
-        if (betType == BetType.Dozen) return 2 * DENOMINATOR;         // 2:1
-        if (betType == BetType.Column) return 2 * DENOMINATOR;        // 2:1
+        if (betType == BetType.Straight) return 35 * DENOMINATOR;     // 35:1 payout (get 35x plus original bet)
+        if (betType == BetType.Dozen) return 2 * DENOMINATOR;         // 2:1 payout (get 2x plus original bet)
+        if (betType == BetType.Column) return 2 * DENOMINATOR;        // 2:1 payout (get 2x plus original bet)
         if (betType >= BetType.Red && betType <= BetType.High) {
-            return DENOMINATOR;                                       // 1:1
+            return DENOMINATOR;                                        // 1:1 payout (get 1x plus original bet)
         }
         revert InvalidBetType(uint256(betType));
     }
@@ -398,36 +409,7 @@ contract RouletteV2 is ReentrancyGuard {
         }
     }
 
-    // View functions
-    function getUserGameData(address player) external view returns (Bet[] memory) {
-        return userData[player].recentBets;
-    }
-
-    function getContractStats() external view returns (
-        uint256 totalGames,
-        uint256 totalPayout,
-        uint256 currentBalance
-    ) {
-        return (
-            totalGamesPlayed,
-            totalPayoutAmount,
-            gamaToken.balanceOf(address(this))
-        );
-    }
-
-    function getBettingLimits() external pure returns (
-        uint256 maxBetsPerSpin,
-        uint256 maxBetAmount,
-        uint256 maxTotalBetAmount,
-        uint256 maxPossiblePayout
-    ) {
-        return (
-            MAX_BETS_PER_SPIN,
-            MAX_BET_AMOUNT,
-            MAX_TOTAL_BET_AMOUNT,
-            MAX_POSSIBLE_PAYOUT
-        );
-    }
+    
 
     function _generateRandomNumber() private view returns (uint8) {
         return uint8(uint256(keccak256(abi.encodePacked(
@@ -436,5 +418,245 @@ contract RouletteV2 is ReentrancyGuard {
             msg.sender,
             totalGamesPlayed
         ))) % (MAX_NUMBER + 1));
+    }
+
+    // Add helper function to convert betTypeId to BetType and generate numbers
+    function _processBetRequest(BetRequest calldata bet) private pure returns (
+        BetType betType,
+        uint8[] memory numbers
+    ) {
+        if (bet.betTypeId == STRAIGHT_BET) {
+            require(bet.number <= MAX_NUMBER, "Invalid number for straight bet");
+            numbers = new uint8[](1);
+            numbers[0] = bet.number;
+            return (BetType.Straight, numbers);
+        }
+        else if (bet.betTypeId == DOZEN_BET_FIRST) {
+            return (BetType.Dozen, _getDozenNumbers(1));
+        }
+        else if (bet.betTypeId == DOZEN_BET_SECOND) {
+            return (BetType.Dozen, _getDozenNumbers(13));
+        }
+        else if (bet.betTypeId == DOZEN_BET_THIRD) {
+            return (BetType.Dozen, _getDozenNumbers(25));
+        }
+        else if (bet.betTypeId == COLUMN_BET_FIRST) {
+            return (BetType.Column, _getColumnNumbers(1));
+        }
+        else if (bet.betTypeId == COLUMN_BET_SECOND) {
+            return (BetType.Column, _getColumnNumbers(2));
+        }
+        else if (bet.betTypeId == COLUMN_BET_THIRD) {
+            return (BetType.Column, _getColumnNumbers(3));
+        }
+        else if (bet.betTypeId == RED_BET) {
+            return (BetType.Red, new uint8[](0));
+        }
+        else if (bet.betTypeId == BLACK_BET) {
+            return (BetType.Black, new uint8[](0));
+        }
+        else if (bet.betTypeId == EVEN_BET) {
+            return (BetType.Even, new uint8[](0));
+        }
+        else if (bet.betTypeId == ODD_BET) {
+            return (BetType.Odd, new uint8[](0));
+        }
+        else if (bet.betTypeId == LOW_BET) {
+            return (BetType.Low, new uint8[](0));
+        }
+        else if (bet.betTypeId == HIGH_BET) {
+            return (BetType.High, new uint8[](0));
+        }
+        
+        revert InvalidBetParameters("Invalid bet type ID");
+    }
+
+    function getBetTypeInfo(uint8 betTypeId) external pure returns (
+        string memory name,
+        bool requiresNumber,
+        uint256 payoutMultiplier
+    ) {
+        if (betTypeId == STRAIGHT_BET) 
+            return ("Straight", true, 35 * DENOMINATOR);
+        if (betTypeId == DOZEN_BET_FIRST) 
+            return ("First Dozen (1-12)", false, 2 * DENOMINATOR);
+        if (betTypeId == DOZEN_BET_SECOND)
+            return ("Second Dozen (13-24)", false, 2 * DENOMINATOR);
+        if (betTypeId == DOZEN_BET_THIRD)
+            return ("Third Dozen (25-36)", false, 2 * DENOMINATOR);
+        if (betTypeId == COLUMN_BET_FIRST)
+            return ("First Column", false, 2 * DENOMINATOR);
+        if (betTypeId == COLUMN_BET_SECOND) 
+            return ("Second Column", false, 2 * DENOMINATOR);
+        if (betTypeId == COLUMN_BET_THIRD)
+            return ("Third Column", false, 2 * DENOMINATOR);
+        if (betTypeId == RED_BET)
+            return ("Red", false, DENOMINATOR);
+        if (betTypeId == BLACK_BET)
+            return ("Black", false, DENOMINATOR);
+        if (betTypeId == EVEN_BET)
+            return ("Even", false, DENOMINATOR);
+        if (betTypeId == ODD_BET)
+            return ("Odd", false, DENOMINATOR);
+        if (betTypeId == LOW_BET)
+            return ("Low (1-18)", false, DENOMINATOR);
+        if (betTypeId == HIGH_BET)
+            return ("High (19-36)", false, DENOMINATOR);
+        revert InvalidBetParameters("Invalid bet type ID");
+    }
+
+    // Get all valid bet types and their info
+    function getAllBetTypes() external pure returns (
+        uint8[] memory betTypeIds,
+        string[] memory names,
+        bool[] memory requiresNumbers,
+        uint256[] memory payoutMultipliers
+    ) {
+        betTypeIds = new uint8[](13);
+        names = new string[](13);
+        requiresNumbers = new bool[](13);
+        payoutMultipliers = new uint256[](13);
+
+        for (uint8 i = 0; i < 13; i++) {
+            (string memory name, bool requiresNumber, uint256 multiplier) = getBetTypeInfo(i);
+            betTypeIds[i] = i;
+            names[i] = name;
+            requiresNumbers[i] = requiresNumber;
+            payoutMultipliers[i] = multiplier;
+        }
+    }
+
+    // Get user's bet history with pagination
+    function getUserBetHistory(
+        address player,
+        uint256 offset,
+        uint256 limit
+    ) external view returns (
+        Bet[] memory bets,
+        uint256 total
+    ) {
+        Bet[] memory allBets = userData[player].recentBets;
+        uint256 totalBets = allBets.length;
+        
+        if (offset >= totalBets) {
+            return (new Bet[](0), totalBets);
+        }
+        
+        uint256 end = offset + limit;
+        if (end > totalBets) {
+            end = totalBets;
+        }
+        
+        uint256 size = end - offset;
+        bets = new Bet[](size);
+        
+        for (uint256 i = 0; i < size; i++) {
+            bets[i] = allBets[offset + i];
+        }
+        
+        return (bets, totalBets);
+    }
+
+    // Get detailed info about a specific bet from history
+    function getBetDetails(address player, uint256 betIndex) external view returns (
+        uint256 timestamp,
+        string memory betTypeName,
+        uint8[] memory numbers,
+        uint256 amount,
+        uint256 payout,
+        uint8 winningNumber,
+        bool isWin
+    ) {
+        require(betIndex < userData[player].recentBets.length, "Invalid bet index");
+        
+        Bet memory bet = userData[player].recentBets[betIndex];
+        (string memory name,,) = getBetTypeInfo(uint8(bet.betType));
+        
+        return (
+            bet.timestamp,
+            name,
+            bet.numbers,
+            bet.amount,
+            bet.payout,
+            bet.winningNumber,
+            bet.payout > 0
+        );
+    }
+
+    // Check if contract has sufficient balance and permissions
+    function checkContractHealth() external view returns (
+        bool hasSufficientBalance,
+        bool hasMinterRole,
+        bool hasBurnerRole,
+        uint256 currentBalance,
+        uint256 maxRequiredBalance
+    ) {
+        currentBalance = gamaToken.balanceOf(address(this));
+        maxRequiredBalance = MAX_POSSIBLE_PAYOUT;
+        
+        return (
+            currentBalance >= maxRequiredBalance,
+            gamaToken.hasRole(MINTER_ROLE, address(this)),
+            gamaToken.hasRole(BURNER_ROLE, address(this)),
+            currentBalance,
+            maxRequiredBalance
+        );
+    }
+
+    // Get all possible winning numbers for a bet type
+    function getPossibleWinningNumbers(uint8 betTypeId) external pure returns (uint8[] memory numbers) {
+        if (betTypeId == STRAIGHT_BET) {
+            numbers = new uint8[](37); // 0-36
+            for (uint8 i = 0; i <= 36; i++) {
+                numbers[i] = i;
+            }
+        }
+        else if (betTypeId == RED_BET) {
+            numbers = new uint8[](18);
+            uint8[18] memory redNumbers = [
+                1, 3, 5, 7, 9, 12, 14, 16, 18, 
+                19, 21, 23, 25, 27, 30, 32, 34, 36
+            ];
+            for (uint8 i = 0; i < 18; i++) {
+                numbers[i] = redNumbers[i];
+            }
+        }
+        else if (betTypeId == BLACK_BET) {
+            numbers = new uint8[](18);
+            uint8[18] memory blackNumbers = [
+                2, 4, 6, 8, 10, 11, 13, 15, 17,
+                20, 22, 24, 26, 28, 29, 31, 33, 35
+            ];
+            for (uint8 i = 0; i < 18; i++) {
+                numbers[i] = blackNumbers[i];
+            }
+        }
+        else if (betTypeId == EVEN_BET) {
+            numbers = new uint8[](18);
+            for (uint8 i = 0; i < 18; i++) {
+                numbers[i] = (i + 1) * 2;
+            }
+        }
+        else if (betTypeId == ODD_BET) {
+            numbers = new uint8[](18);
+            for (uint8 i = 0; i < 18; i++) {
+                numbers[i] = (i * 2) + 1;
+            }
+        }
+        else if (betTypeId == LOW_BET) {
+            numbers = new uint8[](18);
+            for (uint8 i = 0; i < 18; i++) {
+                numbers[i] = i + 1;
+            }
+        }
+        else if (betTypeId == HIGH_BET) {
+            numbers = new uint8[](18);
+            for (uint8 i = 0; i < 18; i++) {
+                numbers[i] = i + 19;
+            }
+        }
+        else {
+            revert InvalidBetParameters("Invalid bet type ID for number generation");
+        }
     }
 }

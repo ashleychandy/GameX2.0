@@ -705,42 +705,35 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
         let betNumbers = [];
         switch (type) {
           case BetTypes.STRAIGHT:
-            betNumbers = numbers;
+            betNumbers = Array.isArray(numbers) ? numbers : [numbers];
             break;
           case BetTypes.DOZEN:
-            const dozenStart = numbers[0];
+            // Determine the correct dozen start number (1, 13, or 25)
+            let dozenStart;
+            const firstNumber = Array.isArray(numbers) ? numbers[0] : numbers;
+            if (firstNumber <= 12) dozenStart = 1;
+            else if (firstNumber <= 24) dozenStart = 13;
+            else dozenStart = 25;
             betNumbers = Array.from({ length: 12 }, (_, i) => dozenStart + i);
             break;
           case BetTypes.COLUMN:
-            const columnStart = numbers[0];
+            const columnStart = Array.isArray(numbers) ? numbers[0] : numbers;
             betNumbers = Array.from(
               { length: 12 },
               (_, i) => columnStart + i * 3
             );
             break;
           case BetTypes.RED:
-            betNumbers = [
-              1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
-            ];
-            break;
           case BetTypes.BLACK:
-            betNumbers = [
-              2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33,
-              35,
-            ];
-            break;
           case BetTypes.EVEN:
-            betNumbers = Array.from({ length: 18 }, (_, i) => (i + 1) * 2);
-            break;
           case BetTypes.ODD:
-            betNumbers = Array.from({ length: 18 }, (_, i) => i * 2 + 1);
-            break;
           case BetTypes.LOW:
-            betNumbers = Array.from({ length: 18 }, (_, i) => i + 1);
-            break;
           case BetTypes.HIGH:
-            betNumbers = Array.from({ length: 18 }, (_, i) => i + 19);
+            betNumbers = []; // Outside bets don't need numbers array
             break;
+          default:
+            console.error("Invalid bet type:", type);
+            return prev;
         }
 
         // Check if bet already exists
@@ -756,14 +749,22 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
 
         if (existingBetIndex !== -1) {
           // Update existing bet
+          const newAmount =
+            BigInt(newBets[existingBetIndex].amount) + betAmount;
+          if (newAmount > CONTRACT_CONSTANTS.MAX_BET_AMOUNT) {
+            addToast("Maximum bet amount exceeded", "error");
+            return prev;
+          }
           newBets[existingBetIndex] = {
             ...newBets[existingBetIndex],
-            amount: (
-              BigInt(newBets[existingBetIndex].amount) + betAmount
-            ).toString(),
+            amount: newAmount.toString(),
           };
         } else {
           // Add new bet
+          if (betAmount > CONTRACT_CONSTANTS.MAX_BET_AMOUNT) {
+            addToast("Maximum bet amount exceeded", "error");
+            return prev;
+          }
           newBets.push({
             numbers: betNumbers,
             type,
@@ -771,17 +772,21 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
           });
         }
 
-        // Update total bet amount
+        // Calculate and validate total bet amount
         const newTotalAmount = newBets.reduce(
           (sum, bet) => sum + BigInt(bet.amount),
           BigInt(0)
         );
-        setTotalBetAmount(newTotalAmount);
+        if (newTotalAmount > CONTRACT_CONSTANTS.MAX_TOTAL_BET_AMOUNT) {
+          addToast("Maximum total bet amount exceeded", "error");
+          return prev;
+        }
 
+        setTotalBetAmount(newTotalAmount);
         return newBets;
       });
     },
-    [isProcessing, selectedChipValue]
+    [isProcessing, selectedChipValue, addToast]
   );
 
   const handlePlaceBets = useCallback(async () => {
@@ -798,110 +803,42 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
     try {
       setIsProcessing(true);
 
-      // Check contract roles
-      try {
-        const MINTER_ROLE = await contracts.token.MINTER_ROLE();
-        const BURNER_ROLE = await contracts.token.BURNER_ROLE();
+      // Format bets for contract - no consolidation needed as it's handled in handleBetSelect
+      const betRequests = selectedBets.map((bet) => ({
+        numbers: bet.numbers,
+        amount: bet.amount,
+        betType: bet.type,
+      }));
 
-        console.log("Checking contract roles:", {
-          tokenAddress: contracts.token.target,
-          rouletteAddress: contracts.roulette.target,
-          minterRole: MINTER_ROLE,
-          burnerRole: BURNER_ROLE,
-        });
-
-        const [hasMinterRole, hasBurnerRole] = await Promise.all([
-          contracts.token.hasRole(MINTER_ROLE, contracts.roulette.target),
-          contracts.token.hasRole(BURNER_ROLE, contracts.roulette.target),
-        ]);
-
-        console.log("Contract role check results:", {
-          hasMinterRole,
-          hasBurnerRole,
-        });
-      } catch (error) {
-        console.error("Error checking contract roles:", error);
+      // Validate bet numbers before sending
+      for (const bet of betRequests) {
+        if (bet.betType === BetTypes.STRAIGHT && bet.numbers.length !== 1) {
+          throw new Error("Invalid straight bet numbers");
+        }
+        if (
+          (bet.betType === BetTypes.DOZEN || bet.betType === BetTypes.COLUMN) &&
+          bet.numbers.length !== 12
+        ) {
+          throw new Error(
+            `Invalid ${
+              bet.betType === BetTypes.DOZEN ? "dozen" : "column"
+            } bet numbers`
+          );
+        }
+        if (
+          [
+            BetTypes.RED,
+            BetTypes.BLACK,
+            BetTypes.EVEN,
+            BetTypes.ODD,
+            BetTypes.LOW,
+            BetTypes.HIGH,
+          ].includes(bet.betType) &&
+          bet.numbers.length !== 0
+        ) {
+          throw new Error("Outside bets should not have numbers");
+        }
       }
-
-      // Format bets for contract
-      const consolidatedBets = selectedBets.reduce((acc, bet) => {
-        const existingBetIndex = acc.findIndex(
-          (b) =>
-            b.type === bet.type &&
-            JSON.stringify(b.numbers.sort()) ===
-              JSON.stringify(bet.numbers.sort())
-        );
-
-        if (existingBetIndex !== -1) {
-          // Add amounts for same bet type and numbers
-          acc[existingBetIndex].amount = (
-            BigInt(acc[existingBetIndex].amount) + BigInt(bet.amount)
-          ).toString();
-        } else {
-          acc.push(bet);
-        }
-        return acc;
-      }, []);
-
-      const betRequests = consolidatedBets.map((bet) => {
-        let numbers = [];
-
-        // Handle different bet types
-        switch (bet.type) {
-          case BetTypes.STRAIGHT:
-            numbers = bet.numbers;
-            break;
-          case BetTypes.DOZEN:
-            const dozenStart = bet.numbers[0];
-            numbers = Array.from({ length: 12 }, (_, i) => dozenStart + i);
-            break;
-          case BetTypes.COLUMN:
-            const columnStart = bet.numbers[0];
-            numbers = Array.from({ length: 12 }, (_, i) => columnStart + i * 3);
-            break;
-          case BetTypes.RED:
-            numbers = [
-              1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
-            ];
-            break;
-          case BetTypes.BLACK:
-            numbers = [
-              2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33,
-              35,
-            ];
-            break;
-          case BetTypes.EVEN:
-            numbers = Array.from({ length: 18 }, (_, i) => (i + 1) * 2);
-            break;
-          case BetTypes.ODD:
-            numbers = Array.from({ length: 18 }, (_, i) => i * 2 + 1);
-            break;
-          case BetTypes.LOW:
-            numbers = Array.from({ length: 18 }, (_, i) => i + 1);
-            break;
-          case BetTypes.HIGH:
-            numbers = Array.from({ length: 18 }, (_, i) => i + 19);
-            break;
-        }
-
-        return {
-          numbers,
-          amount: bet.amount,
-          betType: bet.type,
-        };
-      });
-
-      console.log("Original selected bets:", selectedBets);
-      console.log("Consolidated bets:", consolidatedBets);
-      console.log(
-        "Formatted bet requests:",
-        betRequests.map((bet) => ({
-          ...bet,
-          amount: ethers.formatEther(bet.amount),
-          betType: Object.keys(BetTypes)[bet.betType],
-          numbers: bet.numbers,
-        }))
-      );
 
       // Calculate total amount
       const totalAmount = selectedBets.reduce(
@@ -915,81 +852,26 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
       }
 
       // Place bets
-      try {
-        console.log("Sending transaction to contract:", {
-          rouletteAddress: contracts.roulette.target,
-          totalAmount: ethers.formatEther(totalAmount),
-          numBets: betRequests.length,
-          betRequests: betRequests.map((bet) => ({
-            numbers: bet.numbers,
-            amount: ethers.formatEther(bet.amount),
-            betType: Object.keys(BetTypes)[bet.betType],
-          })),
-        });
+      console.log("Sending transaction to contract:", {
+        rouletteAddress: contracts.roulette.target,
+        totalAmount: ethers.formatEther(totalAmount),
+        numBets: betRequests.length,
+        betRequests: betRequests.map((bet) => ({
+          numbers: bet.numbers,
+          amount: ethers.formatEther(bet.amount),
+          betType: Object.keys(BetTypes)[bet.betType],
+        })),
+      });
 
-        // Validate bet numbers before sending
-        for (const bet of betRequests) {
-          if (bet.betType === BetTypes.STRAIGHT && bet.numbers.length !== 1) {
-            throw new Error("Invalid straight bet numbers");
-          }
-          if (
-            (bet.betType === BetTypes.DOZEN ||
-              bet.betType === BetTypes.COLUMN) &&
-            bet.numbers.length !== 12
-          ) {
-            throw new Error(
-              `Invalid ${
-                bet.betType === BetTypes.DOZEN ? "dozen" : "column"
-              } bet numbers`
-            );
-          }
-          if (
-            [
-              BetTypes.RED,
-              BetTypes.BLACK,
-              BetTypes.EVEN,
-              BetTypes.ODD,
-              BetTypes.LOW,
-              BetTypes.HIGH,
-            ].includes(bet.betType) &&
-            bet.numbers.length !== 18
-          ) {
-            throw new Error("Invalid outside bet numbers");
-          }
-        }
+      const tx = await contracts.roulette.placeBet(betRequests);
+      console.log("Transaction sent:", tx.hash);
 
-        const tx = await contracts.roulette.placeBet(betRequests);
-        console.log("Transaction sent:", {
-          hash: tx.hash,
-          nonce: tx.nonce,
-          gasLimit: tx.gasLimit.toString(),
-          from: account,
-          to: contracts.roulette.target,
-        });
-
-        console.log("Waiting for transaction confirmation...");
-        const receipt = await tx.wait();
-        console.log("Transaction confirmed:", {
-          blockNumber: receipt.blockNumber,
-          gasUsed: receipt.gasUsed.toString(),
-          status: receipt.status,
-          events: receipt.logs.map((log) => ({
-            address: log.address,
-            topics: log.topics,
-          })),
-        });
-      } catch (error) {
-        console.error("Transaction failed:", {
-          error: error.message,
-          code: error.code,
-          reason: error.reason,
-          data: error.data,
-        });
-        throw error;
-      }
+      const receipt = await tx.wait();
+      console.log("Transaction confirmed:", receipt);
 
       // Reset state and update UI
       setSelectedBets([]);
+      setTotalBetAmount(BigInt(0));
       addToast("Bets placed successfully!", "success");
 
       // Invalidate queries to refresh data
