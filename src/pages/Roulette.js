@@ -231,26 +231,21 @@ const BettingBoard = ({
         </div>
 
         {/* Zero */}
-        <div className="row-span-3">
+        <div className="row-span-3 flex items-stretch">
           <button
             onClick={() => handleBet([0], BetTypes.STRAIGHT)}
             onMouseEnter={() => setHoveredNumbers([0])}
             onMouseLeave={() => setHoveredNumbers([])}
-            className={`number-button-zero ${
+            className={`w-[45px] min-h-[147px] rounded-xl bg-gradient-to-br from-emerald-600/90 to-emerald-700/90 hover:from-emerald-500/90 hover:to-emerald-600/90 text-white/90 font-bold flex items-center justify-center transition-all duration-300 hover:scale-105 relative ${
               getBetAmount([0], BetTypes.STRAIGHT) > 0 || isNumberHovered(0)
-                ? "number-button-highlighted"
+                ? "ring-2 ring-white shadow-lg shadow-emerald-500/20"
                 : ""
             }`}
           >
             <span className="text-white/90 text-2xl">0</span>
             {getBetAmount([0], BetTypes.STRAIGHT) > 0 && (
-              <div
-                className="chip-stack"
-                data-value={getBetAmount([0], BetTypes.STRAIGHT)}
-              >
-                <span className="chip-stack-value">
-                  {getBetAmount([0], BetTypes.STRAIGHT)}
-                </span>
+              <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gaming-primary border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
+                {getBetAmount([0], BetTypes.STRAIGHT)}
               </div>
             )}
           </button>
@@ -446,34 +441,43 @@ const BetControls = ({
       <div className="flex items-end">
         {isCheckingApproval ? (
           <button
-            className="h-12 w-full place-bet-button flex items-center justify-center"
+            className="h-14 w-full place-bet-button bg-gradient-to-br from-secondary-700 to-secondary-800 text-secondary-300 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
             disabled={true}
           >
-            <div className="flex items-center justify-center gap-2">
-              <LoadingSpinner size="small" />
-              Checking Approval...
-            </div>
+            <LoadingSpinner size="small" />
+            Checking Approval...
           </button>
         ) : isApproved ? (
           <button
             onClick={onPlaceBets}
-            className="h-12 w-full place-bet-button flex items-center justify-center"
             disabled={disabled || selectedBets.length === 0}
+            className={`h-14 w-full rounded-xl font-bold flex items-center justify-center gap-2 transition-all duration-300 ${
+              disabled || selectedBets.length === 0
+                ? "bg-gradient-to-br from-secondary-700 to-secondary-800 text-secondary-300"
+                : "bg-gradient-to-br from-gaming-primary to-gaming-accent text-white shadow-lg shadow-gaming-primary/20 hover:shadow-xl hover:shadow-gaming-primary/40 hover:scale-105"
+            }`}
           >
             {gameState.isProcessing ? (
-              <div className="flex items-center justify-center gap-2">
+              <>
                 <LoadingSpinner size="small" />
                 Processing...
-              </div>
+              </>
             ) : (
-              "Place Bets"
+              <>
+                <span className="text-xl">🎲</span>
+                Place Bets
+              </>
             )}
           </button>
         ) : (
           <button
             onClick={onApprove}
-            className="h-12 w-full place-bet-button flex items-center justify-center"
             disabled={disabled}
+            className={`h-14 w-full rounded-xl font-bold flex items-center justify-center gap-2 transition-all duration-300 ${
+              disabled
+                ? "bg-gradient-to-br from-secondary-700 to-secondary-800 text-secondary-300"
+                : "bg-gradient-to-br from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-500/20 hover:shadow-xl hover:shadow-purple-500/40 hover:scale-105"
+            }`}
           >
             Approve Token
           </button>
