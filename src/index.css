@@ -15,738 +15,572 @@
     --gaming-error: 239, 68, 68;
     --gaming-warning: 245, 158, 11;
     --gaming-info: 59, 130, 246;
-
-    /* Shadow System */
-    --shadow-color: 0deg 0% 0%;
-    --shadow-elevation-low: 0px 0.5px 0.6px hsl(var(--shadow-color) / 0.14),
-      0px 0.8px 1px -1.2px hsl(var(--shadow-color) / 0.14),
-      0px 2px 2.4px -2.5px hsl(var(--shadow-color) / 0.14);
-    --shadow-elevation-medium: 0px 0.5px 0.6px hsl(var(--shadow-color) / 0.13),
-      0px 1.6px 1.9px -0.8px hsl(var(--shadow-color) / 0.13),
-      0px 4px 4.8px -1.7px hsl(var(--shadow-color) / 0.13),
-      0px 10px 12px -2.5px hsl(var(--shadow-color) / 0.13);
   }
 
   body {
-    @apply bg-gradient-to-br from-secondary-900 to-secondary-900/95 
-           text-white font-sans min-h-screen antialiased
-           selection:bg-gaming-primary/30 selection:text-white;
-  }
-
-  /* Enhanced Scrollbar */
-  ::-webkit-scrollbar {
-    @apply w-2;
-  }
-
-  ::-webkit-scrollbar-track {
-    @apply bg-secondary-800/50 rounded-full;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    @apply bg-gaming-primary/50 rounded-full hover:bg-gaming-primary 
-           transition-all duration-300;
+    @apply bg-secondary-900 text-white;
   }
 }
 
 @layer components {
-  /* Layout Components */
-  .page-container {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-6 bg-white;
-  }
-
-  .section-container {
-    @apply space-y-6 mb-12 bg-white;
-  }
-
-  /* Glass Effects */
-  .glass-panel {
-    @apply bg-secondary-900/60 backdrop-blur-xl border border-white/5
-           rounded-2xl shadow-xl transition-all duration-300
-           hover:shadow-2xl hover:border-white/10;
-  }
-
-  .glass-card {
-    @apply bg-secondary-800/40 backdrop-blur-md border border-white/10
-           rounded-xl p-6 shadow-lg transition-all duration-300
-           hover:shadow-xl hover:border-gaming-primary/20;
-  }
-
-  /* Button System */
-  .btn-base {
-    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg
-           font-semibold transition-all duration-300 disabled:opacity-50
-           disabled:cursor-not-allowed focus:outline-none focus:ring-2
-           focus:ring-offset-2 focus:ring-offset-secondary-900;
-  }
-
-  .btn-gaming {
-    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg
-           font-semibold transition-all duration-300 disabled:opacity-50
-           disabled:cursor-not-allowed focus:outline-none focus:ring-2
-           focus:ring-offset-2 focus:ring-offset-secondary-900
-           bg-gradient-to-r from-gaming-primary to-gaming-accent
-           text-white hover:shadow-glow active:scale-95;
-  }
-
-  .btn-secondary {
-    @apply btn-base bg-secondary-800 text-white border border-secondary-700
-           hover:bg-secondary-700 focus:ring-secondary-600;
-  }
-
   /* Form Elements */
   .input-gaming {
-    @apply w-full px-4 py-3 bg-secondary-800/80 rounded-lg
-           border border-secondary-700 text-white placeholder-secondary-400
-           focus:border-gaming-primary focus:ring-2 focus:ring-gaming-primary/50
-           transition-all duration-200;
+    @apply w-full px-4 py-3 bg-secondary-800/80 rounded-lg border border-secondary-700 text-white placeholder-secondary-400 focus:border-gaming-primary focus:ring-2 focus:ring-gaming-primary/50 transition-all duration-200;
   }
 
   /* Game Elements */
-  .dice-grid {
-    @apply grid grid-cols-3 grid-rows-3 gap-1 p-3
-           h-full w-full;
-  }
-
-  .dice-dot {
-    @apply w-2.5 h-2.5 rounded-full bg-white 
-           transition-all duration-300;
-  }
-
-  .game-stat-card {
-    @apply glass-card flex flex-col gap-2;
-  }
-
-  .stat-label {
-    @apply text-sm text-secondary-400 font-medium;
-  }
-
-  .stat-value {
-    @apply text-2xl font-bold text-gradient;
-  }
-
-  /* Loading States */
-  .loading-dots {
-    @apply flex space-x-1 items-center justify-center;
-  }
-
-  .loading-dot {
-    @apply w-2 h-2 rounded-full bg-current animate-pulse;
-  }
-
-  /* Status Indicators */
-  .status-badge {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-sm
-           font-medium transition-colors duration-200;
-  }
-
-  .status-success {
-    @apply status-badge bg-gaming-success/20 text-gaming-success;
-  }
-
-  .status-error {
-    @apply status-badge bg-gaming-error/20 text-gaming-error;
-  }
-
-  .status-warning {
-    @apply status-badge bg-gaming-warning/20 text-gaming-warning;
-  }
-
   .dice-container {
-    @apply relative w-full mx-auto 
-           transform transition-all duration-300 
-           hover:scale-[1.02];
+    @apply relative w-full mx-auto transform transition-all duration-300 hover:scale-[1.02];
     aspect-ratio: 1 / 1;
   }
 
   .dice-face {
-    @apply absolute inset-0 rounded-xl 
-           bg-gradient-to-br from-gaming-primary/10 to-gaming-accent/10
-           backdrop-blur-lg border border-white/10
-           shadow-[0_0_20px_rgba(255,70,85,0.2)]
-           transition-all duration-300
-           p-4;
+    @apply absolute inset-0 rounded-xl bg-gradient-to-br from-gaming-primary/10 to-gaming-accent/10 backdrop-blur-lg border border-white/10 shadow-[0_0_20px_rgba(255,70,85,0.2)] transition-all duration-300 p-4;
   }
 
-  .dice-face:hover {
-    @apply border-white/20 shadow-[0_0_30px_rgba(255,70,85,0.3)]
-           transform scale-105;
-  }
-
-  /* Base number button styles */
+  /* Number Buttons */
   .number-button {
-    @apply relative rounded text-xl font-bold
-           transition-all duration-300 transform
-           border border-secondary-700/50
-           hover:scale-105 hover:z-10
-           active:scale-95 cursor-pointer
-           text-white;
+    @apply relative rounded-xl text-xl font-bold transition-all duration-300 transform border border-white/10 hover:scale-105 hover:z-10 active:scale-95 cursor-pointer backdrop-blur-sm shadow-lg hover:shadow-2xl text-white;
     aspect-ratio: 1;
+    min-width: 45px;
     min-height: 45px;
     display: flex;
     align-items: center;
     justify-content: center;
   }
 
-  /* Hover highlight effect for numbers */
   .number-button-highlighted {
-    @apply ring-2 ring-offset-2 ring-offset-secondary-900
-           scale-105 z-20
-           shadow-[0_0_20px_rgba(var(--gaming-primary),0.4)]
-           border-gaming-primary/50;
-  }
-
-  /* Zero button with highlight */
-  .number-button-zero.number-button-highlighted {
-    @apply ring-emerald-400
-           shadow-[0_0_20px_rgba(16,185,129,0.4)]
-           border-emerald-400/50;
-  }
-
-  /* Red button with highlight */
-  .number-button-red.number-button-highlighted {
-    @apply ring-gaming-primary
-           shadow-[0_0_20px_rgba(var(--gaming-primary),0.4)]
-           border-gaming-primary/50;
-  }
-
-  /* Black button with highlight */
-  .number-button-black.number-button-highlighted {
-    @apply ring-gray-400
-           shadow-[0_0_20px_rgba(156,163,175,0.4)]
-           border-gray-400/50;
-  }
-
-  /* Column bet styles */
-  .column-bet {
-    @apply bg-gradient-to-br from-purple-600/80 to-purple-700/80
-           hover:from-purple-500 hover:to-purple-600
-           text-white rounded-xl
-           border border-white/10
-           shadow-lg hover:shadow-purple-500/30
-           transition-all duration-300
-           font-bold text-sm h-full w-[45px] 
-           flex items-center justify-center
-           transform hover:scale-105;
-  }
-
-  /* Column bet highlight */
-  .column-bet-highlighted {
-    @apply border-purple-400/50
-           shadow-[0_0_15px_rgba(167,139,250,0.3)]
-           scale-105 z-20;
-  }
-
-  /* Transition for highlight effect */
-  .number-button,
-  .number-button-zero,
-  .column-bet {
-    @apply transition-all duration-300 ease-in-out;
+    @apply ring-2 ring-offset-2 ring-offset-secondary-900 scale-105 z-20 shadow-[0_0_20px_rgba(var(--gaming-primary),0.4)] border-gaming-primary/50;
   }
 
   .number-button-zero {
-    @apply bg-[#1B5E20] hover:bg-[#2E7D32]
-           row-span-3;
-  }
-
-  .number-button-red {
-    @apply bg-gradient-to-br from-gaming-primary/90 to-gaming-accent/90
-           hover:from-gaming-primary hover:to-gaming-accent
-           border-gaming-primary/20
-           hover:shadow-gaming-primary/30;
-  }
-
-  .number-button-black {
-    @apply bg-gradient-to-br from-gray-800/90 to-gray-900/90
-           hover:from-gray-700 hover:to-gray-800
-           border-gray-700/20
-           hover:shadow-gray-500/30;
-  }
-
-  .number-button-selected {
-    @apply ring-2 ring-gaming-primary ring-offset-2 ring-offset-secondary-900
-           scale-105 z-10;
-  }
-
-  .bet-input {
-    @apply input-gaming w-full pr-16
-           bg-gradient-to-r from-secondary-800/50 to-secondary-900/50
-           border border-secondary-700/30
-           focus:border-gaming-primary/50
-           placeholder-secondary-400;
-  }
-
-  .history-item {
-    @apply p-4 rounded-xl border backdrop-blur-sm
-           transform transition-all duration-300
-           hover:scale-[1.02] hover:shadow-lg;
-  }
-
-  .history-item-win {
-    @apply border-gaming-success/20 bg-gaming-success/5
-           hover:border-gaming-success/30 hover:bg-gaming-success/10;
-  }
-
-  .history-item-loss {
-    @apply border-gaming-error/20 bg-gaming-error/5
-           hover:border-gaming-error/30 hover:bg-gaming-error/10;
-  }
-
-  .stats-panel {
-    @apply glass-panel p-6 space-y-4;
-  }
-
-  .stats-item {
-    @apply p-4 rounded-xl
-           bg-gradient-to-br from-secondary-800/40 to-secondary-900/40
-           border border-secondary-700/30
-           hover:border-gaming-primary/30 hover:shadow-glow
-           transition-all duration-300;
-  }
-
-  .glass-card-hover {
-    @apply transform transition-all duration-300
-           hover:scale-[1.02] hover:shadow-glow
-           active:scale-[0.98];
-  }
-
-  .gaming-gradient {
-    @apply bg-gradient-to-r from-gaming-primary to-gaming-accent;
-  }
-
-  .gaming-border {
-    @apply border border-white/10 hover:border-gaming-primary/30
-           transition-colors duration-300;
-  }
-
-  .gaming-text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r
-           from-gaming-primary to-gaming-accent;
-  }
-
-  .gaming-button {
-    @apply px-6 py-3 rounded-xl font-semibold
-           bg-gradient-to-r from-gaming-primary to-gaming-accent
-           text-white shadow-lg hover:shadow-glow
-           transform transition-all duration-300
-           hover:scale-105 active:scale-95
-           disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .gaming-input {
-    @apply w-full px-4 py-3 bg-secondary-800/50
-           rounded-xl border border-secondary-700/50
-           text-white placeholder-secondary-400
-           focus:border-gaming-primary focus:ring-2
-           focus:ring-gaming-primary/50 transition-all duration-200;
-  }
-
-  /* Chip Styles */
-  .chip-button {
-    @apply relative rounded-full w-12 h-12 flex items-center justify-center 
-           font-bold text-white shadow-lg cursor-pointer border-2 border-white/20
-           transition-all duration-200 hover:scale-105;
-  }
-
-  .chip-button-selected {
-    @apply ring-2 ring-white ring-opacity-80 scale-105 shadow-xl;
-  }
-
-  .bet-stack {
-    @apply relative inline-flex flex-col-reverse items-center justify-center;
-  }
-
-  .bet-chip {
-    @apply absolute rounded-full w-8 h-8 flex items-center justify-center 
-           font-bold text-sm text-white shadow-md border border-white/20
-           pointer-events-none z-10;
-  }
-
-  /* Chip colors based on bet amount */
-  .chip-stack {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: #1a202c;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    font-weight: bold;
-    border: 2px solid rgba(0, 0, 0, 0.1);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    z-index: 10;
-    background-color: white;
-  }
-
-  .chip-1 {
-    background-color: white;
-  }
-
-  .chip-5 {
-    background-color: white;
-  }
-
-  .chip-10 {
-    background-color: white;
-  }
-
-  .chip-50 {
-    background-color: white;
-  }
-
-  .chip-100 {
-    background-color: white;
-  }
-
-  .chip-500 {
-    background-color: white;
-  }
-
-  .chip-1k {
-    background-color: white;
-    border-color: #f6e05e;
-  }
-
-  /* Hover states */
-  .chip-button.chip-button-1:hover {
-    background-color: #03a9f4;
-  }
-  .chip-button.chip-button-5:hover {
-    background-color: #ffc107;
-  }
-  .chip-button.chip-button-10:hover {
-    background-color: #8bc34a;
-  }
-  .chip-button.chip-button-50:hover {
-    background-color: #9c27b0;
-  }
-  .chip-button.chip-button-100:hover {
-    background-color: #ff9800;
-  }
-  .chip-button.chip-button-500:hover {
-    background-color: #e91e63;
-  }
-  .chip-button.chip-button-1K:hover {
-    background-color: #ff69b4;
-  }
-  .chip-button.chip-button-5K:hover {
-    background-color: #2196f3;
-  }
-
-  .chip-1 {
-    @apply bg-blue-500 hover:bg-blue-600;
-  }
-
-  .chip-5 {
-    @apply bg-red-500 hover:bg-red-600;
-  }
-
-  .chip-10 {
-    @apply bg-green-500 hover:bg-green-600;
-  }
-
-  .stacked-chips {
-    @apply relative;
-  }
-
-  .chip-stack {
-    @apply absolute -top-2 -right-2 bg-secondary-800 rounded-full px-2 py-1 
-           text-xs font-bold border border-white/20;
-  }
-
-  /* Roulette Layout */
-  .roulette-board-section {
-    @apply w-full max-w-4xl mx-auto p-4;
-  }
-
-  .roulette-grid {
-    @apply grid gap-1;
-    grid-template-columns: 45px repeat(12, minmax(45px, 1fr)) 45px;
-  }
-
-  .stacked-chips {
-    @apply relative;
-  }
-
-  .number-button {
-    @apply relative rounded-xl text-xl font-bold w-full h-full
-           transition-all duration-300 transform
-           border border-white/10
-           hover:scale-105 hover:z-10
-           active:scale-95 cursor-pointer
-           backdrop-blur-sm
-           shadow-lg hover:shadow-2xl
-           text-white;
-    aspect-ratio: 1;
-    min-width: 45px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .number-button-zero {
-    @apply bg-gradient-to-br from-emerald-500/90 to-emerald-600/90 
-           hover:from-emerald-400 hover:to-emerald-500
-           border-emerald-400/20
-           hover:shadow-emerald-500/30
-           h-full w-[45px];
+    @apply bg-gradient-to-br from-emerald-500/90 to-emerald-600/90 hover:from-emerald-400 hover:to-emerald-500 border-emerald-400/20 hover:shadow-emerald-500/30 h-full w-[45px];
     grid-row: span 3;
   }
 
   .number-button-red {
-    @apply bg-gradient-to-br from-gaming-primary/90 to-gaming-accent/90
-           hover:from-gaming-primary hover:to-gaming-accent
-           border-gaming-primary/20
-           hover:shadow-gaming-primary/30;
+    @apply bg-gradient-to-br from-gaming-primary/90 to-gaming-accent/90 hover:from-gaming-primary hover:to-gaming-accent border-gaming-primary/20 hover:shadow-gaming-primary/30;
   }
 
   .number-button-black {
-    @apply bg-gradient-to-br from-gray-800/90 to-gray-900/90
-           hover:from-gray-700 hover:to-gray-800
-           border-gray-700/20
-           hover:shadow-gray-500/30;
+    @apply bg-gradient-to-br from-gray-800/90 to-gray-900/90 hover:from-gray-700 hover:to-gray-800 border-gray-700/20 hover:shadow-gray-500/30;
   }
 
-  .number-button-selected {
-    @apply ring-2 ring-gaming-primary ring-offset-2 ring-offset-secondary-900
-           scale-105 z-10;
-  }
-
+  /* Column Bets */
   .column-bet {
-    @apply bg-gradient-to-br from-purple-600/80 to-purple-700/80
-           hover:from-purple-500 hover:to-purple-600
-           text-white rounded-xl
-           border border-white/10
-           shadow-lg hover:shadow-purple-500/30
-           transition-all duration-300
-           font-bold text-sm h-full w-[45px] 
-           flex items-center justify-center
-           transform hover:scale-105;
+    @apply bg-gradient-to-br from-purple-600/80 to-purple-700/80 hover:from-purple-500 hover:to-purple-600 text-white rounded-xl border border-white/10 shadow-lg hover:shadow-purple-500/30 transition-all duration-300 font-bold text-sm h-full w-[45px] flex items-center justify-center transform hover:scale-105;
   }
 
+  .column-bet-highlighted {
+    @apply border-purple-400/50 shadow-[0_0_15px_rgba(167,139,250,0.3)] scale-105 z-20;
+  }
+
+  /* Chip Styles */
   .chip-stack {
-    @apply absolute -top-3 -right-3
-           bg-gradient-to-br from-white via-white to-white/90
-           rounded-full min-w-[28px] h-7 px-2.5
-           flex items-center justify-center
-           text-sm font-bold
-           shadow-[0_2px_8px_rgba(0,0,0,0.3)]
-           border-2 border-gaming-primary/30
-           backdrop-blur-md
-           transform transition-all duration-300
-           hover:scale-110 hover:border-gaming-primary/50
-           z-20;
+    @apply absolute -top-3 -right-3 bg-gradient-to-br from-white via-white to-white/90 rounded-full min-w-[28px] h-7 px-2.5 flex items-center justify-center text-sm font-bold shadow-[0_2px_8px_rgba(0,0,0,0.3)] border-2 border-gaming-primary/30 backdrop-blur-md transform transition-all duration-300 hover:scale-110 hover:border-gaming-primary/50 z-20;
   }
 
-  /* Add a glow effect for the chip stack when it has a high value */
   .chip-stack[data-value*="100"],
   .chip-stack[data-value*="50"] {
-    @apply shadow-[0_2px_12px_rgba(var(--gaming-primary),0.4)]
-           border-gaming-primary/50;
+    @apply shadow-[0_2px_12px_rgba(var(--gaming-primary),0.4)] border-gaming-primary/50;
   }
 
-  /* Style for the chip stack value text */
   .chip-stack-value {
-    @apply bg-clip-text text-transparent
-           bg-gradient-to-br from-gaming-primary to-gaming-accent
-           font-extrabold tracking-tight;
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-gaming-primary to-gaming-accent font-extrabold tracking-tight;
   }
 
-  .bet-controls {
-    @apply mt-6 p-6 
-           bg-secondary-900/80 backdrop-blur-xl
-           rounded-2xl border border-white/10
-           shadow-2xl;
-  }
-
-  .chip-selector {
-    @apply grid grid-cols-4 sm:grid-cols-8 gap-3;
-  }
-
-  .chip-button {
-    @apply w-14 h-14 rounded-full 
-           flex items-center justify-center
-           text-white font-bold text-lg
-           shadow-lg transition-all duration-200
-           hover:scale-110 hover:shadow-2xl
-           border-2 border-white/20
-           backdrop-blur-sm;
-  }
-
-  /* Chip color variations */
-  .chip-1 {
-    @apply bg-gradient-to-br from-blue-500/90 to-blue-600/90
-           hover:from-blue-400 hover:to-blue-500
-           hover:shadow-blue-500/30;
-  }
-
-  .chip-5 {
-    @apply bg-gradient-to-br from-red-500/90 to-red-600/90
-           hover:from-red-400 hover:to-red-500
-           hover:shadow-red-500/30;
-  }
-
-  .chip-10 {
-    @apply bg-gradient-to-br from-green-500/90 to-green-600/90
-           hover:from-green-400 hover:to-green-500
-           hover:shadow-green-500/30;
-  }
-
-  .chip-50 {
-    @apply bg-gradient-to-br from-purple-500/90 to-purple-600/90
-           hover:from-purple-400 hover:to-purple-500
-           hover:shadow-purple-500/30;
-  }
-
-  .chip-100 {
-    @apply bg-gradient-to-br from-orange-500/90 to-orange-600/90
-           hover:from-orange-400 hover:to-orange-500
-           hover:shadow-orange-500/30;
-  }
-
-  .chip-500 {
-    @apply bg-gradient-to-br from-pink-500/90 to-pink-600/90
-           hover:from-pink-400 hover:to-pink-500
-           hover:shadow-pink-500/30;
-  }
-
-  .chip-1k {
-    @apply bg-gradient-to-br from-yellow-500/90 to-yellow-600/90
-           hover:from-yellow-400 hover:to-yellow-500
-           hover:shadow-yellow-500/30;
-  }
-
-  .chip-5k {
-    @apply bg-gradient-to-br from-cyan-500/90 to-cyan-600/90
-           hover:from-cyan-400 hover:to-cyan-500
-           hover:shadow-cyan-500/30;
-  }
-
-  .place-bet-button {
-    @apply btn-gaming w-full py-4 text-lg
-           bg-gradient-to-r from-gaming-primary to-gaming-accent
-           hover:from-gaming-primary/90 hover:to-gaming-accent/90
-           shadow-lg hover:shadow-gaming-primary/30
-           border border-white/10
-           transform hover:scale-105
-           transition-all duration-300;
-  }
-
+  /* History Styles */
   .betting-history {
-    @apply mt-8 p-6 
-           bg-secondary-900/80 backdrop-blur-xl
-           rounded-2xl border border-white/10
-           shadow-2xl
-           space-y-4;
+    @apply mt-8 p-6 bg-gradient-to-br from-secondary-900/95 to-secondary-800/95 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl;
+  }
+
+  .history-list {
+    @apply space-y-4 overflow-y-auto pr-2 scrollbar-thin scrollbar-track-secondary-800/50 scrollbar-thumb-gaming-primary/30 hover:scrollbar-thumb-gaming-primary/50;
+    max-height: calc(100vh - 400px);
+    min-height: 300px;
   }
 
   .history-item {
-    @apply flex items-center justify-between
-           p-4 rounded-xl
-           bg-secondary-800/40 
-           border border-white/10
-           backdrop-blur-sm
-           transition-all duration-300
-           hover:scale-[1.02]
-           hover:border-gaming-primary/30
-           hover:shadow-lg;
+    @apply relative p-4 rounded-2xl border backdrop-blur-sm bg-gradient-to-br;
+    @apply transform transition-all duration-300;
+    @apply hover:translate-y-[-2px] hover:shadow-2xl;
   }
 
-  .roulette-stats {
-    @apply grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6;
+  .history-main-content {
+    @apply flex items-center justify-between gap-4;
   }
 
-  .stat-card {
-    @apply bg-secondary-800/40 backdrop-blur-sm
-           rounded-xl p-4
-           border border-white/10
-           transition-all duration-300
-           hover:scale-[1.02]
-           hover:border-gaming-primary/30
-           hover:shadow-lg;
+  .history-summary {
+    @apply flex items-center gap-4;
   }
 
-  .stat-label {
-    @apply text-secondary-300 text-sm font-medium mb-1;
+  .history-details-toggle {
+    @apply p-2 rounded-full transition-colors duration-200;
+    @apply hover:bg-secondary-800/50 active:bg-secondary-700/50;
+    @apply focus:outline-none focus:ring-2 focus:ring-gaming-primary/50;
   }
 
-  .stat-value {
-    @apply text-white text-2xl font-bold
-           bg-gradient-to-r from-gaming-primary to-gaming-accent
-           bg-clip-text text-transparent;
+  .history-details-toggle-icon {
+    @apply w-5 h-5 text-secondary-400 transform transition-transform duration-200;
   }
 
-  /* Animations */
-  @keyframes pulse-border {
-    0%,
-    100% {
-      border-color: rgba(255, 255, 255, 0.1);
-    }
-    50% {
-      border-color: rgba(255, 255, 255, 0.2);
-    }
+  .history-details-toggle-icon[data-expanded="true"] {
+    @apply rotate-180 text-gaming-primary;
   }
 
-  @keyframes float {
-    0%,
-    100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-5px);
-    }
+  .history-details {
+    @apply mt-4 pt-4 border-t border-secondary-700/30;
+    @apply overflow-hidden transition-all duration-300;
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-10px);
   }
 
-  .animate-float {
-    animation: float 3s ease-in-out infinite;
+  .history-details[data-expanded="true"] {
+    @apply max-h-[500px] opacity-100;
+    transform: translateY(0);
   }
 
-  .animate-pulse-border {
-    animation: pulse-border 2s ease-in-out infinite;
+  .history-bets {
+    @apply flex flex-wrap gap-2 mt-2;
   }
 
-  /* Media Queries */
-  @media (prefers-reduced-motion: reduce) {
-    * {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
-    }
+  .history-bet-item {
+    @apply px-3 py-1.5 rounded-lg;
+    @apply bg-gradient-to-br from-secondary-800/70 to-secondary-900/70;
+    @apply backdrop-blur-sm border border-secondary-700/50;
+    @apply transition-all duration-300;
+    @apply hover:border-secondary-600/50 hover:translate-y-[-2px] hover:shadow-lg;
   }
 
-  @media (min-width: 768px) {
-    .glass-card {
-      @apply p-8;
-    }
+  .history-bet-type {
+    @apply text-sm font-medium text-secondary-200;
+    @apply transition-colors duration-300;
   }
 
-  @media print {
-    .no-print {
-      display: none !important;
-    }
+  .history-bet-amount {
+    @apply text-xs text-secondary-400 mt-0.5;
+    @apply transition-colors duration-300;
   }
 
+  .history-bet-payout {
+    @apply text-xs text-gaming-success ml-1;
+    @apply transition-colors duration-300;
+  }
+
+  .history-totals {
+    @apply grid grid-cols-2 gap-4 mt-4;
+    @apply bg-secondary-800/30 rounded-xl p-4;
+    @apply border border-secondary-700/30;
+  }
+
+  .history-total-label {
+    @apply text-sm text-secondary-400 mb-1;
+    @apply uppercase tracking-wider font-medium;
+  }
+
+  .history-total-value {
+    @apply text-lg font-medium;
+    @apply transition-all duration-300;
+  }
+
+  .history-total-value-bet {
+    @apply text-secondary-200 hover:text-white;
+  }
+
+  .history-total-value-win {
+    @apply text-gaming-success font-bold;
+    @apply hover:text-gaming-success/90;
+  }
+
+  .history-total-value-loss {
+    @apply text-gaming-error font-bold;
+    @apply hover:text-gaming-error/90;
+  }
+
+  .history-total-diff {
+    @apply text-sm ml-2 opacity-80;
+  }
+
+  .history-item-win {
+    @apply from-gaming-success/5 via-gaming-success/10 to-gaming-success/5;
+    @apply border-gaming-success/20 hover:border-gaming-success/30;
+    @apply hover:shadow-[0_8px_32px_rgba(var(--gaming-success),0.15)];
+  }
+
+  .history-item-loss {
+    @apply from-gaming-error/5 via-gaming-error/10 to-gaming-error/5;
+    @apply border-gaming-error/20 hover:border-gaming-error/30;
+    @apply hover:shadow-[0_8px_32px_rgba(var(--gaming-error),0.15)];
+  }
+
+  .history-header {
+    @apply flex justify-between items-center mb-6;
+    @apply pb-4 border-b border-secondary-700/30;
+    @apply sticky top-0 bg-secondary-900/95 backdrop-blur-md z-10;
+  }
+
+  .history-title {
+    @apply text-xl font-bold;
+    @apply bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-gaming-primary to-gaming-accent;
+  }
+
+  .history-timestamp {
+    @apply text-sm text-secondary-400;
+    @apply flex items-center gap-2;
+    @apply bg-secondary-800/50 px-3 py-1.5 rounded-full;
+    @apply border border-secondary-700/30;
+  }
+
+  .history-status-indicator {
+    @apply w-2.5 h-2.5 rounded-full;
+    @apply animate-pulse ring-2 ring-offset-1;
+    @apply ring-offset-secondary-800;
+  }
+
+  .history-status-win {
+    @apply bg-gaming-success ring-gaming-success/30;
+  }
+
+  .history-status-loss {
+    @apply bg-gaming-error ring-gaming-error/30;
+  }
+
+  .history-result-badge {
+    @apply px-4 py-1.5 rounded-full;
+    @apply text-sm font-bold;
+    @apply shadow-lg backdrop-blur-sm;
+  }
+
+  .history-result-badge-win {
+    @apply bg-gaming-success/20 text-gaming-success;
+    @apply border border-gaming-success/30;
+    @apply shadow-[0_2px_8px_rgba(var(--gaming-success),0.15)];
+  }
+
+  .history-result-badge-loss {
+    @apply bg-gaming-error/20 text-gaming-error;
+    @apply border border-gaming-error/30;
+    @apply shadow-[0_2px_8px_rgba(var(--gaming-error),0.15)];
+  }
+
+  .history-number {
+    @apply w-16 h-16 rounded-xl;
+    @apply flex items-center justify-center;
+    @apply border-2 shadow-lg backdrop-blur-sm;
+    @apply transform transition-all duration-300;
+    @apply hover:scale-110 hover:shadow-2xl;
+  }
+
+  .history-number-red {
+    @apply bg-gradient-to-br from-gaming-primary/20 to-gaming-accent/20;
+    @apply border-gaming-primary/30 shadow-gaming-primary/20;
+    @apply hover:shadow-[0_8px_32px_rgba(var(--gaming-primary),0.2)];
+  }
+
+  .history-number-black {
+    @apply bg-gradient-to-br from-gray-800/50 to-gray-900/50;
+    @apply border-gray-700/30 shadow-gray-700/20;
+    @apply hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)];
+  }
+
+  .history-number-text {
+    @apply text-3xl font-bold text-white text-shadow;
+  }
+
+  .history-number-label {
+    @apply text-sm text-secondary-400 mb-2;
+    @apply uppercase tracking-wider font-medium;
+  }
+
+  .history-number-tags {
+    @apply flex items-center gap-2 mt-2;
+  }
+
+  .history-tag {
+    @apply px-3 py-1 rounded-lg;
+    @apply text-xs font-medium;
+    @apply shadow-sm backdrop-blur-sm;
+    @apply border border-secondary-700/30;
+    @apply transition-all duration-300;
+    @apply hover:scale-105;
+  }
+
+  .history-tag-red {
+    @apply bg-gaming-primary/20 text-gaming-primary;
+    @apply border-gaming-primary/30;
+  }
+
+  .history-tag-black {
+    @apply bg-gray-800 text-gray-300;
+    @apply border-gray-700/30;
+  }
+
+  .history-tag-range {
+    @apply bg-secondary-700/50 text-secondary-300;
+  }
+
+  .history-undo-button {
+    @apply mt-2 w-8 h-8 rounded-full flex items-center justify-center;
+    @apply bg-gradient-to-br from-secondary-800/70 to-secondary-900/70;
+    @apply border border-secondary-700/30;
+    @apply text-secondary-400;
+    @apply transition-all duration-300;
+    @apply hover:border-secondary-600/50 hover:text-secondary-200;
+    @apply hover:scale-110 hover:shadow-lg;
+    @apply focus:outline-none focus:ring-2 focus:ring-gaming-primary/50;
+    @apply backdrop-blur-sm;
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translate(50%, -50%);
+    z-index: 30;
+  }
+
+  .history-undo-icon {
+    @apply w-4 h-4 text-current;
+    stroke-width: 2.5;
+  }
+
+  /* Bottom Controls Section */
+  .betting-controls-wrapper {
+    @apply fixed bottom-0 left-0 right-0 z-50;
+    @apply bg-gradient-to-t from-secondary-900 via-secondary-900/95 to-secondary-900/80;
+    @apply backdrop-blur-xl border-t border-white/10;
+    @apply px-4 py-3 md:px-6 md:py-4;
+  }
+
+  .betting-controls {
+    @apply max-w-7xl mx-auto;
+    @apply flex items-center justify-between gap-4;
+  }
+
+  .betting-controls-left {
+    @apply flex items-center gap-3;
+  }
+
+  .betting-controls-right {
+    @apply flex items-center gap-3;
+  }
+
+  /* Chip Selection */
+  .chip-selector {
+    @apply flex items-center gap-2;
+  }
+
+  .chip-button {
+    @apply relative flex items-center justify-center;
+    @apply w-12 h-12 rounded-full;
+    @apply bg-gradient-to-br backdrop-blur-sm;
+    @apply border-2 transition-all duration-300;
+    @apply hover:scale-110 hover:shadow-lg;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-secondary-900;
+  }
+
+  .chip-button-1 {
+    @apply from-blue-500/90 to-blue-600/90 border-blue-400/30;
+    @apply hover:shadow-blue-500/30 focus:ring-blue-500/50;
+  }
+
+  .chip-button-5 {
+    @apply from-green-500/90 to-green-600/90 border-green-400/30;
+    @apply hover:shadow-green-500/30 focus:ring-green-500/50;
+  }
+
+  .chip-button-10 {
+    @apply from-yellow-500/90 to-yellow-600/90 border-yellow-400/30;
+    @apply hover:shadow-yellow-500/30 focus:ring-yellow-500/50;
+  }
+
+  .chip-button-25 {
+    @apply from-purple-500/90 to-purple-600/90 border-purple-400/30;
+    @apply hover:shadow-purple-500/30 focus:ring-purple-500/50;
+  }
+
+  .chip-button-50 {
+    @apply from-gaming-primary/90 to-gaming-accent/90 border-gaming-primary/30;
+    @apply hover:shadow-gaming-primary/30 focus:ring-gaming-primary/50;
+  }
+
+  .chip-button-100 {
+    @apply from-rose-500/90 to-rose-600/90 border-rose-400/30;
+    @apply hover:shadow-rose-500/30 focus:ring-rose-500/50;
+  }
+
+  .chip-button-selected {
+    @apply scale-110 shadow-lg;
+    @apply ring-2 ring-offset-2 ring-offset-secondary-900;
+  }
+
+  .chip-button-value {
+    @apply text-white font-bold text-sm;
+    @apply drop-shadow-md;
+  }
+
+  /* Action Buttons */
+  .action-button {
+    @apply px-6 py-2.5 rounded-xl;
+    @apply font-medium text-sm;
+    @apply bg-gradient-to-br backdrop-blur-sm;
+    @apply border transition-all duration-300;
+    @apply flex items-center gap-2;
+    @apply hover:shadow-lg hover:translate-y-[-2px];
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-secondary-900;
+  }
+
+  .action-button-spin {
+    @apply from-gaming-primary/90 to-gaming-accent/90;
+    @apply border-gaming-primary/30;
+    @apply hover:shadow-gaming-primary/30;
+    @apply focus:ring-gaming-primary/50;
+    @apply text-white;
+  }
+
+  .action-button-clear {
+    @apply from-secondary-800/90 to-secondary-700/90;
+    @apply border-secondary-600/30;
+    @apply hover:shadow-secondary-500/30;
+    @apply focus:ring-secondary-500/50;
+    @apply text-secondary-300 hover:text-white;
+  }
+
+  .action-button-disabled {
+    @apply opacity-50 cursor-not-allowed;
+    @apply hover:translate-y-0 hover:shadow-none;
+  }
+
+  /* Responsive Adjustments */
   @media (max-width: 640px) {
     .betting-controls {
-      @apply flex-col items-stretch;
+      @apply flex-col gap-3;
     }
 
-    .stats-grid {
-      @apply grid-cols-2;
+    .betting-controls-left,
+    .betting-controls-right {
+      @apply w-full justify-between;
     }
+
+    .chip-selector {
+      @apply grid grid-cols-3 gap-2;
+    }
+
+    .action-button {
+      @apply w-full justify-center;
+    }
+  }
+
+  /* Place Bet Styles */
+  .bet-placement-indicator {
+    @apply absolute inset-0 rounded-xl;
+    @apply bg-gradient-to-br from-gaming-primary/20 to-gaming-accent/20;
+    @apply border-2 border-gaming-primary/30;
+    @apply shadow-[0_0_20px_rgba(var(--gaming-primary),0.3)];
+    @apply animate-pulse;
+    z-index: 15;
+  }
+
+  .bet-placement-preview {
+    @apply absolute -top-2 -right-2;
+    @apply flex items-center justify-center;
+    @apply min-w-[24px] h-6 px-2;
+    @apply rounded-full text-xs font-bold;
+    @apply bg-gradient-to-br from-gaming-primary to-gaming-accent;
+    @apply border border-white/20 shadow-lg;
+    @apply transform transition-all duration-300;
+    @apply animate-bounce-in;
+    z-index: 25;
+  }
+
+  .bet-placement-active {
+    @apply cursor-pointer;
+  }
+
+  .bet-placement-active:hover .bet-placement-indicator {
+    @apply from-gaming-primary/30 to-gaming-accent/30;
+    @apply border-gaming-primary/50;
+    @apply shadow-[0_0_30px_rgba(var(--gaming-primary),0.4)];
+  }
+
+  .bet-placement-active:hover .bet-placement-preview {
+    @apply scale-110 shadow-[0_4px_12px_rgba(var(--gaming-primary),0.4)];
+  }
+
+  .bet-placement-disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  .bet-placement-disabled .bet-placement-indicator {
+    @apply from-secondary-700/20 to-secondary-600/20;
+    @apply border-secondary-600/30;
+    @apply shadow-none animate-none;
+  }
+
+  .bet-placement-disabled .bet-placement-preview {
+    @apply from-secondary-700 to-secondary-600;
+    @apply shadow-none animate-none;
+  }
+
+  /* Bet Types */
+  .bet-type-straight {
+    @apply from-gaming-primary/20 to-gaming-accent/20;
+    @apply border-gaming-primary/30;
+  }
+
+  .bet-type-split {
+    @apply from-purple-500/20 to-purple-600/20;
+    @apply border-purple-500/30;
+  }
+
+  .bet-type-corner {
+    @apply from-blue-500/20 to-blue-600/20;
+    @apply border-blue-500/30;
+  }
+
+  .bet-type-street {
+    @apply from-green-500/20 to-green-600/20;
+    @apply border-green-500/30;
+  }
+
+  .bet-type-line {
+    @apply from-yellow-500/20 to-yellow-600/20;
+    @apply border-yellow-500/30;
+  }
+
+  .bet-type-column {
+    @apply from-rose-500/20 to-rose-600/20;
+    @apply border-rose-500/30;
+  }
+
+  .bet-type-dozen {
+    @apply from-cyan-500/20 to-cyan-600/20;
+    @apply border-cyan-500/30;
+  }
+
+  /* Bet Placement Animation */
+  @keyframes place-bet {
+    0% {
+      transform: scale(1.2);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(0.9);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .bet-placement-animation {
+    animation: place-bet 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
   }
 }
 
 @layer utilities {
   /* Text Effects */
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r
-           from-gaming-primary to-gaming-accent;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-gaming-primary to-gaming-accent;
   }
 
   .text-shadow {

@@ -114,6 +114,8 @@ const BettingBoard = ({
   selectedChipValue,
   lastWinningNumber,
   getNumberBackgroundClass,
+  onUndoBet,
+  onClearBets,
 }) => {
   // Add hover state
   const [hoveredNumbers, setHoveredNumbers] = useState([]);
@@ -228,11 +230,31 @@ const BettingBoard = ({
     <div className="flex flex-col gap-3 p-8 bg-secondary-900/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300">
       {/* Main betting grid */}
       <div className="grid grid-cols-[auto_45px_1fr] gap-2">
-        {/* Last Winning Number Display */}
-        <LastNumberDisplay
-          number={lastWinningNumber}
-          getNumberBackgroundClass={getNumberBackgroundClass}
-        />
+        <div className="flex flex-col gap-2">
+          {/* Last Winning Number Display */}
+          <LastNumberDisplay
+            number={lastWinningNumber}
+            getNumberBackgroundClass={getNumberBackgroundClass}
+          />
+
+          {/* Action Buttons under Last Number */}
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={onUndoBet}
+              className="btn-secondary bg-gradient-to-br from-orange-600/90 to-orange-700/90 hover:from-orange-500/90 hover:to-orange-600/90 rounded-xl py-2 px-3 font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50 h-10"
+              disabled={disabled || selectedBets.length === 0}
+            >
+              ↩
+            </button>
+            <button
+              onClick={onClearBets}
+              className="btn-secondary bg-gradient-to-br from-red-600/90 to-red-700/90 hover:from-red-500/90 hover:to-red-600/90 rounded-xl py-2 px-3 font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50 h-10"
+              disabled={disabled || selectedBets.length === 0}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
 
         {/* Zero */}
         <div className="row-span-3">
@@ -481,14 +503,12 @@ const BetControls = ({
   selectedChipValue,
   onChipValueChange,
   selectedBets,
-  onClearBets,
   onPlaceBets,
   onApprove,
   isApproved,
   isCheckingApproval,
   disabled,
   gameState,
-  onUndoBet,
 }) => {
   return (
     <div className="bet-controls space-y-6">
@@ -511,24 +531,6 @@ const BetControls = ({
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="grid grid-cols-2 gap-4">
-        <button
-          onClick={onUndoBet}
-          className="btn-secondary bg-gradient-to-br from-orange-600/90 to-orange-700/90 hover:from-orange-500/90 hover:to-orange-600/90 rounded-xl py-3 px-6 font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50"
-          disabled={disabled || selectedBets.length === 0}
-        >
-          Undo Last Bet
-        </button>
-        <button
-          onClick={onClearBets}
-          className="btn-secondary bg-gradient-to-br from-red-600/90 to-red-700/90 hover:from-red-500/90 hover:to-red-600/90 rounded-xl py-3 px-6 font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50"
-          disabled={disabled || selectedBets.length === 0}
-        >
-          Clear Bets
-        </button>
       </div>
 
       {/* Place Bet Button */}
@@ -837,71 +839,15 @@ const BettingHistory = ({ account, contracts }) => {
   }
 
   return (
-    <div className="betting-history glass-panel p-6 space-y-6">
-      {/* Header with Stats */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-secondary-700/50">
-        <div className="flex items-center gap-3">
-          <h3 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gaming-primary to-gaming-success">
-            Recent Bets
-          </h3>
-          <div className="px-2 py-1 rounded-full bg-secondary-800/70 text-xs text-secondary-400">
-            Last {filteredBets.length} games
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <StatBadge label="Wins" value={stats.totalWins} color="success" />
-          <StatBadge label="Losses" value={stats.totalLosses} color="error" />
-          <StatBadge
-            label="Win Rate"
-            value={`${stats.winRate}%`}
-            color="primary"
-          />
-          <div className="hidden sm:block w-px h-8 bg-secondary-700/50"></div>
-          <div className="text-sm">
-            <span className="text-secondary-400">Total Profit: </span>
-            <span
-              className={`font-bold ${stats.totalProfit >= 0 ? "text-gaming-success" : "text-gaming-error"}`}
-            >
-              {ethers.formatEther(stats.totalProfit)} GAMA
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="text-sm text-secondary-400">Filter by:</div>
-        <div className="flex gap-2 p-1 bg-secondary-800/50 rounded-lg backdrop-blur-sm">
-          <FilterButton
-            active={filter === "all"}
-            onClick={() => setFilter("all")}
-          >
-            All Bets
-          </FilterButton>
-          <FilterButton
-            active={filter === "wins"}
-            onClick={() => setFilter("wins")}
-          >
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-gaming-success"></span>
-              Wins
-            </span>
-          </FilterButton>
-          <FilterButton
-            active={filter === "losses"}
-            onClick={() => setFilter("losses")}
-          >
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-gaming-error"></span>
-              Losses
-            </span>
-          </FilterButton>
-        </div>
+    <div className="betting-history">
+      {/* History Header */}
+      <div className="history-header">
+        <h2 className="history-title">Betting History</h2>
       </div>
 
       {/* Bet History List */}
       {filteredBets.length > 0 ? (
-        <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar">
+        <div className="history-list">
           <AnimatePresence>
             {filteredBets.map((group, index) => (
               <motion.div
@@ -909,40 +855,36 @@ const BettingHistory = ({ account, contracts }) => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                transition={{ delay: index * 0.05 }}
-                className={`
-                  relative p-6 rounded-xl border backdrop-blur-sm
-                  ${
-                    group.totalPayout > group.totalAmount
-                      ? "border-gaming-success/20 bg-gaming-success/5 hover:border-gaming-success/30"
-                      : "border-gaming-error/20 bg-gaming-error/5 hover:border-gaming-error/30"
-                  }
-                  hover:transform hover:scale-[1.02] transition-all duration-300
-                  shadow-lg hover:shadow-xl
-                `}
+                transition={{
+                  type: "spring",
+                  stiffness: 500,
+                  damping: 30,
+                  delay: index * 0.05,
+                }}
+                className={`history-item ${
+                  group.totalPayout > group.totalAmount
+                    ? "history-item-win"
+                    : "history-item-loss"
+                }`}
               >
                 {/* Header with timestamp and result */}
                 <div className="flex justify-between items-center mb-4">
-                  <div className="flex items-center gap-2">
+                  <div className="history-timestamp">
                     <div
-                      className={`
-                      w-3 h-3 rounded-full animate-pulse
-                      ${group.totalPayout > group.totalAmount ? "bg-gaming-success" : "bg-gaming-error"}
-                    `}
+                      className={`history-status-indicator ${
+                        group.totalPayout > group.totalAmount
+                          ? "history-status-win"
+                          : "history-status-loss"
+                      }`}
                     ></div>
-                    <div className="text-sm text-secondary-400">
-                      {new Date(group.timestamp * 1000).toLocaleString()}
-                    </div>
+                    {new Date(group.timestamp * 1000).toLocaleString()}
                   </div>
                   <div
-                    className={`
-                      px-3 py-1 rounded-full text-sm font-bold
-                      ${
-                        group.totalPayout > group.totalAmount
-                          ? "bg-gaming-success/20 text-gaming-success"
-                          : "bg-gaming-error/20 text-gaming-error"
-                      }
-                    `}
+                    className={`history-result-badge ${
+                      group.totalPayout > group.totalAmount
+                        ? "history-result-badge-win"
+                        : "history-result-badge-loss"
+                    }`}
                   >
                     {group.totalPayout > group.totalAmount ? "WIN" : "LOSS"}
                   </div>
@@ -953,35 +895,29 @@ const BettingHistory = ({ account, contracts }) => {
                   {/* Winning Number Section */}
                   <div className="flex items-center gap-4">
                     <div
-                      className={`
-                      w-16 h-16 rounded-xl flex items-center justify-center
-                      ${isRed(group.winningNumber) ? "bg-gaming-primary/20" : "bg-gray-800/50"}
-                      border-2 ${isRed(group.winningNumber) ? "border-gaming-primary/30" : "border-gray-700/30"}
-                      shadow-lg
-                    `}
+                      className={`history-number ${
+                        isRed(group.winningNumber)
+                          ? "history-number-red"
+                          : "history-number-black"
+                      }`}
                     >
-                      <span className="text-3xl font-bold text-white">
+                      <span className="history-number-text">
                         {group.winningNumber}
                       </span>
                     </div>
                     <div>
-                      <div className="text-sm text-secondary-400 mb-1">
-                        Winning Number
-                      </div>
-                      <div className="flex items-center gap-2">
+                      <div className="history-number-label">Winning Number</div>
+                      <div className="history-number-tags">
                         <span
-                          className={`
-                          px-2 py-0.5 rounded text-xs font-medium
-                          ${isRed(group.winningNumber) ? "bg-gaming-primary/20 text-gaming-primary" : "bg-gray-800 text-gray-300"}
-                        `}
+                          className={`history-tag ${
+                            isRed(group.winningNumber)
+                              ? "history-tag-red"
+                              : "history-tag-black"
+                          }`}
                         >
                           {isRed(group.winningNumber) ? "RED" : "BLACK"}
                         </span>
-                        <span
-                          className={`
-                          px-2 py-0.5 rounded text-xs font-medium bg-secondary-700/50 text-secondary-300
-                        `}
-                        >
+                        <span className="history-tag history-tag-range">
                           {group.winningNumber <= 18 ? "1-18" : "19-36"}
                         </span>
                       </div>
@@ -990,28 +926,17 @@ const BettingHistory = ({ account, contracts }) => {
 
                   {/* Bet Details Section */}
                   <div>
-                    <div className="text-sm text-secondary-400 mb-2">
-                      Bet Details
-                    </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="history-number-label">Bet Details</div>
+                    <div className="history-bets">
                       {group.bets.map((bet, i) => (
-                        <div
-                          key={i}
-                          className="
-                            px-3 py-1.5 rounded-lg
-                            bg-secondary-800/70 backdrop-blur-sm
-                            border border-secondary-700/50
-                            hover:border-secondary-600/50
-                            transition-colors duration-200
-                          "
-                        >
-                          <div className="text-sm font-medium text-secondary-200">
+                        <div key={i} className="history-bet-item">
+                          <div className="history-bet-type">
                             {getBetTypeName(bet.betType)}
                           </div>
-                          <div className="text-xs text-secondary-400 mt-0.5">
+                          <div className="history-bet-amount">
                             {ethers.formatEther(bet.amount)} GAMA
                             {bet.payout > bet.amount && (
-                              <span className="ml-1 text-gaming-success">
+                              <span className="history-bet-payout">
                                 (+
                                 {ethers.formatEther(
                                   BigInt(bet.payout) - BigInt(bet.amount),
@@ -1027,33 +952,25 @@ const BettingHistory = ({ account, contracts }) => {
                 </div>
 
                 {/* Amounts Section */}
-                <div
-                  className="
-                  grid grid-cols-2 gap-4 mt-6 pt-4
-                  border-t border-secondary-600/30
-                "
-                >
+                <div className="history-totals">
                   <div>
-                    <div className="text-sm text-secondary-400 mb-1">
-                      Total Bet
-                    </div>
-                    <div className="text-lg font-medium text-secondary-200">
+                    <div className="history-total-label">Total Bet</div>
+                    <div className="history-total-value history-total-value-bet">
                       {ethers.formatEther(group.totalAmount.toString())} GAMA
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-secondary-400 mb-1">
-                      Total Payout
-                    </div>
+                    <div className="history-total-label">Total Payout</div>
                     <div
-                      className={`
-                      text-lg font-bold
-                      ${group.totalPayout > group.totalAmount ? "text-gaming-success" : "text-gaming-error"}
-                    `}
+                      className={`history-total-value ${
+                        group.totalPayout > group.totalAmount
+                          ? "history-total-value-win"
+                          : "history-total-value-loss"
+                      }`}
                     >
                       {ethers.formatEther(group.totalPayout.toString())} GAMA
                       {group.totalPayout > group.totalAmount && (
-                        <span className="text-sm ml-2">
+                        <span className="history-total-diff">
                           (+
                           {ethers.formatEther(
                             BigInt(group.totalPayout) -
@@ -1070,8 +987,14 @@ const BettingHistory = ({ account, contracts }) => {
           </AnimatePresence>
         </div>
       ) : (
-        <div className="text-center text-secondary-400 py-8">
-          No betting history available
+        <div className="text-center py-12 bg-secondary-800/30 rounded-xl border border-secondary-700/30">
+          <div className="text-3xl mb-2 opacity-20">🎲</div>
+          <div className="text-secondary-400 font-medium">
+            No betting history available
+          </div>
+          <div className="text-secondary-500 text-sm mt-1">
+            Place your first bet to start your journey
+          </div>
         </div>
       )}
     </div>
@@ -1743,20 +1666,20 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
                 selectedChipValue={selectedChipValue}
                 lastWinningNumber={lastWinningNumber}
                 getNumberBackgroundClass={getNumberBackgroundClass}
+                onUndoBet={handleUndoBet}
+                onClearBets={handleClearBets}
               />
 
               <BetControls
                 selectedChipValue={selectedChipValue}
                 onChipValueChange={handleChipValueChange}
                 selectedBets={selectedBets}
-                onClearBets={handleClearBets}
                 onPlaceBets={handlePlaceBets}
                 onApprove={handleApprove}
                 isApproved={isApproved}
                 isCheckingApproval={isCheckingApproval}
                 disabled={isProcessing}
                 gameState={{ isProcessing }}
-                onUndoBet={handleUndoBet}
               />
             </div>
 

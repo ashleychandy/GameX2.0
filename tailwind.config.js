@@ -78,14 +78,14 @@ module.exports = {
         "dice-roll": "diceRoll 1s ease-out",
         "slide-up": "slideUp 0.5s ease-out",
         "slide-down": "slideDown 0.5s ease-out",
-        'dice-bounce': 'diceBounce 0.5s ease-in-out',
-        'dice-shake': 'diceShake 0.5s ease-in-out',
-        'number-pop': 'numberPop 0.3s ease-out',
-        'result-fade': 'resultFade 0.5s ease-in-out',
-        'fade-in': 'fadeIn 0.3s ease-in-out',
-        'scale-in': 'scaleIn 0.3s ease-out',
-        'spin-reverse': 'spin 1s linear infinite reverse',
-        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+        "dice-bounce": "diceBounce 0.5s ease-in-out",
+        "dice-shake": "diceShake 0.5s ease-in-out",
+        "number-pop": "numberPop 0.3s ease-out",
+        "result-fade": "resultFade 0.5s ease-in-out",
+        "fade-in": "fadeIn 0.3s ease-in-out",
+        "scale-in": "scaleIn 0.3s ease-out",
+        "spin-reverse": "spin 1s linear infinite reverse",
+        shake: "shake 0.5s cubic-bezier(.36,.07,.19,.97) both",
       },
       keyframes: {
         float: {
@@ -113,49 +113,55 @@ module.exports = {
           "100%": { transform: "translateY(0)", opacity: "1" },
         },
         diceBounce: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-20px)' },
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-20px)" },
         },
         diceShake: {
-          '0%, 100%': { transform: 'rotate(0deg)' },
-          '25%': { transform: 'rotate(-15deg)' },
-          '75%': { transform: 'rotate(15deg)' },
+          "0%, 100%": { transform: "rotate(0deg)" },
+          "25%": { transform: "rotate(-15deg)" },
+          "75%": { transform: "rotate(15deg)" },
         },
         numberPop: {
-          '0%': { transform: 'scale(0.8)', opacity: '0' },
-          '50%': { transform: 'scale(1.1)' },
-          '100%': { transform: 'scale(1)', opacity: '1' },
+          "0%": { transform: "scale(0.8)", opacity: "0" },
+          "50%": { transform: "scale(1.1)" },
+          "100%": { transform: "scale(1)", opacity: "1" },
         },
         resultFade: {
-          '0%': { opacity: '0', transform: 'scale(0.9)' },
-          '100%': { opacity: '1', transform: 'scale(1)' },
+          "0%": { opacity: "0", transform: "scale(0.9)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
         },
         fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
         },
         scaleIn: {
-          '0%': { transform: 'scale(0.95)', opacity: '0' },
-          '100%': { transform: 'scale(1)', opacity: '1' },
+          "0%": { transform: "scale(0.95)", opacity: "0" },
+          "100%": { transform: "scale(1)", opacity: "1" },
         },
         shake: {
-          '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
-          '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
-          '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
-          '40%, 60%': { transform: 'translate3d(4px, 0, 0)' },
+          "10%, 90%": { transform: "translate3d(-1px, 0, 0)" },
+          "20%, 80%": { transform: "translate3d(2px, 0, 0)" },
+          "30%, 50%, 70%": { transform: "translate3d(-4px, 0, 0)" },
+          "40%, 60%": { transform: "translate3d(4px, 0, 0)" },
         },
       },
       backdropBlur: {
         xs: "2px",
       },
       aspectRatio: {
-        'square': '1',
-        'auto': 'auto',
-        '4/3': '4 / 3',
-        '16/9': '16 / 9',
+        square: "1",
+        auto: "auto",
+        "4/3": "4 / 3",
+        "16/9": "16 / 9",
       },
       gridTemplateColumns: {
-        '14': 'repeat(14, minmax(0, 1fr))',
+        14: "repeat(14, minmax(0, 1fr))",
+      },
+      textShadow: {
+        sm: "0 1px 2px rgba(0, 0, 0, 0.2)",
+        DEFAULT: "0 2px 4px rgba(0, 0, 0, 0.3)",
+        lg: "0 3px 6px rgba(0, 0, 0, 0.4)",
+        xl: "0 4px 8px rgba(0, 0, 0, 0.5)",
       },
     },
   },
@@ -163,6 +169,7 @@ module.exports = {
     require("@tailwindcss/typography"),
     require("@tailwindcss/forms"),
     require("@tailwindcss/aspect-ratio"),
+    require("tailwind-scrollbar"),
     plugin(({ addComponents, addUtilities }) => {
       addComponents({
         ".btn-gaming": {
@@ -186,14 +193,14 @@ module.exports = {
           "@apply border border-secondary-700/50": {},
           "@apply rounded-xl shadow-glass": {},
         },
-        '.stat-card': {
-          '@apply glass-panel p-4 flex flex-col space-y-2': {},
-          '@apply hover:scale-105 transition-transform duration-300': {},
+        ".stat-card": {
+          "@apply glass-panel p-4 flex flex-col space-y-2": {},
+          "@apply hover:scale-105 transition-transform duration-300": {},
         },
-        '.game-card': {
-          '@apply glass-panel p-6 flex flex-col space-y-4': {},
-          '@apply hover:shadow-glow transition-all duration-300': {},
-          '@apply border border-gaming-primary/20': {},
+        ".game-card": {
+          "@apply glass-panel p-6 flex flex-col space-y-4": {},
+          "@apply hover:shadow-glow transition-all duration-300": {},
+          "@apply border border-gaming-primary/20": {},
         },
       }),
         addUtilities({
@@ -212,5 +219,15 @@ module.exports = {
           },
         });
     }),
+    function ({ matchUtilities, theme }) {
+      matchUtilities(
+        {
+          "text-shadow": (value) => ({
+            textShadow: value,
+          }),
+        },
+        { values: theme("textShadow") },
+      );
+    },
   ],
 };
