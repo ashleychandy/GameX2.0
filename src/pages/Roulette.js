@@ -400,89 +400,97 @@ const BettingBoard = ({
       {/* Bottom betting options */}
       <div className="flex flex-col gap-2 mt-1">
         {/* Dozens */}
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { start: 1, label: "1 to 12", type: BetTypes.DOZEN_BET_FIRST },
-            { start: 13, label: "13 to 24", type: BetTypes.DOZEN_BET_SECOND },
-            { start: 25, label: "25 to 36", type: BetTypes.DOZEN_BET_THIRD },
-          ].map((dozen) => (
-            <button
-              key={dozen.start}
-              onClick={() => {
-                const numbers = Array.from(
-                  { length: 12 },
-                  (_, i) => dozen.start + i,
-                );
-                handleBet(numbers, dozen.type);
-              }}
-              onMouseEnter={() =>
-                setHoveredNumbers(getNumbersForBetType(dozen.type))
-              }
-              onMouseLeave={() => setHoveredNumbers([])}
-              className="h-12 rounded-lg bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 shadow-lg hover:shadow-purple-500/20 transition-all duration-200 text-base font-bold flex items-center justify-center text-white/90 relative"
-            >
-              {dozen.label}
-              {getBetAmount([dozen.start], dozen.type) > 0 && (
-                <div className="absolute -top-2 -right-2 bg-white/95 text-purple-600 text-xs px-2 py-0.5 rounded-full z-10 shadow-lg font-bold border border-purple-200/20">
-                  {getBetAmount([dozen.start], dozen.type)}
-                </div>
-              )}
-            </button>
-          ))}
+        <div className="grid grid-cols-[auto_45px_1fr] gap-1">
+          <div className="w-24"></div>
+          <div className="w-[45px]"></div>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { start: 1, label: "1 to 12", type: BetTypes.DOZEN_BET_FIRST },
+              { start: 13, label: "13 to 24", type: BetTypes.DOZEN_BET_SECOND },
+              { start: 25, label: "25 to 36", type: BetTypes.DOZEN_BET_THIRD },
+            ].map((dozen) => (
+              <button
+                key={dozen.start}
+                onClick={() => {
+                  const numbers = Array.from(
+                    { length: 12 },
+                    (_, i) => dozen.start + i,
+                  );
+                  handleBet(numbers, dozen.type);
+                }}
+                onMouseEnter={() =>
+                  setHoveredNumbers(getNumbersForBetType(dozen.type))
+                }
+                onMouseLeave={() => setHoveredNumbers([])}
+                className="h-12 rounded-lg bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 shadow-lg hover:shadow-purple-500/20 transition-all duration-200 text-base font-bold flex items-center justify-center text-white/90 relative"
+              >
+                {dozen.label}
+                {getBetAmount([dozen.start], dozen.type) > 0 && (
+                  <div className="absolute -top-2 -right-2 bg-white/95 text-purple-600 text-xs px-2 py-0.5 rounded-full z-10 shadow-lg font-bold border border-purple-200/20">
+                    {getBetAmount([dozen.start], dozen.type)}
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Other betting options */}
-        <div className="grid grid-cols-6 gap-2">
-          {[
-            { type: BetTypes.LOW_BET, label: "1 to 18", color: "cyan" },
-            { type: BetTypes.EVEN_BET, label: "Even", color: "cyan" },
-            {
-              type: BetTypes.RED_BET,
-              label: "Red",
-              color: "gaming-primary",
-              isRed: true,
-            },
-            { type: BetTypes.BLACK_BET, label: "Black", color: "gray" },
-            { type: BetTypes.ODD_BET, label: "Odd", color: "cyan" },
-            { type: BetTypes.HIGH_BET, label: "19 to 36", color: "cyan" },
-          ].map((option) => (
-            <button
-              key={option.label}
-              onClick={() => handleBet([], option.type)}
-              onMouseEnter={() =>
-                setHoveredNumbers(getNumbersForBetType(option.type))
-              }
-              onMouseLeave={() => setHoveredNumbers([])}
-              className={`h-12 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 text-base font-bold flex items-center justify-center relative ${
-                option.isRed
-                  ? "bg-gradient-to-br from-gaming-primary to-gaming-primary/90 hover:from-gaming-primary hover:to-gaming-primary/80 text-white/90"
-                  : option.color === "gray"
-                    ? "bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-white/90"
-                    : `bg-gradient-to-br from-${option.color}-600 to-${option.color}-700 hover:from-${option.color}-500 hover:to-${option.color}-600 text-white/90 hover:shadow-${option.color}-500/20`
-              }`}
-            >
-              {option.label}
-              {getBetAmount([], option.type) > 0 && (
-                <div
-                  className={`absolute -top-2 -right-2 bg-white/95 ${
-                    option.isRed
-                      ? "text-gaming-primary"
-                      : option.color === "gray"
-                        ? "text-gray-800"
-                        : `text-${option.color}-600`
-                  } text-xs px-2 py-0.5 rounded-full z-10 shadow-lg font-bold border ${
-                    option.isRed
-                      ? "border-gaming-primary/20"
-                      : option.color === "gray"
-                        ? "border-gray-300/20"
-                        : `border-${option.color}-200/20`
-                  }`}
-                >
-                  {getBetAmount([], option.type)}
-                </div>
-              )}
-            </button>
-          ))}
+        <div className="grid grid-cols-[auto_45px_1fr] gap-1">
+          <div className="w-24"></div>
+          <div className="w-[45px]"></div>
+          <div className="grid grid-cols-6 gap-2">
+            {[
+              { type: BetTypes.LOW_BET, label: "1 to 18", color: "cyan" },
+              { type: BetTypes.EVEN_BET, label: "Even", color: "cyan" },
+              {
+                type: BetTypes.RED_BET,
+                label: "Red",
+                color: "gaming-primary",
+                isRed: true,
+              },
+              { type: BetTypes.BLACK_BET, label: "Black", color: "gray" },
+              { type: BetTypes.ODD_BET, label: "Odd", color: "cyan" },
+              { type: BetTypes.HIGH_BET, label: "19 to 36", color: "cyan" },
+            ].map((option) => (
+              <button
+                key={option.label}
+                onClick={() => handleBet([], option.type)}
+                onMouseEnter={() =>
+                  setHoveredNumbers(getNumbersForBetType(option.type))
+                }
+                onMouseLeave={() => setHoveredNumbers([])}
+                className={`h-12 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 text-base font-bold flex items-center justify-center relative ${
+                  option.isRed
+                    ? "bg-gradient-to-br from-gaming-primary to-gaming-primary/90 hover:from-gaming-primary hover:to-gaming-primary/80 text-white/90"
+                    : option.color === "gray"
+                      ? "bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-white/90"
+                      : `bg-gradient-to-br from-${option.color}-600 to-${option.color}-700 hover:from-${option.color}-500 hover:to-${option.color}-600 text-white/90 hover:shadow-${option.color}-500/20`
+                }`}
+              >
+                {option.label}
+                {getBetAmount([], option.type) > 0 && (
+                  <div
+                    className={`absolute -top-2 -right-2 bg-white/95 ${
+                      option.isRed
+                        ? "text-gaming-primary"
+                        : option.color === "gray"
+                          ? "text-gray-800"
+                          : `text-${option.color}-600`
+                    } text-xs px-2 py-0.5 rounded-full z-10 shadow-lg font-bold border ${
+                      option.isRed
+                        ? "border-gaming-primary/20"
+                        : option.color === "gray"
+                          ? "border-gray-300/20"
+                          : `border-${option.color}-200/20`
+                    }`}
+                  >
+                    {getBetAmount([], option.type)}
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
