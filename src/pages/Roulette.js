@@ -511,7 +511,7 @@ const BetControls = ({
   gameState,
 }) => {
   return (
-    <div className="bet-controls space-y-6">
+    <div className="bet-controls grid grid-cols-[2fr_1fr] gap-6">
       {/* Chip Selection */}
       <div>
         <h3 className="text-lg font-semibold text-secondary-300 mb-3">
@@ -534,37 +534,39 @@ const BetControls = ({
       </div>
 
       {/* Place Bet Button */}
-      {isCheckingApproval ? (
-        <button className="place-bet-button" disabled={true}>
-          <div className="flex items-center justify-center gap-2">
-            <LoadingSpinner size="small" />
-            Checking Approval...
-          </div>
-        </button>
-      ) : isApproved ? (
-        <button
-          onClick={onPlaceBets}
-          className="place-bet-button"
-          disabled={disabled || selectedBets.length === 0}
-        >
-          {gameState.isProcessing ? (
+      <div className="flex items-end">
+        {isCheckingApproval ? (
+          <button className="place-bet-button w-full" disabled={true}>
             <div className="flex items-center justify-center gap-2">
               <LoadingSpinner size="small" />
-              Processing...
+              Checking Approval...
             </div>
-          ) : (
-            "Place Bets"
-          )}
-        </button>
-      ) : (
-        <button
-          onClick={onApprove}
-          className="place-bet-button"
-          disabled={disabled}
-        >
-          Approve Token
-        </button>
-      )}
+          </button>
+        ) : isApproved ? (
+          <button
+            onClick={onPlaceBets}
+            className="place-bet-button w-full"
+            disabled={disabled || selectedBets.length === 0}
+          >
+            {gameState.isProcessing ? (
+              <div className="flex items-center justify-center gap-2">
+                <LoadingSpinner size="small" />
+                Processing...
+              </div>
+            ) : (
+              "Place Bets"
+            )}
+          </button>
+        ) : (
+          <button
+            onClick={onApprove}
+            className="place-bet-button w-full"
+            disabled={disabled}
+          >
+            Approve Token
+          </button>
+        )}
+      </div>
     </div>
   );
 };
