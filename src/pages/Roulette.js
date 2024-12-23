@@ -240,16 +240,21 @@ const BettingBoard = ({
             onClick={() => handleBet([0], BetTypes.STRAIGHT_BET)}
             onMouseEnter={() => setHoveredNumbers([0])}
             onMouseLeave={() => setHoveredNumbers([])}
-            className={`number-button-zero transform transition-all duration-300 hover:scale-105 hover:shadow-lg ${
+            className={`number-button-zero ${
               getBetAmount([0], BetTypes.STRAIGHT_BET) > 0 || isNumberHovered(0)
-                ? "ring-2 ring-emerald-400/50 ring-offset-2 ring-offset-secondary-900 shadow-emerald-500/20"
+                ? "number-button-highlighted"
                 : ""
             }`}
           >
             <span className="text-white/90 text-2xl">0</span>
             {getBetAmount([0], BetTypes.STRAIGHT_BET) > 0 && (
-              <div className="chip-stack animate-bounceIn">
-                {getBetAmount([0], BetTypes.STRAIGHT_BET)}
+              <div
+                className="chip-stack"
+                data-value={getBetAmount([0], BetTypes.STRAIGHT_BET)}
+              >
+                <span className="chip-stack-value">
+                  {getBetAmount([0], BetTypes.STRAIGHT_BET)}
+                </span>
               </div>
             )}
           </button>
@@ -270,17 +275,22 @@ const BettingBoard = ({
                   onMouseLeave={() => setHoveredNumbers([])}
                   className={`number-button ${
                     isRed(number) ? "number-button-red" : "number-button-black"
-                  } transform transition-all duration-300 hover:scale-105 hover:shadow-lg ${
+                  } ${
                     getBetAmount([number], BetTypes.STRAIGHT_BET) > 0 ||
                     isNumberHovered(number)
-                      ? "ring-2 ring-gaming-primary/50 ring-offset-2 ring-offset-secondary-900 shadow-gaming-primary/20"
+                      ? "number-button-highlighted"
                       : ""
                   }`}
                 >
                   <span className="text-white/90 text-xl">{number}</span>
                   {getBetAmount([number], BetTypes.STRAIGHT_BET) > 0 && (
-                    <div className="chip-stack animate-bounceIn">
-                      {getBetAmount([number], BetTypes.STRAIGHT_BET)}
+                    <div
+                      className="chip-stack"
+                      data-value={getBetAmount([number], BetTypes.STRAIGHT_BET)}
+                    >
+                      <span className="chip-stack-value">
+                        {getBetAmount([number], BetTypes.STRAIGHT_BET)}
+                      </span>
                     </div>
                   )}
                 </button>
@@ -310,7 +320,27 @@ const BettingBoard = ({
                   setHoveredNumbers(numbers);
                 }}
                 onMouseLeave={() => setHoveredNumbers([])}
-                className="column-bet transform transition-all duration-300 hover:scale-105 hover:shadow-lg hover:bg-secondary-700/80 hover:border-gaming-primary/30"
+                className={`column-bet ${
+                  getBetAmount(
+                    [3 - rowIndex],
+                    3 - rowIndex === 1
+                      ? BetTypes.COLUMN_BET_FIRST
+                      : 3 - rowIndex === 2
+                        ? BetTypes.COLUMN_BET_SECOND
+                        : BetTypes.COLUMN_BET_THIRD,
+                  ) > 0 ||
+                  hoveredNumbers.some((num) =>
+                    getNumbersForBetType(
+                      3 - rowIndex === 1
+                        ? BetTypes.COLUMN_BET_FIRST
+                        : 3 - rowIndex === 2
+                          ? BetTypes.COLUMN_BET_SECOND
+                          : BetTypes.COLUMN_BET_THIRD,
+                    ).includes(num),
+                  )
+                    ? "column-bet-highlighted"
+                    : ""
+                }`}
               >
                 2:1
                 {getBetAmount(
@@ -321,8 +351,9 @@ const BettingBoard = ({
                       ? BetTypes.COLUMN_BET_SECOND
                       : BetTypes.COLUMN_BET_THIRD,
                 ) > 0 && (
-                  <div className="chip-stack animate-bounceIn">
-                    {getBetAmount(
+                  <div
+                    className="chip-stack"
+                    data-value={getBetAmount(
                       [3 - rowIndex],
                       3 - rowIndex === 1
                         ? BetTypes.COLUMN_BET_FIRST
@@ -330,6 +361,17 @@ const BettingBoard = ({
                           ? BetTypes.COLUMN_BET_SECOND
                           : BetTypes.COLUMN_BET_THIRD,
                     )}
+                  >
+                    <span className="chip-stack-value">
+                      {getBetAmount(
+                        [3 - rowIndex],
+                        3 - rowIndex === 1
+                          ? BetTypes.COLUMN_BET_FIRST
+                          : 3 - rowIndex === 2
+                            ? BetTypes.COLUMN_BET_SECOND
+                            : BetTypes.COLUMN_BET_THIRD,
+                      )}
+                    </span>
                   </div>
                 )}
               </button>
@@ -367,8 +409,13 @@ const BettingBoard = ({
               >
                 {dozen.label}
                 {getBetAmount([dozen.start], dozen.type) > 0 && (
-                  <div className="absolute -top-2 -right-2 bg-white/95 text-purple-600 text-xs px-2 py-0.5 rounded-full z-10 shadow-lg font-bold border border-purple-200/20 animate-bounceIn">
-                    {getBetAmount([dozen.start], dozen.type)}
+                  <div
+                    className="chip-stack"
+                    data-value={getBetAmount([dozen.start], dozen.type)}
+                  >
+                    <span className="chip-stack-value">
+                      {getBetAmount([dozen.start], dozen.type)}
+                    </span>
                   </div>
                 )}
               </button>
@@ -412,21 +459,12 @@ const BettingBoard = ({
                 {option.label}
                 {getBetAmount([], option.type) > 0 && (
                   <div
-                    className={`absolute -top-2 -right-2 bg-white/95 ${
-                      option.isRed
-                        ? "text-gaming-primary"
-                        : option.color === "gray"
-                          ? "text-gray-800"
-                          : `text-${option.color}-600`
-                    } text-xs px-2 py-0.5 rounded-full z-10 shadow-lg font-bold border ${
-                      option.isRed
-                        ? "border-gaming-primary/20"
-                        : option.color === "gray"
-                          ? "border-gray-300/20"
-                          : `border-${option.color}-200/20`
-                    } animate-bounceIn`}
+                    className="chip-stack"
+                    data-value={getBetAmount([], option.type)}
                   >
-                    {getBetAmount([], option.type)}
+                    <span className="chip-stack-value">
+                      {getBetAmount([], option.type)}
+                    </span>
                   </div>
                 )}
               </button>
