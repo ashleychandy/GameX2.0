@@ -89,20 +89,10 @@ const isRed = (number) => redNumbers.includes(Number(number));
 const LastNumberDisplay = ({ number, getNumberBackgroundClass }) => {
   const bgClass = getNumberBackgroundClass(number);
 
-  // Add debug logging
-  React.useEffect(() => {
-    console.log(
-      "LastNumberDisplay received number:",
-      number,
-      "type:",
-      typeof number,
-    );
-  }, [number]);
-
   return (
     <div className="flex items-center justify-center w-24">
       <div
-        className={`aspect-square w-full rounded-xl flex items-center justify-center font-bold text-4xl relative transform transition-all duration-500 hover:scale-105 ${bgClass} shadow-lg hover:shadow-2xl border border-white/20`}
+        className={`aspect-square w-full rounded-xl flex items-center justify-center font-bold relative transform transition-all duration-500 hover:scale-105 ${bgClass} shadow-lg hover:shadow-2xl border border-white/20 animate-float`}
       >
         <div className="absolute -top-8 left-0 right-0 text-center text-sm text-secondary-300 font-medium">
           Last Number
@@ -463,75 +453,78 @@ const BetControls = ({
   onUndoBet,
 }) => {
   return (
-    <div className="bet-controls glass-panel p-4 space-y-4">
-      <div className="chip-selector flex flex-wrap gap-2">
-        {CHIP_VALUES.map((chip) => (
-          <button
-            key={chip.value}
-            onClick={() => onChipValueChange(chip.value)}
-            disabled={disabled}
-            className={`chip-button ${
-              selectedChipValue === chip.value ? "ring-2 ring-white" : ""
-            } ${
-              chip.label === "1"
-                ? "chip-1"
-                : chip.label === "5"
-                  ? "chip-5"
-                  : chip.label === "10"
-                    ? "chip-10"
-                    : `chip-button-${chip.label}`
-            }`}
-          >
-            {chip.label}
-          </button>
-        ))}
+    <div className="bet-controls space-y-6">
+      {/* Chip Selection */}
+      <div>
+        <h3 className="text-lg font-semibold text-secondary-300 mb-3">
+          Select Chip Value
+        </h3>
+        <div className="chip-selector">
+          {CHIP_VALUES.map((chip) => (
+            <button
+              key={chip.value}
+              onClick={() => onChipValueChange(chip.value)}
+              disabled={disabled}
+              className={`chip-button ${
+                selectedChipValue === chip.value ? "ring-2 ring-white" : ""
+              } chip-${chip.label.toLowerCase()}`}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Bet Controls */}
-      <div className="flex gap-2">
+      {/* Action Buttons */}
+      <div className="grid grid-cols-2 gap-4">
         <button
           onClick={onUndoBet}
-          className="btn-secondary flex-1 bg-gradient-to-br from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600"
+          className="btn-secondary bg-gradient-to-br from-orange-600/90 to-orange-700/90 hover:from-orange-500/90 hover:to-orange-600/90 rounded-xl py-3 px-6 font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50"
           disabled={disabled || selectedBets.length === 0}
         >
           Undo Last Bet
         </button>
         <button
           onClick={onClearBets}
-          className="btn-secondary flex-1"
+          className="btn-secondary bg-gradient-to-br from-red-600/90 to-red-700/90 hover:from-red-500/90 hover:to-red-600/90 rounded-xl py-3 px-6 font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50"
           disabled={disabled || selectedBets.length === 0}
         >
           Clear Bets
         </button>
-        {isCheckingApproval ? (
-          <button className="place-bet-button flex-1" disabled={true}>
-            Checking Approval...
-          </button>
-        ) : isApproved ? (
-          <button
-            onClick={onPlaceBets}
-            className="place-bet-button flex-1"
-            disabled={disabled || selectedBets.length === 0}
-          >
-            {gameState.isProcessing ? (
-              <span className="flex items-center justify-center gap-2">
-                <LoadingSpinner size="small" />
-                Processing...
-              </span>
-            ) : (
-              "Place Bets"
-            )}
-          </button>
-        ) : (
-          <button
-            onClick={onApprove}
-            className="approve-button flex-1"
-            disabled={disabled}
-          >
-            Approve Token
-          </button>
-        )}
       </div>
+
+      {/* Place Bet Button */}
+      {isCheckingApproval ? (
+        <button className="place-bet-button" disabled={true}>
+          <div className="flex items-center justify-center gap-2">
+            <LoadingSpinner size="small" />
+            Checking Approval...
+          </div>
+        </button>
+      ) : isApproved ? (
+        <button
+          onClick={onPlaceBets}
+          className="place-bet-button"
+          disabled={disabled || selectedBets.length === 0}
+        >
+          {gameState.isProcessing ? (
+            <div className="flex items-center justify-center gap-2">
+              <LoadingSpinner size="small" />
+              Processing...
+            </div>
+          ) : (
+            "Place Bets"
+          )}
+        </button>
+      ) : (
+        <button
+          onClick={onApprove}
+          className="place-bet-button"
+          disabled={disabled}
+        >
+          Approve Token
+        </button>
+      )}
     </div>
   );
 };
@@ -1688,48 +1681,69 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
   }, [lastWinningNumber, account]);
 
   return (
-    <div className="bg-white min-h-screen">
-      <div className="page-container">
-        <div className="roulette-container">
-          <BettingBoard
-            onBetSelect={handleBetSelect}
-            selectedBets={selectedBets}
-            disabled={isProcessing}
-            selectedChipValue={selectedChipValue}
-            lastWinningNumber={lastWinningNumber}
-            getNumberBackgroundClass={getNumberBackgroundClass}
-          />
-
-          <div className="betting-controls">
-            <BetControls
-              selectedChipValue={selectedChipValue}
-              onChipValueChange={handleChipValueChange}
-              selectedBets={selectedBets}
-              onClearBets={handleClearBets}
-              onPlaceBets={handlePlaceBets}
-              onApprove={handleApprove}
-              isApproved={isApproved}
-              isCheckingApproval={isCheckingApproval}
-              disabled={isProcessing}
-              gameState={{ isProcessing }}
-              onUndoBet={handleUndoBet}
-            />
-
-            <div className="roulette-stats">
-              <div className="stat-card">
-                <div className="stat-label">Total Bets</div>
-                <div className="stat-value">{selectedBets.length}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Total Amount</div>
-                <div className="stat-value">
-                  {ethers.formatEther(totalBetAmount)} GAMA
-                </div>
-              </div>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-secondary-900 to-secondary-950 text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-8">
+          {/* Header Section */}
+          <div className="text-center space-y-2">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-gaming-primary to-gaming-accent bg-clip-text text-transparent">
+              Roulette
+            </h1>
+            <p className="text-secondary-300">
+              Place your bets and test your luck!
+            </p>
           </div>
 
-          <BettingHistory account={account} contracts={contracts} />
+          {/* Main Game Section */}
+          <div className="grid lg:grid-cols-[2fr_1fr] gap-8">
+            {/* Left Column - Betting Board */}
+            <div className="space-y-6">
+              <BettingBoard
+                onBetSelect={handleBetSelect}
+                selectedBets={selectedBets}
+                disabled={isProcessing}
+                selectedChipValue={selectedChipValue}
+                lastWinningNumber={lastWinningNumber}
+                getNumberBackgroundClass={getNumberBackgroundClass}
+              />
+
+              <BetControls
+                selectedChipValue={selectedChipValue}
+                onChipValueChange={handleChipValueChange}
+                selectedBets={selectedBets}
+                onClearBets={handleClearBets}
+                onPlaceBets={handlePlaceBets}
+                onApprove={handleApprove}
+                isApproved={isApproved}
+                isCheckingApproval={isCheckingApproval}
+                disabled={isProcessing}
+                gameState={{ isProcessing }}
+                onUndoBet={handleUndoBet}
+              />
+            </div>
+
+            {/* Right Column - Stats & History */}
+            <div className="space-y-6">
+              {/* Stats Cards */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="stat-card">
+                  <div className="stat-label">Total Bets</div>
+                  <div className="stat-value animate-float">
+                    {selectedBets.length}
+                  </div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-label">Total Amount</div>
+                  <div className="stat-value animate-float">
+                    {ethers.formatEther(totalBetAmount)} GAMA
+                  </div>
+                </div>
+              </div>
+
+              {/* Betting History */}
+              <BettingHistory account={account} contracts={contracts} />
+            </div>
+          </div>
         </div>
       </div>
     </div>
