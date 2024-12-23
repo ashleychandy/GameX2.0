@@ -148,33 +148,8 @@ const BettingBoard = ({
   const isNumberHovered = (number) => hoveredNumbers.includes(number);
 
   // Helper function to get numbers for different bet types
-  const getNumbersForBetType = useCallback((type) => {
-    switch (type) {
-      case BetTypes.DOZEN:
-        return Array.from({ length: 12 }, (_, i) => i + 1);
-      case BetTypes.COLUMN:
-        return Array.from({ length: 12 }, (_, i) => 1 + i * 3); // 1,4,7...
-      case BetTypes.RED:
-        return redNumbers;
-      case BetTypes.BLACK:
-        return Array.from({ length: 36 }, (_, i) => i + 1).filter(
-          (num) => !redNumbers.includes(num) && num !== 0,
-        );
-      case BetTypes.EVEN:
-        return Array.from({ length: 36 }, (_, i) => i + 1).filter(
-          (num) => num % 2 === 0 && num !== 0,
-        );
-      case BetTypes.ODD:
-        return Array.from({ length: 36 }, (_, i) => i + 1).filter(
-          (num) => num % 2 === 1,
-        );
-      case BetTypes.LOW:
-        return Array.from({ length: 18 }, (_, i) => i + 1);
-      case BetTypes.HIGH:
-        return Array.from({ length: 18 }, (_, i) => i + 19);
-      default:
-        return [];
-    }
+  const getNumbersForBetType = useCallback((type, startNumber) => {
+    return BetTypes.getNumbers(type, startNumber);
   }, []);
 
   // Helper function to get total bet amount for a position
@@ -314,39 +289,31 @@ const BettingBoard = ({
               {/* 2:1 button */}
               <button
                 onClick={() => {
-                  const columnType =
-                    rowIndex === 0
-                      ? BetTypes.COLUMN
-                      : rowIndex === 1
-                        ? BetTypes.COLUMN
-                        : BetTypes.COLUMN;
-                  const numbers = getNumbersForBetType(columnType);
-                  handleBet(numbers, columnType);
+                  const startNumber =
+                    rowIndex === 0 ? 3 : rowIndex === 1 ? 2 : 1;
+                  const numbers = BetTypes.getNumbers(
+                    BetTypes.COLUMN,
+                    startNumber,
+                  );
+                  handleBet(numbers, BetTypes.COLUMN);
                 }}
                 onMouseEnter={() => {
-                  const columnType =
-                    rowIndex === 0
-                      ? BetTypes.COLUMN
-                      : rowIndex === 1
-                        ? BetTypes.COLUMN
-                        : BetTypes.COLUMN;
-                  setHoveredNumbers(getNumbersForBetType(columnType));
+                  const startNumber =
+                    rowIndex === 0 ? 3 : rowIndex === 1 ? 2 : 1;
+                  const numbers = BetTypes.getNumbers(
+                    BetTypes.COLUMN,
+                    startNumber,
+                  );
+                  setHoveredNumbers(numbers);
                 }}
                 onMouseLeave={() => setHoveredNumbers([])}
                 className={`h-[45px] rounded-xl bg-gradient-to-br from-purple-600/90 to-purple-700/90 hover:from-purple-500/90 hover:to-purple-600/90 text-white/90 font-bold flex items-center justify-center transition-all duration-300 hover:scale-105 ${
                   getBetAmount(
-                    getNumbersForBetType(
-                      rowIndex === 0
-                        ? BetTypes.COLUMN
-                        : rowIndex === 1
-                          ? BetTypes.COLUMN
-                          : BetTypes.COLUMN,
+                    BetTypes.getNumbers(
+                      BetTypes.COLUMN,
+                      rowIndex === 0 ? 3 : rowIndex === 1 ? 2 : 1,
                     ),
-                    rowIndex === 0
-                      ? BetTypes.COLUMN
-                      : rowIndex === 1
-                        ? BetTypes.COLUMN
-                        : BetTypes.COLUMN,
+                    BetTypes.COLUMN,
                   ) > 0
                     ? "ring-2 ring-white"
                     : ""
@@ -370,26 +337,33 @@ const BettingBoard = ({
               <button
                 key={dozen.start}
                 onClick={() => {
-                  const numbers = Array.from(
-                    { length: 12 },
-                    (_, i) => dozen.start + i,
-                  );
+                  const numbers = BetTypes.getNumbers(dozen.type, dozen.start);
                   handleBet(numbers, dozen.type);
                 }}
-                onMouseEnter={() =>
-                  setHoveredNumbers(getNumbersForBetType(dozen.type))
-                }
+                onMouseEnter={() => {
+                  const numbers = BetTypes.getNumbers(dozen.type, dozen.start);
+                  setHoveredNumbers(numbers);
+                }}
                 onMouseLeave={() => setHoveredNumbers([])}
                 className={`h-[45px] rounded-xl relative bg-gradient-to-br from-purple-600/90 to-purple-700/90 hover:from-purple-500/90 hover:to-purple-600/90 text-white/90 font-bold flex items-center justify-center transition-all duration-300 hover:scale-105 ${
-                  getBetAmount([dozen.start], dozen.type) > 0
+                  getBetAmount(
+                    BetTypes.getNumbers(dozen.type, dozen.start),
+                    dozen.type,
+                  ) > 0
                     ? "ring-2 ring-white"
                     : ""
                 }`}
               >
                 {dozen.label}
-                {getBetAmount([dozen.start], dozen.type) > 0 && (
+                {getBetAmount(
+                  BetTypes.getNumbers(dozen.type, dozen.start),
+                  dozen.type,
+                ) > 0 && (
                   <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gaming-primary border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
-                    {getBetAmount([dozen.start], dozen.type)}
+                    {getBetAmount(
+                      BetTypes.getNumbers(dozen.type, dozen.start),
+                      dozen.type,
+                    )}
                   </div>
                 )}
               </button>
