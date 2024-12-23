@@ -51,11 +51,11 @@
 @layer components {
   /* Layout Components */
   .page-container {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-6;
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-6 bg-white;
   }
 
   .section-container {
-    @apply space-y-6 mb-12;
+    @apply space-y-6 mb-12 bg-white;
   }
 
   /* Glass Effects */
@@ -353,29 +353,29 @@
   }
 
   /* Hover states */
-  .chip-button.chip-button-1:hover { 
-    background-color: #03A9F4;
+  .chip-button.chip-button-1:hover {
+    background-color: #03a9f4;
   }
-  .chip-button.chip-button-5:hover { 
-    background-color: #FFC107;
+  .chip-button.chip-button-5:hover {
+    background-color: #ffc107;
   }
-  .chip-button.chip-button-10:hover { 
-    background-color: #8BC34A;
+  .chip-button.chip-button-10:hover {
+    background-color: #8bc34a;
   }
-  .chip-button.chip-button-50:hover { 
-    background-color: #9C27B0;
+  .chip-button.chip-button-50:hover {
+    background-color: #9c27b0;
   }
-  .chip-button.chip-button-100:hover { 
-    background-color: #FF9800;
+  .chip-button.chip-button-100:hover {
+    background-color: #ff9800;
   }
-  .chip-button.chip-button-500:hover { 
-    background-color: #E91E63;
+  .chip-button.chip-button-500:hover {
+    background-color: #e91e63;
   }
-  .chip-button.chip-button-1K:hover { 
-    background-color: #FF69B4;
+  .chip-button.chip-button-1K:hover {
+    background-color: #ff69b4;
   }
-  .chip-button.chip-button-5K:hover { 
-    background-color: #2196F3;
+  .chip-button.chip-button-5K:hover {
+    background-color: #2196f3;
   }
 
   .chip-1 {

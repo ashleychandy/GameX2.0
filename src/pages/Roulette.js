@@ -82,7 +82,53 @@ const BettingBoard = ({
   selectedBets,
   disabled,
   selectedChipValue,
+  contracts,
+  account,
 }) => {
+  // Add hover state
+  const [hoveredNumbers, setHoveredNumbers] = useState([]);
+
+  // Helper function to check if a number is currently hovered
+  const isNumberHovered = (number) => hoveredNumbers.includes(number);
+
+  // Helper function to get numbers for different bet types
+  const getNumbersForBetType = (type, start = 1) => {
+    switch (type) {
+      case BetTypes.DOZEN_BET_FIRST:
+        return Array.from({ length: 12 }, (_, i) => i + 1);
+      case BetTypes.DOZEN_BET_SECOND:
+        return Array.from({ length: 12 }, (_, i) => i + 13);
+      case BetTypes.DOZEN_BET_THIRD:
+        return Array.from({ length: 12 }, (_, i) => i + 25);
+      case BetTypes.COLUMN_BET_FIRST:
+        return Array.from({ length: 12 }, (_, i) => 1 + i * 3);
+      case BetTypes.COLUMN_BET_SECOND:
+        return Array.from({ length: 12 }, (_, i) => 2 + i * 3);
+      case BetTypes.COLUMN_BET_THIRD:
+        return Array.from({ length: 12 }, (_, i) => 3 + i * 3);
+      case BetTypes.RED_BET:
+        return redNumbers;
+      case BetTypes.BLACK_BET:
+        return Array.from({ length: 36 }, (_, i) => i + 1).filter(
+          (num) => !redNumbers.includes(num),
+        );
+      case BetTypes.EVEN_BET:
+        return Array.from({ length: 36 }, (_, i) => i + 1).filter(
+          (num) => num % 2 === 0,
+        );
+      case BetTypes.ODD_BET:
+        return Array.from({ length: 36 }, (_, i) => i + 1).filter(
+          (num) => num % 2 === 1,
+        );
+      case BetTypes.LOW_BET:
+        return Array.from({ length: 18 }, (_, i) => i + 1);
+      case BetTypes.HIGH_BET:
+        return Array.from({ length: 18 }, (_, i) => i + 19);
+      default:
+        return [];
+    }
+  };
+
   // Helper function to get total bet amount for a position
   const getBetAmount = useCallback(
     (numbers, type) => {
@@ -145,7 +191,23 @@ const BettingBoard = ({
   const redNumbers = [
     1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
   ];
-  const isRed = (number) => redNumbers.includes(number);
+  const isRed = (number) => redNumbers.includes(Number(number));
+
+  // Get background color class based on number
+  const getNumberBackgroundClass = (number) => {
+    const num = Number(number);
+    console.log("Getting background for number:", num, typeof num);
+    if (num === 0 || number === "0") {
+      return "bg-gradient-to-br from-emerald-500 to-emerald-600";
+    }
+    if (isRed(num)) {
+      return "bg-gradient-to-br from-gaming-primary to-gaming-primary/90";
+    }
+    if (num > 0 && num <= 36) {
+      return "bg-gradient-to-br from-gray-800 to-gray-900";
+    }
+    return "bg-gradient-to-br from-secondary-700 to-secondary-800"; // Default for no number
+  };
 
   // Define the grid layout in rows (top to bottom)
   const numberGrid = [
@@ -154,16 +216,82 @@ const BettingBoard = ({
     [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34],
   ];
 
+  // Get the last winning number from the contract state
+  const { data: lastWinningNumber } = useQuery({
+    queryKey: ["lastWinningNumber", account],
+    queryFn: async () => {
+      console.log("Checking roulette contract:", contracts?.roulette?.target);
+      if (!contracts?.roulette || !account) {
+        console.log("Roulette contract not initialized or no account");
+        return null;
+      }
+      try {
+        console.log("Fetching bet history for winning number...");
+        // Get the most recent bet (first 1 bet)
+        const [bets, total] = await contracts.roulette.getUserBetHistory(
+          account,
+          0,
+          1,
+        );
+        console.log("Bet history fetched:", bets);
+
+        if (bets && bets.length > 0) {
+          const lastNumber = Number(bets[0].winningNumber);
+          console.log(
+            "Last winning number from history:",
+            lastNumber,
+            typeof lastNumber,
+          );
+          return lastNumber;
+        }
+        return null;
+      } catch (error) {
+        console.error("Error fetching winning number from history:", {
+          error,
+          errorMessage: error.message,
+          code: error.code,
+          data: error.data,
+        });
+        return null;
+      }
+    },
+    enabled: !!contracts?.roulette && !!account,
+    refetchInterval: 5000, // Refetch every 5 seconds
+  });
+
+  // Log when lastWinningNumber changes
+  useEffect(() => {
+    console.log(
+      "Last winning number updated from history:",
+      lastWinningNumber,
+      typeof lastWinningNumber,
+    );
+  }, [lastWinningNumber]);
+
   return (
     <div className="flex flex-col gap-3 p-6 bg-secondary-900/90 backdrop-blur-lg rounded-xl border border-white/5 shadow-2xl">
       {/* Main betting grid */}
-      <div className="grid grid-cols-[45px_1fr] gap-2">
+      <div className="grid grid-cols-[auto_45px_1fr] gap-2">
+        {/* Last Winning Number Display */}
+        <div className="flex items-center justify-center w-24">
+          <div
+            className={`aspect-square w-full rounded-lg flex items-center justify-center font-bold text-3xl relative ${getNumberBackgroundClass(lastWinningNumber)}`}
+          >
+            <span className="text-white/90">{lastWinningNumber ?? "-"}</span>
+            <div className="absolute -top-8 left-0 right-0 text-center text-sm text-secondary-400 font-medium">
+              Last Number
+            </div>
+          </div>
+        </div>
+
         {/* Zero */}
         <div className="row-span-3">
           <button
             onClick={() => handleBet([0], BetTypes.STRAIGHT_BET)}
+            onMouseEnter={() => setHoveredNumbers([0])}
+            onMouseLeave={() => setHoveredNumbers([])}
             className={`h-full w-full rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 shadow-lg hover:shadow-emerald-500/30 transition-all duration-200 flex items-center justify-center font-bold text-2xl relative ${
-              getBetAmount([0], BetTypes.STRAIGHT_BET) > 0
+              getBetAmount([0], BetTypes.STRAIGHT_BET) > 0 || isNumberHovered(0)
                 ? "ring-2 ring-emerald-400/50 ring-offset-2 ring-offset-secondary-900"
                 : ""
             }`}
@@ -188,12 +316,15 @@ const BettingBoard = ({
                 <button
                   key={number}
                   onClick={() => handleBet([number], BetTypes.STRAIGHT_BET)}
+                  onMouseEnter={() => setHoveredNumbers([number])}
+                  onMouseLeave={() => setHoveredNumbers([])}
                   className={`aspect-square rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 ${
                     isRed(number)
                       ? "bg-gradient-to-br from-gaming-primary to-gaming-primary/90 hover:from-gaming-primary hover:to-gaming-primary/80"
                       : "bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800"
                   } text-white font-bold text-xl relative ${
-                    getBetAmount([number], BetTypes.STRAIGHT_BET) > 0
+                    getBetAmount([number], BetTypes.STRAIGHT_BET) > 0 ||
+                    isNumberHovered(number)
                       ? `ring-2 ${
                           isRed(number)
                             ? "ring-gaming-primary/50"
@@ -213,7 +344,6 @@ const BettingBoard = ({
               {/* 2:1 button for each row */}
               <button
                 onClick={() => {
-                  // Generate all 12 numbers for the column
                   const columnStart = 3 - rowIndex;
                   const numbers = Array.from(
                     { length: 12 },
@@ -227,6 +357,15 @@ const BettingBoard = ({
                         : BetTypes.COLUMN_BET_THIRD;
                   handleBet(numbers, columnType);
                 }}
+                onMouseEnter={() => {
+                  const columnStart = 3 - rowIndex;
+                  const numbers = Array.from(
+                    { length: 12 },
+                    (_, i) => columnStart + i * 3,
+                  );
+                  setHoveredNumbers(numbers);
+                }}
+                onMouseLeave={() => setHoveredNumbers([])}
                 className="aspect-square rounded-lg bg-gradient-to-br from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 shadow-lg hover:shadow-indigo-500/20 transition-all duration-200 font-bold text-lg flex items-center justify-center text-white/90 relative"
               >
                 2:1
@@ -267,13 +406,16 @@ const BettingBoard = ({
             <button
               key={dozen.start}
               onClick={() => {
-                // Generate all 12 numbers for the dozen
                 const numbers = Array.from(
                   { length: 12 },
                   (_, i) => dozen.start + i,
                 );
                 handleBet(numbers, dozen.type);
               }}
+              onMouseEnter={() =>
+                setHoveredNumbers(getNumbersForBetType(dozen.type))
+              }
+              onMouseLeave={() => setHoveredNumbers([])}
               className="h-12 rounded-lg bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 shadow-lg hover:shadow-purple-500/20 transition-all duration-200 text-base font-bold flex items-center justify-center text-white/90 relative"
             >
               {dozen.label}
@@ -304,6 +446,10 @@ const BettingBoard = ({
             <button
               key={option.label}
               onClick={() => handleBet([], option.type)}
+              onMouseEnter={() =>
+                setHoveredNumbers(getNumbersForBetType(option.type))
+              }
+              onMouseLeave={() => setHoveredNumbers([])}
               className={`h-12 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 text-base font-bold flex items-center justify-center relative ${
                 option.isRed
                   ? "bg-gradient-to-br from-gaming-primary to-gaming-primary/90 hover:from-gaming-primary hover:to-gaming-primary/80 text-white/90"
@@ -431,15 +577,19 @@ const BetControls = ({
 // Add helper function to get bet type name
 const getBetTypeName = (betType) => {
   const types = {
-    0: "Straight",
-    1: "Dozen",
-    2: "Column",
-    3: "Red",
-    4: "Black",
-    5: "Even",
-    6: "Odd",
-    7: "Low",
-    8: "High",
+    [BetTypes.STRAIGHT_BET]: "Straight",
+    [BetTypes.DOZEN_BET_FIRST]: "First Dozen",
+    [BetTypes.DOZEN_BET_SECOND]: "Second Dozen",
+    [BetTypes.DOZEN_BET_THIRD]: "Third Dozen",
+    [BetTypes.COLUMN_BET_FIRST]: "First Column",
+    [BetTypes.COLUMN_BET_SECOND]: "Second Column",
+    [BetTypes.COLUMN_BET_THIRD]: "Third Column",
+    [BetTypes.RED_BET]: "Red",
+    [BetTypes.BLACK_BET]: "Black",
+    [BetTypes.EVEN_BET]: "Even",
+    [BetTypes.ODD_BET]: "Odd",
+    [BetTypes.LOW_BET]: "Low (1-18)",
+    [BetTypes.HIGH_BET]: "High (19-36)",
   };
   return types[betType] || "Unknown";
 };
@@ -533,9 +683,33 @@ const BettingHistory = ({ account, contracts }) => {
     structuralSharing: false, // Disable structural sharing to prevent serialization issues
   });
 
+  // Group bets by timestamp
+  const groupedBets = useMemo(() => {
+    if (!userData || !Array.isArray(userData)) return [];
+
+    const grouped = userData.reduce((acc, bet) => {
+      const key = bet.timestamp;
+      if (!acc[key]) {
+        acc[key] = {
+          timestamp: bet.timestamp,
+          winningNumber: bet.winningNumber,
+          bets: [],
+          totalAmount: BigInt(0),
+          totalPayout: BigInt(0),
+        };
+      }
+      acc[key].bets.push(bet);
+      acc[key].totalAmount += BigInt(bet.amount);
+      acc[key].totalPayout += BigInt(bet.payout);
+      return acc;
+    }, {});
+
+    return Object.values(grouped).sort((a, b) => b.timestamp - a.timestamp);
+  }, [userData]);
+
   // Calculate stats from betting history
   const stats = useMemo(() => {
-    if (!userData || !Array.isArray(userData))
+    if (!groupedBets || groupedBets.length === 0)
       return {
         totalWins: 0,
         totalLosses: 0,
@@ -543,19 +717,19 @@ const BettingHistory = ({ account, contracts }) => {
         winRate: 0,
       };
 
-    return userData.reduce(
-      (acc, bet) => {
-        const isWin = BigInt(bet.payout) > BigInt(bet.amount);
-        const profit = BigInt(bet.payout) - BigInt(bet.amount);
+    return groupedBets.reduce(
+      (acc, group) => {
+        const isWin = group.totalPayout > group.totalAmount;
+        const profit = group.totalPayout - group.totalAmount;
 
         return {
           totalWins: acc.totalWins + (isWin ? 1 : 0),
           totalLosses: acc.totalLosses + (isWin ? 0 : 1),
           totalProfit: acc.totalProfit + profit,
           winRate:
-            userData.length > 0
+            groupedBets.length > 0
               ? (
-                  ((acc.totalWins + (isWin ? 1 : 0)) / userData.length) *
+                  ((acc.totalWins + (isWin ? 1 : 0)) / groupedBets.length) *
                   100
                 ).toFixed(1)
               : 0,
@@ -563,25 +737,25 @@ const BettingHistory = ({ account, contracts }) => {
       },
       { totalWins: 0, totalLosses: 0, totalProfit: BigInt(0), winRate: 0 },
     );
-  }, [userData]);
+  }, [groupedBets]);
 
   // Filter bets based on selected filter
   const filteredBets = useMemo(() => {
-    if (!Array.isArray(userData)) return [];
+    if (!groupedBets) return [];
 
     switch (filter) {
       case "wins":
-        return userData.filter(
-          (bet) => BigInt(bet.payout) > BigInt(bet.amount),
+        return groupedBets.filter(
+          (group) => group.totalPayout > group.totalAmount,
         );
       case "losses":
-        return userData.filter(
-          (bet) => BigInt(bet.payout) <= BigInt(bet.amount),
+        return groupedBets.filter(
+          (group) => group.totalPayout <= group.totalAmount,
         );
       default:
-        return userData;
+        return groupedBets;
     }
-  }, [userData, filter]);
+  }, [groupedBets, filter]);
 
   if (isLoading) {
     return (
@@ -648,9 +822,9 @@ const BettingHistory = ({ account, contracts }) => {
       {filteredBets.length > 0 ? (
         <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar">
           <AnimatePresence>
-            {filteredBets.map((bet, index) => (
+            {filteredBets.map((group, index) => (
               <motion.div
-                key={`${bet.timestamp}-${index}`}
+                key={`${group.timestamp}-${index}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
@@ -658,7 +832,7 @@ const BettingHistory = ({ account, contracts }) => {
                 className={`
                   history-item bg-secondary-700/50 backdrop-blur-sm
                   ${
-                    BigInt(bet.payout) > BigInt(bet.amount)
+                    group.totalPayout > group.totalAmount
                       ? "border-gaming-success/20 bg-gaming-success/5 hover:border-gaming-success/30"
                       : "border-gaming-error/20 bg-gaming-error/5 hover:border-gaming-error/30"
                   }
@@ -667,16 +841,16 @@ const BettingHistory = ({ account, contracts }) => {
                 {/* Header with timestamp and result */}
                 <div className="flex justify-between items-start">
                   <div className="text-sm text-secondary-400">
-                    {new Date(bet.timestamp * 1000).toLocaleString()}
+                    {new Date(group.timestamp * 1000).toLocaleString()}
                   </div>
                   <div
                     className={`text-lg font-bold ${
-                      BigInt(bet.payout) > BigInt(bet.amount)
+                      group.totalPayout > group.totalAmount
                         ? "text-gaming-success"
                         : "text-gaming-error"
                     }`}
                   >
-                    {BigInt(bet.payout) > BigInt(bet.amount) ? "WIN" : "LOSS"}
+                    {group.totalPayout > group.totalAmount ? "WIN" : "LOSS"}
                   </div>
                 </div>
 
@@ -687,13 +861,20 @@ const BettingHistory = ({ account, contracts }) => {
                       Winning Number
                     </div>
                     <div className="text-2xl font-bold">
-                      #{bet.winningNumber}
+                      #{group.winningNumber}
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-secondary-400">Bet Type</div>
-                    <div className="font-medium">
-                      {getBetTypeName(bet.betType)}
+                    <div className="text-sm text-secondary-400">Bet Types</div>
+                    <div className="font-medium flex flex-wrap gap-1">
+                      {group.bets.map((bet, i) => (
+                        <span
+                          key={i}
+                          className="inline-block px-2 py-1 bg-secondary-800/50 rounded-md text-sm"
+                        >
+                          {getBetTypeName(bet.betType)}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -706,26 +887,31 @@ const BettingHistory = ({ account, contracts }) => {
                     </div>
                     <div className="max-h-20 overflow-y-auto scrollbar-thin scrollbar-thumb-secondary-600 scrollbar-track-secondary-800">
                       <div className="font-medium flex flex-wrap gap-1 p-1">
-                        {bet.numbers.length > 0 ? (
-                          bet.numbers.length <= 5 ? (
-                            bet.numbers.map((num, i) => (
-                              <span
-                                key={i}
-                                className="bg-secondary-600/50 backdrop-blur-sm min-w-[2rem] h-8 flex items-center justify-center rounded-md text-sm border border-white/5"
-                              >
-                                {num}
-                              </span>
-                            ))
-                          ) : (
-                            <div className="grid grid-cols-6 gap-1 w-full">
-                              {bet.numbers.map((num, i) => (
+                        {group.bets.flatMap((bet) => bet.numbers).length > 0 ? (
+                          group.bets.flatMap((bet) => bet.numbers).length <=
+                          5 ? (
+                            group.bets
+                              .flatMap((bet) => bet.numbers)
+                              .map((num, i) => (
                                 <span
                                   key={i}
-                                  className="bg-secondary-600/50 backdrop-blur-sm w-7 h-7 flex items-center justify-center rounded-md text-xs border border-white/5"
+                                  className="bg-secondary-600/50 backdrop-blur-sm min-w-[2rem] h-8 flex items-center justify-center rounded-md text-sm border border-white/5"
                                 >
                                   {num}
                                 </span>
-                              ))}
+                              ))
+                          ) : (
+                            <div className="grid grid-cols-6 gap-1 w-full">
+                              {group.bets
+                                .flatMap((bet) => bet.numbers)
+                                .map((num, i) => (
+                                  <span
+                                    key={i}
+                                    className="bg-secondary-600/50 backdrop-blur-sm w-7 h-7 flex items-center justify-center rounded-md text-xs border border-white/5"
+                                  >
+                                    {num}
+                                  </span>
+                                ))}
                             </div>
                           )
                         ) : (
@@ -740,16 +926,18 @@ const BettingHistory = ({ account, contracts }) => {
                     </div>
                     <div className="space-y-1">
                       <div className="font-medium">
-                        Bet: {ethers.formatEther(bet.amount)} GAMA
+                        Total Bet:{" "}
+                        {ethers.formatEther(group.totalAmount.toString())} GAMA
                       </div>
                       <div
                         className={`font-bold ${
-                          BigInt(bet.payout) > 0
+                          group.totalPayout > 0
                             ? "text-gaming-success"
                             : "text-secondary-400"
                         }`}
                       >
-                        Payout: {ethers.formatEther(bet.payout)} GAMA
+                        Total Payout:{" "}
+                        {ethers.formatEther(group.totalPayout.toString())} GAMA
                       </div>
                     </div>
                   </div>
@@ -758,12 +946,18 @@ const BettingHistory = ({ account, contracts }) => {
                 {/* Multiplier and profit/loss */}
                 <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-secondary-600/50">
                   <div>
-                    <div className="text-sm text-secondary-400">Multiplier</div>
+                    <div className="text-sm text-secondary-400">
+                      Average Multiplier
+                    </div>
                     <div className="font-medium">
-                      {BigInt(bet.payout) > 0
+                      {group.totalPayout > 0
                         ? `${(
-                            Number(ethers.formatEther(bet.payout)) /
-                            Number(ethers.formatEther(bet.amount))
+                            Number(
+                              ethers.formatEther(group.totalPayout.toString()),
+                            ) /
+                            Number(
+                              ethers.formatEther(group.totalAmount.toString()),
+                            )
                           ).toFixed(2)}x`
                         : "0x"}
                     </div>
@@ -774,13 +968,13 @@ const BettingHistory = ({ account, contracts }) => {
                     </div>
                     <div
                       className={`font-bold ${
-                        BigInt(bet.payout) > BigInt(bet.amount)
+                        group.totalPayout > group.totalAmount
                           ? "text-gaming-success"
                           : "text-gaming-error"
                       }`}
                     >
                       {ethers.formatEther(
-                        BigInt(bet.payout) - BigInt(bet.amount),
+                        (group.totalPayout - group.totalAmount).toString(),
                       )}{" "}
                       GAMA
                     </div>
@@ -1069,219 +1263,258 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
       return;
     }
 
-    try {
-      setIsProcessing(true);
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
 
-      // Add debug checks for contract roles and balances
-      console.log("Checking contract roles and balances...");
-      const [hasMinterRole, hasBurnerRole, allowance, userBalance] =
-        await Promise.all([
-          contracts.token.hasRole(
-            CONTRACT_CONSTANTS.MINTER_ROLE,
-            contracts.roulette.target,
-          ),
-          contracts.token.hasRole(
-            CONTRACT_CONSTANTS.BURNER_ROLE,
-            contracts.roulette.target,
-          ),
-          contracts.token.allowance(account, contracts.roulette.target),
-          contracts.token.balanceOf(account),
-        ]);
-
-      console.log("Contract status:", {
-        rouletteAddress: contracts.roulette.target,
-        hasMinterRole,
-        hasBurnerRole,
-        allowance: allowance.toString(),
-        userBalance: userBalance.toString(),
-        requiredAllowance: CONTRACT_CONSTANTS.MAX_TOTAL_BET_AMOUNT.toString(),
-      });
-
-      // Validate contract roles
-      if (!hasMinterRole || !hasBurnerRole) {
-        addToast(
-          "Roulette contract is missing required roles. Please contact support.",
-          "error",
-        );
-        return;
-      }
-
-      // Format bets for contract according to BetRequest structure
-      const betRequests = selectedBets.map((bet) => {
-        // Validate bet type
-        if (bet.type < 0 || bet.type > 12) {
-          throw new Error(`Invalid bet type: ${bet.type}`);
-        }
-
-        // For straight bets, validate number
-        if (
-          bet.type === BetTypes.STRAIGHT_BET &&
-          (bet.numbers.length !== 1 || bet.numbers[0] > 36)
-        ) {
-          throw new Error(`Invalid number for straight bet: ${bet.numbers[0]}`);
-        }
-
-        // Convert to contract format
-        return {
-          betTypeId: bet.type,
-          number: bet.type === BetTypes.STRAIGHT_BET ? bet.numbers[0] : 0,
-          amount: BigInt(bet.amount).toString(), // Ensure amount is BigInt
-        };
-      });
-
-      // Calculate total amount
-      const totalAmount = selectedBets.reduce(
-        (sum, bet) => sum + BigInt(bet.amount),
-        BigInt(0),
-      );
-
-      console.log("Bet validation:", {
-        totalAmount: totalAmount.toString(),
-        userBalance: userBalance.toString(),
-      });
-
-      // Additional validations
-      if (userBalance < totalAmount) {
-        addToast("Insufficient balance to place bets.", "error");
-        return;
-      }
-
-      // Validate total amount
-      if (totalAmount > CONTRACT_CONSTANTS.MAX_TOTAL_BET_AMOUNT) {
-        addToast("Total bet amount exceeds maximum allowed.", "error");
-        return;
-      }
-
-      // Log raw values for debugging
-      console.log("Sending bets to contract:", {
-        rouletteAddress: contracts.roulette.target,
-        totalAmount: totalAmount.toString(),
-        numBets: betRequests.length,
-        betRequests: betRequests.map((bet) => ({
-          betTypeId: bet.betTypeId,
-          number: bet.number,
-          amount: bet.amount,
-        })),
-      });
-
-      // Try to estimate gas first to get more detailed error messages
+    const attemptTransaction = async () => {
       try {
-        const gasEstimate =
-          await contracts.roulette.placeBet.estimateGas(betRequests);
-        console.log("Gas estimate:", gasEstimate.toString());
-      } catch (estimateError) {
-        console.error("Gas estimation failed:", estimateError);
-        // Try to decode the error
-        if (estimateError.data) {
-          const errorData = estimateError.data;
-          console.log("Error data:", errorData);
-          // Check for known error signatures
-          if (errorData.includes("InvalidBetParameters")) {
-            addToast(
-              "Invalid bet parameters. Please check your bets.",
-              "error",
-            );
-            return;
-          }
-          if (errorData.includes("InsufficientUserBalance")) {
-            addToast("Insufficient balance to place bets.", "error");
-            return;
-          }
-          if (errorData.includes("MaxPayoutExceeded")) {
-            addToast("Maximum potential payout exceeded.", "error");
-            return;
-          }
-          if (errorData.includes("MissingContractRole")) {
-            addToast(
-              "Contract is missing required roles. Please contact support.",
-              "error",
-            );
-            return;
-          }
-          if (errorData.includes("InsufficientAllowance")) {
-            addToast(
-              "Insufficient token allowance. Please approve more tokens.",
-              "error",
-            );
-            return;
-          }
-        }
-        throw estimateError;
-      }
+        setIsProcessing(true);
 
-      // Place bets
-      const tx = await contracts.roulette.placeBet(betRequests);
-      console.log("Transaction sent:", tx.hash);
+        // Add debug checks for contract roles and balances
+        console.log("Checking contract roles and balances...");
+        const [hasMinterRole, hasBurnerRole, allowance, userBalance] =
+          await Promise.all([
+            contracts.token.hasRole(
+              CONTRACT_CONSTANTS.MINTER_ROLE,
+              contracts.roulette.target,
+            ),
+            contracts.token.hasRole(
+              CONTRACT_CONSTANTS.BURNER_ROLE,
+              contracts.roulette.target,
+            ),
+            contracts.token.allowance(account, contracts.roulette.target),
+            contracts.token.balanceOf(account),
+          ]);
 
-      const receipt = await tx.wait();
-      console.log("Transaction confirmed:", receipt);
-
-      // Reset state and update UI
-      setSelectedBets([]);
-      setTotalBetAmount(BigInt(0));
-      addToast("Bets placed successfully!", "success");
-
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries(["rouletteHistory", account]);
-      queryClient.invalidateQueries(["balance", account]);
-    } catch (error) {
-      console.error("Error placing bets:", error);
-
-      // Enhanced error handling
-      if (error.code === "CALL_EXCEPTION") {
-        // Log the full error object for debugging
-        console.log("Full error object:", {
-          code: error.code,
-          message: error.message,
-          data: error.data,
-          transaction: error.transaction,
-          error: error,
+        console.log("Contract status:", {
+          rouletteAddress: contracts.roulette.target,
+          hasMinterRole,
+          hasBurnerRole,
+          allowance: allowance.toString(),
+          userBalance: userBalance.toString(),
+          requiredAllowance: CONTRACT_CONSTANTS.MAX_TOTAL_BET_AMOUNT.toString(),
         });
 
-        // Try to extract error name from data if available
-        const errorName = error.data ? error.data.split("(")[0] : null;
-
-        switch (errorName) {
-          case "InvalidBetParameters":
-            addToast(
-              "Invalid bet parameters. Please check your bets.",
-              "error",
-            );
-            break;
-          case "InsufficientUserBalance":
-            addToast("Insufficient balance", "error");
-            break;
-          case "MaxPayoutExceeded":
-            addToast("Maximum potential payout exceeded", "error");
-            break;
-          case "MissingContractRole":
-            addToast(
-              "Contract is missing required roles. Please contact support.",
-              "error",
-            );
-            break;
-          case "InsufficientAllowance":
-            addToast(
-              "Insufficient token allowance. Please approve more tokens.",
-              "error",
-            );
-            break;
-          default:
-            // If we can't determine the specific error, show the raw error message
-            addToast(
-              `Transaction failed: ${error.message || "Unknown error"}`,
-              "error",
-            );
-            onError(error);
+        // Validate contract roles
+        if (!hasMinterRole || !hasBurnerRole) {
+          addToast(
+            "Roulette contract is missing required roles. Please contact support.",
+            "error",
+          );
+          return;
         }
-      } else if (error.code === "ACTION_REJECTED") {
-        addToast("Transaction rejected by user", "error");
-      } else {
-        onError(error);
+
+        // Format bets for contract according to BetRequest structure
+        const betRequests = selectedBets.map((bet) => {
+          // Validate bet type
+          if (bet.type < 0 || bet.type > 12) {
+            throw new Error(`Invalid bet type: ${bet.type}`);
+          }
+
+          // For straight bets, validate number
+          if (
+            bet.type === BetTypes.STRAIGHT_BET &&
+            (bet.numbers.length !== 1 || bet.numbers[0] > 36)
+          ) {
+            throw new Error(
+              `Invalid number for straight bet: ${bet.numbers[0]}`,
+            );
+          }
+
+          // Convert to contract format
+          return {
+            betTypeId: bet.type,
+            number: bet.type === BetTypes.STRAIGHT_BET ? bet.numbers[0] : 0,
+            amount: BigInt(bet.amount).toString(), // Ensure amount is BigInt
+          };
+        });
+
+        // Calculate total amount
+        const totalAmount = selectedBets.reduce(
+          (sum, bet) => sum + BigInt(bet.amount),
+          BigInt(0),
+        );
+
+        console.log("Bet validation:", {
+          totalAmount: totalAmount.toString(),
+          userBalance: userBalance.toString(),
+        });
+
+        // Additional validations
+        if (userBalance < totalAmount) {
+          addToast("Insufficient balance to place bets.", "error");
+          return;
+        }
+
+        // Validate total amount
+        if (totalAmount > CONTRACT_CONSTANTS.MAX_TOTAL_BET_AMOUNT) {
+          addToast("Total bet amount exceeds maximum allowed.", "error");
+          return;
+        }
+
+        // Log raw values for debugging
+        console.log("Sending bets to contract:", {
+          rouletteAddress: contracts.roulette.target,
+          totalAmount: totalAmount.toString(),
+          numBets: betRequests.length,
+          betRequests: betRequests.map((bet) => ({
+            betTypeId: bet.betTypeId,
+            number: bet.number,
+            amount: bet.amount,
+          })),
+        });
+
+        // Get current gas price and add 20% buffer
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const gasPrice = await provider.getFeeData();
+        const adjustedGasPrice =
+          (gasPrice.gasPrice * BigInt(120)) / BigInt(100);
+
+        // Try to estimate gas with a 30% buffer
+        let gasEstimate;
+        try {
+          gasEstimate =
+            await contracts.roulette.placeBet.estimateGas(betRequests);
+          gasEstimate = (gasEstimate * BigInt(130)) / BigInt(100); // Add 30% buffer
+          console.log("Gas estimate with buffer:", gasEstimate.toString());
+        } catch (estimateError) {
+          console.error("Gas estimation failed:", estimateError);
+          // Try to decode the error
+          if (estimateError.data) {
+            const errorData = estimateError.data;
+            console.log("Error data:", errorData);
+            // Check for known error signatures
+            if (errorData.includes("InvalidBetParameters")) {
+              addToast(
+                "Invalid bet parameters. Please check your bets.",
+                "error",
+              );
+              return;
+            }
+            if (errorData.includes("InsufficientUserBalance")) {
+              addToast("Insufficient balance to place bets.", "error");
+              return;
+            }
+            if (errorData.includes("MaxPayoutExceeded")) {
+              addToast("Maximum potential payout exceeded.", "error");
+              return;
+            }
+            if (errorData.includes("MissingContractRole")) {
+              addToast(
+                "Contract is missing required roles. Please contact support.",
+                "error",
+              );
+              return;
+            }
+            if (errorData.includes("InsufficientAllowance")) {
+              addToast(
+                "Insufficient token allowance. Please approve more tokens.",
+                "error",
+              );
+              return;
+            }
+          }
+          throw estimateError;
+        }
+
+        // Place bets with adjusted gas settings
+        const tx = await contracts.roulette.placeBet(betRequests, {
+          gasLimit: gasEstimate,
+          gasPrice: adjustedGasPrice,
+        });
+        console.log("Transaction sent:", tx.hash);
+
+        // Wait for more confirmations
+        const receipt = await tx.wait(2); // Wait for 2 confirmations
+        console.log("Transaction confirmed:", receipt);
+
+        // Reset state and update UI
+        setSelectedBets([]);
+        setTotalBetAmount(BigInt(0));
+        addToast("Bets placed successfully!", "success");
+
+        // Invalidate queries to refresh data
+        queryClient.invalidateQueries(["rouletteHistory", account]);
+        queryClient.invalidateQueries(["balance", account]);
+      } catch (error) {
+        console.error("Error placing bets:", error);
+
+        // Check if error is due to network or transaction issues
+        if (
+          error.code === "NETWORK_ERROR" ||
+          error.code === "TIMEOUT" ||
+          error.code === "UNPREDICTABLE_GAS_LIMIT" ||
+          error.message.includes("transaction failed") ||
+          error.message.includes("timeout")
+        ) {
+          if (retryCount < MAX_RETRIES) {
+            retryCount++;
+            console.log(`Retrying transaction (attempt ${retryCount})...`);
+            // Wait for a short delay before retrying
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            return attemptTransaction();
+          }
+        }
+
+        // Enhanced error handling
+        if (error.code === "CALL_EXCEPTION") {
+          // Log the full error object for debugging
+          console.log("Full error object:", {
+            code: error.code,
+            message: error.message,
+            data: error.data,
+            transaction: error.transaction,
+            error: error,
+          });
+
+          // Try to extract error name from data if available
+          const errorName = error.data ? error.data.split("(")[0] : null;
+
+          switch (errorName) {
+            case "InvalidBetParameters":
+              addToast(
+                "Invalid bet parameters. Please check your bets.",
+                "error",
+              );
+              break;
+            case "InsufficientUserBalance":
+              addToast("Insufficient balance", "error");
+              break;
+            case "MaxPayoutExceeded":
+              addToast("Maximum potential payout exceeded", "error");
+              break;
+            case "MissingContractRole":
+              addToast(
+                "Contract is missing required roles. Please contact support.",
+                "error",
+              );
+              break;
+            case "InsufficientAllowance":
+              addToast(
+                "Insufficient token allowance. Please approve more tokens.",
+                "error",
+              );
+              break;
+            default:
+              // If we can't determine the specific error, show the raw error message
+              addToast(
+                `Transaction failed: ${error.message || "Unknown error"}`,
+                "error",
+              );
+              onError(error);
+          }
+        } else if (error.code === "ACTION_REJECTED") {
+          addToast("Transaction rejected by user", "error");
+        } else {
+          onError(error);
+        }
+      } finally {
+        setIsProcessing(false);
       }
-    } finally {
-      setIsProcessing(false);
-    }
+    };
+
+    // Start the first attempt
+    await attemptTransaction();
   }, [
     contracts?.roulette,
     contracts?.token,
@@ -1318,45 +1551,49 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
   }, []);
 
   return (
-    <div className="page-container">
-      <div className="roulette-container">
-        <BettingBoard
-          onBetSelect={handleBetSelect}
-          selectedBets={selectedBets}
-          disabled={isProcessing}
-          selectedChipValue={selectedChipValue}
-        />
-
-        <div className="betting-controls">
-          <BetControls
-            selectedChipValue={selectedChipValue}
-            onChipValueChange={handleChipValueChange}
+    <div className="bg-white min-h-screen">
+      <div className="page-container">
+        <div className="roulette-container">
+          <BettingBoard
+            onBetSelect={handleBetSelect}
             selectedBets={selectedBets}
-            onClearBets={handleClearBets}
-            onPlaceBets={handlePlaceBets}
-            onApprove={handleApprove}
-            isApproved={isApproved}
-            isCheckingApproval={isCheckingApproval}
             disabled={isProcessing}
-            gameState={{ isProcessing }}
-            onUndoBet={handleUndoBet}
+            selectedChipValue={selectedChipValue}
+            contracts={contracts}
+            account={account}
           />
 
-          <div className="roulette-stats">
-            <div className="stat-card">
-              <div className="stat-label">Total Bets</div>
-              <div className="stat-value">{selectedBets.length}</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Total Amount</div>
-              <div className="stat-value">
-                {ethers.formatEther(totalBetAmount)} GAMA
+          <div className="betting-controls">
+            <BetControls
+              selectedChipValue={selectedChipValue}
+              onChipValueChange={handleChipValueChange}
+              selectedBets={selectedBets}
+              onClearBets={handleClearBets}
+              onPlaceBets={handlePlaceBets}
+              onApprove={handleApprove}
+              isApproved={isApproved}
+              isCheckingApproval={isCheckingApproval}
+              disabled={isProcessing}
+              gameState={{ isProcessing }}
+              onUndoBet={handleUndoBet}
+            />
+
+            <div className="roulette-stats">
+              <div className="stat-card">
+                <div className="stat-label">Total Bets</div>
+                <div className="stat-value">{selectedBets.length}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">Total Amount</div>
+                <div className="stat-value">
+                  {ethers.formatEther(totalBetAmount)} GAMA
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <BettingHistory account={account} contracts={contracts} />
+          <BettingHistory account={account} contracts={contracts} />
+        </div>
       </div>
     </div>
   );
