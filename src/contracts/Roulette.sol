@@ -33,12 +33,16 @@ enum BetType {
     High         // 19-36
 }
 
-struct Bet {
-    uint256 timestamp;
+struct BetDetails {
     BetType betType;
     uint8[] numbers;
     uint256 amount;
     uint256 payout;
+}
+
+struct Bet {
+    uint256 timestamp;
+    BetDetails[] bets;
     uint8 winningNumber;
 }
 
@@ -73,7 +77,6 @@ contract Roulette is ReentrancyGuard {
     mapping(address => UserGameData) public userData;
     uint256 public totalGamesPlayed;
     uint256 public totalPayoutAmount;
-    uint8 public winningNumber;
 
     // Errors
     error InvalidBetParameters(string reason);
@@ -177,10 +180,12 @@ contract Roulette is ReentrancyGuard {
             revert BurnFailed(msg.sender, totalAmount);
         }
 
-        // Generate winning number once for all bets
-        winningNumber = _generateRandomNumber();
+        // Generate winning number once for all bets in this transaction
+        uint8 currentWinningNumber = _generateRandomNumber();
         
-        // Process all bets
+        // Process all bets and calculate total payout
+        BetDetails[] memory betDetails = new BetDetails[](bets.length);
+        
         for (uint256 i = 0; i < bets.length; i++) {
             // Convert betTypeId to BetType and get numbers
             (BetType betType, uint8[] memory numbers) = _processBetRequest(bets[i]);
@@ -189,23 +194,48 @@ contract Roulette is ReentrancyGuard {
                 numbers,
                 betType,
                 bets[i].amount,
-                winningNumber
+                currentWinningNumber
             );
 
             if (totalPayout + payout < totalPayout) revert("Payout overflow");
             totalPayout += payout;
 
-            // Create Bet struct for history
-            Bet memory newBet = Bet({
-                timestamp: block.timestamp,
+            // Store bet details in memory array
+            betDetails[i] = BetDetails({
                 betType: betType,
                 numbers: numbers,
                 amount: bets[i].amount,
-                payout: payout,
-                winningNumber: winningNumber
+                payout: payout
             });
+        }
 
-            _updateUserHistory(user, newBet);
+        // Update history with new bet
+        if (user.recentBets.length >= MAX_HISTORY_SIZE) {
+            // Shift elements to make room for new bet
+            for (uint256 j = 0; j < user.recentBets.length - 1; j++) {
+                user.recentBets[j] = user.recentBets[j + 1];
+            }
+            // Update the last element
+            user.recentBets[user.recentBets.length - 1].timestamp = block.timestamp;
+            user.recentBets[user.recentBets.length - 1].winningNumber = currentWinningNumber;
+            
+            // Copy bet details one by one
+            delete user.recentBets[user.recentBets.length - 1].bets;
+            for (uint256 i = 0; i < betDetails.length; i++) {
+                user.recentBets[user.recentBets.length - 1].bets.push(betDetails[i]);
+            }
+        } else {
+            // Create new bet in storage directly
+            user.recentBets.push();
+            uint256 newIndex = user.recentBets.length - 1;
+            
+            user.recentBets[newIndex].timestamp = block.timestamp;
+            user.recentBets[newIndex].winningNumber = currentWinningNumber;
+            
+            // Copy bet details one by one
+            for (uint256 i = 0; i < betDetails.length; i++) {
+                user.recentBets[newIndex].bets.push(betDetails[i]);
+            }
         }
 
         // Process payouts if any wins
@@ -217,18 +247,6 @@ contract Roulette is ReentrancyGuard {
         }
         
         return totalPayout;
-    }
-
-    function _updateUserHistory(UserGameData storage user, Bet memory newBet) private {
-        if (user.recentBets.length >= MAX_HISTORY_SIZE) {
-            // Shift elements to make room for new bet
-            for (uint256 j = 0; j < user.recentBets.length - 1; j++) {
-                user.recentBets[j] = user.recentBets[j + 1];
-            }
-            user.recentBets[user.recentBets.length - 1] = newBet;
-        } else {
-            user.recentBets.push(newBet);
-        }
     }
 
     function _calculatePayout(uint8[] memory numbers, BetType betType, uint256 betAmount, uint8 _winningNumber) private pure returns (uint256) {
@@ -569,26 +587,24 @@ contract Roulette is ReentrancyGuard {
     // Get detailed info about a specific bet from history
     function getBetDetails(address player, uint256 betIndex) external view returns (
         uint256 timestamp,
-        string memory betTypeName,
-        uint8[] memory numbers,
-        uint256 amount,
-        uint256 payout,
+        BetDetails[] memory betDetails,
         uint8 resultNumber,
         bool isWin
     ) {
         require(betIndex < userData[player].recentBets.length, "Invalid bet index");
         
         Bet memory bet = userData[player].recentBets[betIndex];
-        (string memory name,,) = getBetTypeInfo(uint8(bet.betType));
+        
+        uint256 totalPayout = 0;
+        for (uint256 i = 0; i < bet.bets.length; i++) {
+            totalPayout += bet.bets[i].payout;
+        }
         
         return (
             bet.timestamp,
-            name,
-            bet.numbers,
-            bet.amount,
-            bet.payout,
+            bet.bets,
             bet.winningNumber,
-            bet.payout > 0
+            totalPayout > 0
         );
     }
 

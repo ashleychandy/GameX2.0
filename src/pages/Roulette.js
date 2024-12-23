@@ -77,13 +77,53 @@ const CHIP_VALUES = [
   { value: "5000000000000000000000", label: "5K" },
 ];
 
+// Define red numbers for the roulette board
+const redNumbers = [
+  1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
+];
+
+// Helper function to check if a number is red
+const isRed = (number) => redNumbers.includes(Number(number));
+
+// Last Number Display component
+const LastNumberDisplay = ({ number, getNumberBackgroundClass }) => {
+  const bgClass = getNumberBackgroundClass(number);
+
+  // Add debug logging
+  React.useEffect(() => {
+    console.log(
+      "LastNumberDisplay received number:",
+      number,
+      "type:",
+      typeof number,
+    );
+  }, [number]);
+
+  return (
+    <div className="flex items-center justify-center w-24">
+      <div
+        className={`aspect-square w-full rounded-xl flex items-center justify-center font-bold text-4xl relative transform transition-all duration-500 hover:scale-105 ${bgClass} shadow-lg hover:shadow-2xl border border-white/20`}
+      >
+        <div className="absolute -top-8 left-0 right-0 text-center text-sm text-secondary-300 font-medium">
+          Last Number
+        </div>
+        <span className="text-white text-3xl font-bold animate-fadeIn">
+          {number !== null && number !== undefined && !isNaN(number)
+            ? number
+            : "-"}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 const BettingBoard = ({
   onBetSelect,
   selectedBets,
   disabled,
   selectedChipValue,
-  contracts,
-  account,
+  lastWinningNumber,
+  getNumberBackgroundClass,
 }) => {
   // Add hover state
   const [hoveredNumbers, setHoveredNumbers] = useState([]);
@@ -92,7 +132,7 @@ const BettingBoard = ({
   const isNumberHovered = (number) => hoveredNumbers.includes(number);
 
   // Helper function to get numbers for different bet types
-  const getNumbersForBetType = (type, start = 1) => {
+  const getNumbersForBetType = useCallback((type, start = 1) => {
     switch (type) {
       case BetTypes.DOZEN_BET_FIRST:
         return Array.from({ length: 12 }, (_, i) => i + 1);
@@ -127,7 +167,7 @@ const BettingBoard = ({
       default:
         return [];
     }
-  };
+  }, []);
 
   // Helper function to get total bet amount for a position
   const getBetAmount = useCallback(
@@ -187,28 +227,6 @@ const BettingBoard = ({
     [disabled, onBetSelect],
   );
 
-  // Define number colors and grid layout
-  const redNumbers = [
-    1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
-  ];
-  const isRed = (number) => redNumbers.includes(Number(number));
-
-  // Get background color class based on number
-  const getNumberBackgroundClass = (number) => {
-    const num = Number(number);
-    console.log("Getting background for number:", num, typeof num);
-    if (num === 0 || number === "0") {
-      return "bg-gradient-to-br from-emerald-500 to-emerald-600";
-    }
-    if (isRed(num)) {
-      return "bg-gradient-to-br from-gaming-primary to-gaming-primary/90";
-    }
-    if (num > 0 && num <= 36) {
-      return "bg-gradient-to-br from-gray-800 to-gray-900";
-    }
-    return "bg-gradient-to-br from-secondary-700 to-secondary-800"; // Default for no number
-  };
-
   // Define the grid layout in rows (top to bottom)
   const numberGrid = [
     [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36],
@@ -216,82 +234,15 @@ const BettingBoard = ({
     [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34],
   ];
 
-  // Get the last winning number from the user's bet history
-  const { data: lastWinningNumber } = useQuery({
-    queryKey: ["lastWinningNumber", account],
-    queryFn: async () => {
-      if (!contracts?.roulette || !account) {
-        return null;
-      }
-      try {
-        // First get total number of bets to calculate the offset for most recent bet
-        const [_, total] = await contracts.roulette.getUserBetHistory(
-          account,
-          0,
-          0,
-        );
-
-        // Convert total to number since it might be BigInt
-        const totalBets = Number(total);
-
-        if (totalBets === 0) {
-          return null;
-        }
-
-        // Get the most recent bet using total count as offset
-        const [bets] = await contracts.roulette.getUserBetHistory(
-          account,
-          totalBets - 1, // Get the last bet
-          1,
-        );
-
-        // Return the winning number from most recent bet if exists
-        if (bets && bets.length > 0) {
-          const lastNumber = Number(bets[0].winningNumber);
-          console.log(
-            "Found user's last winning number:",
-            lastNumber,
-            "from total bets:",
-            totalBets,
-          );
-          return lastNumber;
-        }
-        return null;
-      } catch (error) {
-        console.error("Error fetching user's winning number:", error);
-        return null;
-      }
-    },
-    enabled: !!contracts?.roulette && !!account,
-    refetchInterval: 5000, // Refetch every 5 seconds
-  });
-
-  // Log when lastWinningNumber changes
-  useEffect(() => {
-    console.log(
-      "User's last winning number updated:",
-      lastWinningNumber,
-      typeof lastWinningNumber,
-      "for account:",
-      account,
-    );
-  }, [lastWinningNumber, account]);
-
   return (
-    <div className="flex flex-col gap-3 p-6 bg-secondary-900/90 backdrop-blur-lg rounded-xl border border-white/5 shadow-2xl">
+    <div className="flex flex-col gap-3 p-8 bg-secondary-900/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300">
       {/* Main betting grid */}
-      <div className="grid grid-cols-[auto_45px_1fr] gap-1">
+      <div className="grid grid-cols-[auto_45px_1fr] gap-2">
         {/* Last Winning Number Display */}
-        <div className="flex items-center justify-center w-24">
-          <div
-            className={`aspect-square w-full rounded-lg flex items-center justify-center font-bold text-3xl relative ${getNumberBackgroundClass(lastWinningNumber)}`}
-          >
-            <span className="text-white/90">{lastWinningNumber ?? "-"}</span>
-            <div className="absolute -top-8 left-0 right-0 text-center text-sm text-secondary-400 font-medium">
-              Last Number
-            </div>
-          </div>
-        </div>
+        <LastNumberDisplay
+          number={lastWinningNumber}
+          getNumberBackgroundClass={getNumberBackgroundClass}
+        />
 
         {/* Zero */}
         <div className="row-span-3">
@@ -299,15 +250,15 @@ const BettingBoard = ({
             onClick={() => handleBet([0], BetTypes.STRAIGHT_BET)}
             onMouseEnter={() => setHoveredNumbers([0])}
             onMouseLeave={() => setHoveredNumbers([])}
-            className={`number-button-zero ${
+            className={`number-button-zero transform transition-all duration-300 hover:scale-105 hover:shadow-lg ${
               getBetAmount([0], BetTypes.STRAIGHT_BET) > 0 || isNumberHovered(0)
-                ? "ring-2 ring-emerald-400/50 ring-offset-2 ring-offset-secondary-900"
+                ? "ring-2 ring-emerald-400/50 ring-offset-2 ring-offset-secondary-900 shadow-emerald-500/20"
                 : ""
             }`}
           >
-            <span className="text-white/90">0</span>
+            <span className="text-white/90 text-2xl">0</span>
             {getBetAmount([0], BetTypes.STRAIGHT_BET) > 0 && (
-              <div className="chip-stack">
+              <div className="chip-stack animate-bounceIn">
                 {getBetAmount([0], BetTypes.STRAIGHT_BET)}
               </div>
             )}
@@ -315,11 +266,11 @@ const BettingBoard = ({
         </div>
 
         {/* Numbers grid */}
-        <div className="grid grid-rows-3 gap-1">
+        <div className="grid grid-rows-3 gap-2">
           {numberGrid.map((row, rowIndex) => (
             <div
               key={rowIndex}
-              className="grid grid-cols-[repeat(12,minmax(45px,1fr))_45px] gap-1"
+              className="grid grid-cols-[repeat(12,minmax(45px,1fr))_45px] gap-2"
             >
               {row.map((number) => (
                 <button
@@ -329,16 +280,16 @@ const BettingBoard = ({
                   onMouseLeave={() => setHoveredNumbers([])}
                   className={`number-button ${
                     isRed(number) ? "number-button-red" : "number-button-black"
-                  } ${
+                  } transform transition-all duration-300 hover:scale-105 hover:shadow-lg ${
                     getBetAmount([number], BetTypes.STRAIGHT_BET) > 0 ||
                     isNumberHovered(number)
-                      ? "number-button-selected"
+                      ? "ring-2 ring-gaming-primary/50 ring-offset-2 ring-offset-secondary-900 shadow-gaming-primary/20"
                       : ""
                   }`}
                 >
-                  <span className="text-white/90">{number}</span>
+                  <span className="text-white/90 text-xl">{number}</span>
                   {getBetAmount([number], BetTypes.STRAIGHT_BET) > 0 && (
-                    <div className="chip-stack">
+                    <div className="chip-stack animate-bounceIn">
                       {getBetAmount([number], BetTypes.STRAIGHT_BET)}
                     </div>
                   )}
@@ -369,7 +320,7 @@ const BettingBoard = ({
                   setHoveredNumbers(numbers);
                 }}
                 onMouseLeave={() => setHoveredNumbers([])}
-                className="column-bet"
+                className="column-bet transform transition-all duration-300 hover:scale-105 hover:shadow-lg hover:bg-secondary-700/80 hover:border-gaming-primary/30"
               >
                 2:1
                 {getBetAmount(
@@ -380,7 +331,7 @@ const BettingBoard = ({
                       ? BetTypes.COLUMN_BET_SECOND
                       : BetTypes.COLUMN_BET_THIRD,
                 ) > 0 && (
-                  <div className="chip-stack">
+                  <div className="chip-stack animate-bounceIn">
                     {getBetAmount(
                       [3 - rowIndex],
                       3 - rowIndex === 1
@@ -398,12 +349,12 @@ const BettingBoard = ({
       </div>
 
       {/* Bottom betting options */}
-      <div className="flex flex-col gap-2 mt-1">
+      <div className="flex flex-col gap-3 mt-2">
         {/* Dozens */}
-        <div className="grid grid-cols-[auto_45px_1fr] gap-1">
+        <div className="grid grid-cols-[auto_45px_1fr] gap-2">
           <div className="w-24"></div>
           <div className="w-[45px]"></div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-3">
             {[
               { start: 1, label: "1 to 12", type: BetTypes.DOZEN_BET_FIRST },
               { start: 13, label: "13 to 24", type: BetTypes.DOZEN_BET_SECOND },
@@ -422,11 +373,11 @@ const BettingBoard = ({
                   setHoveredNumbers(getNumbersForBetType(dozen.type))
                 }
                 onMouseLeave={() => setHoveredNumbers([])}
-                className="h-12 rounded-lg bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 shadow-lg hover:shadow-purple-500/20 transition-all duration-200 text-base font-bold flex items-center justify-center text-white/90 relative"
+                className="h-12 rounded-xl bg-gradient-to-br from-purple-600/90 to-purple-700/90 hover:from-purple-500 hover:to-purple-600 shadow-lg hover:shadow-purple-500/30 transform transition-all duration-300 hover:scale-105 text-base font-bold flex items-center justify-center text-white/90 relative border border-white/10"
               >
                 {dozen.label}
                 {getBetAmount([dozen.start], dozen.type) > 0 && (
-                  <div className="absolute -top-2 -right-2 bg-white/95 text-purple-600 text-xs px-2 py-0.5 rounded-full z-10 shadow-lg font-bold border border-purple-200/20">
+                  <div className="absolute -top-2 -right-2 bg-white/95 text-purple-600 text-xs px-2 py-0.5 rounded-full z-10 shadow-lg font-bold border border-purple-200/20 animate-bounceIn">
                     {getBetAmount([dozen.start], dozen.type)}
                   </div>
                 )}
@@ -436,10 +387,10 @@ const BettingBoard = ({
         </div>
 
         {/* Other betting options */}
-        <div className="grid grid-cols-[auto_45px_1fr] gap-1">
+        <div className="grid grid-cols-[auto_45px_1fr] gap-2">
           <div className="w-24"></div>
           <div className="w-[45px]"></div>
-          <div className="grid grid-cols-6 gap-2">
+          <div className="grid grid-cols-6 gap-3">
             {[
               { type: BetTypes.LOW_BET, label: "1 to 18", color: "cyan" },
               { type: BetTypes.EVEN_BET, label: "Even", color: "cyan" },
@@ -460,12 +411,12 @@ const BettingBoard = ({
                   setHoveredNumbers(getNumbersForBetType(option.type))
                 }
                 onMouseLeave={() => setHoveredNumbers([])}
-                className={`h-12 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 text-base font-bold flex items-center justify-center relative ${
+                className={`h-12 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-105 text-base font-bold flex items-center justify-center relative border border-white/10 ${
                   option.isRed
-                    ? "bg-gradient-to-br from-gaming-primary to-gaming-primary/90 hover:from-gaming-primary hover:to-gaming-primary/80 text-white/90"
+                    ? "bg-gradient-to-br from-gaming-primary/90 to-gaming-primary/80 hover:from-gaming-primary hover:to-gaming-primary/90 text-white/90 hover:shadow-gaming-primary/30"
                     : option.color === "gray"
-                      ? "bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-white/90"
-                      : `bg-gradient-to-br from-${option.color}-600 to-${option.color}-700 hover:from-${option.color}-500 hover:to-${option.color}-600 text-white/90 hover:shadow-${option.color}-500/20`
+                      ? "bg-gradient-to-br from-gray-800/90 to-gray-900/90 hover:from-gray-700 hover:to-gray-800 text-white/90 hover:shadow-gray-500/30"
+                      : `bg-gradient-to-br from-${option.color}-600/90 to-${option.color}-700/90 hover:from-${option.color}-500 hover:to-${option.color}-600 text-white/90 hover:shadow-${option.color}-500/30`
                 }`}
               >
                 {option.label}
@@ -483,7 +434,7 @@ const BettingBoard = ({
                         : option.color === "gray"
                           ? "border-gray-300/20"
                           : `border-${option.color}-200/20`
-                    }`}
+                    } animate-bounceIn`}
                   >
                     {getBetAmount([], option.type)}
                   </div>
@@ -672,13 +623,13 @@ const BettingHistory = ({ account, contracts }) => {
         // Convert BigInts to strings for proper serialization
         return bets.map((bet) => ({
           timestamp: Number(bet.timestamp),
-          betType: Number(bet.betType),
-          numbers: Array.isArray(bet.numbers)
-            ? bet.numbers.map((n) => Number(n))
-            : [],
-          amount: bet.amount.toString(),
-          payout: bet.payout.toString(),
           winningNumber: Number(bet.winningNumber),
+          bets: bet.bets.map((betDetail) => ({
+            betType: Number(betDetail.betType),
+            numbers: betDetail.numbers.map((n) => Number(n)),
+            amount: betDetail.amount.toString(),
+            payout: betDetail.payout.toString(),
+          })),
         }));
       } catch (error) {
         console.error("Error fetching betting history:", error);
@@ -704,14 +655,20 @@ const BettingHistory = ({ account, contracts }) => {
         acc[key] = {
           timestamp: bet.timestamp,
           winningNumber: bet.winningNumber,
-          bets: [],
+          bets: bet.bets || [],
           totalAmount: BigInt(0),
           totalPayout: BigInt(0),
         };
       }
-      acc[key].bets.push(bet);
-      acc[key].totalAmount += BigInt(bet.amount);
-      acc[key].totalPayout += BigInt(bet.payout);
+
+      // Calculate totals from all bets in this spin
+      if (bet.bets && Array.isArray(bet.bets)) {
+        bet.bets.forEach((betDetail) => {
+          acc[key].totalAmount += BigInt(betDetail.amount);
+          acc[key].totalPayout += BigInt(betDetail.payout);
+        });
+      }
+
       return acc;
     }, {});
 
@@ -767,6 +724,31 @@ const BettingHistory = ({ account, contracts }) => {
         return groupedBets;
     }
   }, [groupedBets, filter]);
+
+  // Render bet details
+  const renderBetDetails = (bets) => {
+    if (!bets || !Array.isArray(bets)) return null;
+
+    return (
+      <div className="font-medium flex flex-wrap gap-1">
+        {bets.map((bet, i) => (
+          <span
+            key={i}
+            className="inline-block px-2 py-1 bg-secondary-800/50 rounded-md text-sm"
+          >
+            {getBetTypeName(bet.betType)} - {ethers.formatEther(bet.amount)}{" "}
+            GAMA
+            {bet.payout > bet.amount && (
+              <span className="ml-1 text-gaming-success">
+                (+{ethers.formatEther(BigInt(bet.payout) - BigInt(bet.amount))}{" "}
+                GAMA)
+              </span>
+            )}
+          </span>
+        ))}
+      </div>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -876,106 +858,26 @@ const BettingHistory = ({ account, contracts }) => {
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-secondary-400">Bet Types</div>
-                    <div className="font-medium flex flex-wrap gap-1">
-                      {group.bets.map((bet, i) => (
-                        <span
-                          key={i}
-                          className="inline-block px-2 py-1 bg-secondary-800/50 rounded-md text-sm"
-                        >
-                          {getBetTypeName(bet.betType)}
-                        </span>
-                      ))}
+                    <div className="text-sm text-secondary-400">
+                      Bet Details
                     </div>
+                    {renderBetDetails(group.bets)}
                   </div>
                 </div>
 
-                {/* Numbers and amounts */}
-                <div className="grid grid-cols-2 gap-4 mt-3">
-                  <div>
-                    <div className="text-sm text-secondary-400">
-                      Selected Numbers
-                    </div>
-                    <div className="max-h-20 overflow-y-auto scrollbar-thin scrollbar-thumb-secondary-600 scrollbar-track-secondary-800">
-                      <div className="font-medium flex flex-wrap gap-1 p-1">
-                        {group.bets.flatMap((bet) => bet.numbers).length > 0 ? (
-                          group.bets.flatMap((bet) => bet.numbers).length <=
-                          5 ? (
-                            group.bets
-                              .flatMap((bet) => bet.numbers)
-                              .map((num, i) => (
-                                <span
-                                  key={i}
-                                  className="bg-secondary-600/50 backdrop-blur-sm min-w-[2rem] h-8 flex items-center justify-center rounded-md text-sm border border-white/5"
-                                >
-                                  {num}
-                                </span>
-                              ))
-                          ) : (
-                            <div className="grid grid-cols-6 gap-1 w-full">
-                              {group.bets
-                                .flatMap((bet) => bet.numbers)
-                                .map((num, i) => (
-                                  <span
-                                    key={i}
-                                    className="bg-secondary-600/50 backdrop-blur-sm w-7 h-7 flex items-center justify-center rounded-md text-xs border border-white/5"
-                                  >
-                                    {num}
-                                  </span>
-                                ))}
-                            </div>
-                          )
-                        ) : (
-                          <span className="text-secondary-400">-</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-secondary-400">
-                      Amount & Payout
-                    </div>
-                    <div className="space-y-1">
-                      <div className="font-medium">
-                        Total Bet:{" "}
-                        {ethers.formatEther(group.totalAmount.toString())} GAMA
-                      </div>
-                      <div
-                        className={`font-bold ${
-                          group.totalPayout > 0
-                            ? "text-gaming-success"
-                            : "text-secondary-400"
-                        }`}
-                      >
-                        Total Payout:{" "}
-                        {ethers.formatEther(group.totalPayout.toString())} GAMA
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Multiplier and profit/loss */}
+                {/* Amounts */}
                 <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-secondary-600/50">
                   <div>
                     <div className="text-sm text-secondary-400">
-                      Average Multiplier
+                      Total Amount
                     </div>
                     <div className="font-medium">
-                      {group.totalPayout > 0
-                        ? `${(
-                            Number(
-                              ethers.formatEther(group.totalPayout.toString()),
-                            ) /
-                            Number(
-                              ethers.formatEther(group.totalAmount.toString()),
-                            )
-                          ).toFixed(2)}x`
-                        : "0x"}
+                      {ethers.formatEther(group.totalAmount.toString())} GAMA
                     </div>
                   </div>
                   <div>
                     <div className="text-sm text-secondary-400">
-                      Profit/Loss
+                      Total Payout
                     </div>
                     <div
                       className={`font-bold ${
@@ -984,10 +886,7 @@ const BettingHistory = ({ account, contracts }) => {
                           : "text-gaming-error"
                       }`}
                     >
-                      {ethers.formatEther(
-                        (group.totalPayout - group.totalAmount).toString(),
-                      )}{" "}
-                      GAMA
+                      {ethers.formatEther(group.totalPayout.toString())} GAMA
                     </div>
                   </div>
                 </div>
@@ -1561,6 +1460,84 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
     });
   }, []);
 
+  // Get the last winning number from the user's bet history
+  const { data: lastWinningNumber } = useQuery({
+    queryKey: ["lastWinningNumber", account],
+    queryFn: async () => {
+      if (!contracts?.roulette || !account) {
+        console.log(
+          "No contract or account available for lastWinningNumber query",
+        );
+        return null;
+      }
+      try {
+        // Get all recent bets to ensure we get the latest one
+        const [bets, total] = await contracts.roulette.getUserBetHistory(
+          account,
+          0,
+          10, // Get more bets to ensure we have the latest
+        );
+
+        // Return the winning number from most recent bet if exists
+        if (bets && bets.length > 0) {
+          // Sort bets by timestamp in descending order to get the most recent
+          const sortedBets = [...bets].sort(
+            (a, b) => Number(b.timestamp) - Number(a.timestamp),
+          );
+          const lastNumber = Number(sortedBets[0].winningNumber);
+          console.log(
+            "Found last winning number:",
+            lastNumber,
+            "type:",
+            typeof lastNumber,
+            "raw value:",
+            sortedBets[0].winningNumber,
+            "timestamp:",
+            new Date(Number(sortedBets[0].timestamp) * 1000).toLocaleString(),
+            "total bets found:",
+            bets.length,
+          );
+          return lastNumber;
+        }
+        console.log("No bets found in history");
+        return null;
+      } catch (error) {
+        console.error("Error fetching last winning number:", error);
+        return null;
+      }
+    },
+    enabled: !!contracts?.roulette && !!account,
+    refetchInterval: 2000, // Refetch more frequently to catch new results
+    staleTime: 1000, // Consider data stale sooner
+    cacheTime: 5000, // Keep in cache for less time
+  });
+
+  // Get background color class based on number
+  const getNumberBackgroundClass = useCallback((number) => {
+    if (number === null || number === undefined) {
+      return "bg-gradient-to-br from-secondary-800 to-secondary-900 border-secondary-700";
+    }
+    const num = Number(number);
+    if (num === 0) {
+      return "bg-gradient-to-br from-emerald-500 to-emerald-600 border-emerald-400";
+    }
+    if (isRed(num)) {
+      return "bg-gradient-to-br from-gaming-primary to-gaming-primary/90 border-gaming-primary";
+    }
+    return "bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700";
+  }, []);
+
+  // Log when lastWinningNumber changes
+  useEffect(() => {
+    console.log(
+      "User's last winning number updated:",
+      lastWinningNumber,
+      typeof lastWinningNumber,
+      "for account:",
+      account,
+    );
+  }, [lastWinningNumber, account]);
+
   return (
     <div className="bg-white min-h-screen">
       <div className="page-container">
@@ -1570,8 +1547,8 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
             selectedBets={selectedBets}
             disabled={isProcessing}
             selectedChipValue={selectedChipValue}
-            contracts={contracts}
-            account={account}
+            lastWinningNumber={lastWinningNumber}
+            getNumberBackgroundClass={getNumberBackgroundClass}
           />
 
           <div className="betting-controls">
