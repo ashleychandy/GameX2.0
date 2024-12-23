@@ -986,36 +986,32 @@ const BettingHistory = ({ account, contracts }) => {
 const CompactHistory = ({ bets }) => {
   if (!bets || bets.length === 0) return null;
 
+  // Sort bets by timestamp in descending order (most recent first)
+  const sortedBets = [...bets].sort((a, b) => b.timestamp - a.timestamp);
+
   return (
-    <div className="bg-secondary-900/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 p-4">
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-sm font-medium text-secondary-300">
-          Recent Results
-        </h2>
+    <div className="bg-secondary-900/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 p-3">
+      <div className="flex items-center justify-between mb-1.5">
+        <h2 className="text-xs font-medium text-secondary-300">Last Results</h2>
       </div>
-      <div className="flex gap-1.5">
-        {bets.slice(0, 3).map((group, index) => (
+      <div className="flex gap-1">
+        {sortedBets.slice(0, 3).map((bet, index) => (
           <div
-            key={`${group.timestamp}-${index}`}
-            className={`flex-1 p-2 rounded-lg border backdrop-blur-sm ${
-              group.totalPayout > group.totalAmount
+            key={`${bet.timestamp}-${index}`}
+            className={`flex-1 p-1.5 rounded-lg border ${
+              bet.totalPayout > bet.totalAmount
                 ? "bg-gaming-success/10 border-gaming-success/20"
                 : "bg-gaming-error/10 border-gaming-error/20"
             }`}
           >
-            <div className="flex items-center gap-2">
-              <div
-                className={`w-6 h-6 rounded-md flex items-center justify-center text-sm ${
-                  isRed(group.winningNumber)
-                    ? "bg-gaming-primary/20"
-                    : "bg-gray-800/20"
-                }`}
-              >
-                {group.winningNumber}
-              </div>
-              <div className="text-xs font-medium">
-                {Number(ethers.formatEther(group.totalPayout)).toFixed(0)} GAMA
-              </div>
+            <div
+              className={`w-full h-6 rounded flex items-center justify-center text-sm font-medium ${
+                isRed(bet.winningNumber)
+                  ? "bg-gaming-primary/20 text-gaming-primary"
+                  : "bg-gray-800/20 text-gray-300"
+              }`}
+            >
+              {bet.winningNumber}
             </div>
           </div>
         ))}
