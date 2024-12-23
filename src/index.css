@@ -420,7 +420,8 @@
            hover:scale-105 hover:z-10
            active:scale-95 cursor-pointer
            text-white;
-    min-height: 45px;
+    aspect-ratio: 1;
+    min-width: 45px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -428,7 +429,7 @@
 
   .number-button-zero {
     @apply bg-[#1B5E20] hover:bg-[#2E7D32]
-           h-full;
+           h-full w-[45px];
     grid-row: span 3;
   }
 
@@ -447,7 +448,7 @@
   .column-bet {
     @apply bg-secondary-800 text-white rounded
            hover:bg-secondary-700 transition-all duration-300
-           font-bold text-sm h-full flex items-center justify-center;
+           font-bold text-sm h-full w-[45px] flex items-center justify-center;
   }
 
   .chip-stack {

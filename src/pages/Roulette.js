@@ -216,42 +216,49 @@ const BettingBoard = ({
     [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34],
   ];
 
-  // Get the last winning number from the contract state
+  // Get the last winning number from the user's bet history
   const { data: lastWinningNumber } = useQuery({
     queryKey: ["lastWinningNumber", account],
     queryFn: async () => {
-      console.log("Checking roulette contract:", contracts?.roulette?.target);
       if (!contracts?.roulette || !account) {
-        console.log("Roulette contract not initialized or no account");
         return null;
       }
       try {
-        console.log("Fetching bet history for winning number...");
-        // Get the most recent bet (first 1 bet)
-        const [bets, total] = await contracts.roulette.getUserBetHistory(
+        // First get total number of bets to calculate the offset for most recent bet
+        const [_, total] = await contracts.roulette.getUserBetHistory(
           account,
           0,
+          0,
+        );
+
+        // Convert total to number since it might be BigInt
+        const totalBets = Number(total);
+
+        if (totalBets === 0) {
+          return null;
+        }
+
+        // Get the most recent bet using total count as offset
+        const [bets] = await contracts.roulette.getUserBetHistory(
+          account,
+          totalBets - 1, // Get the last bet
           1,
         );
-        console.log("Bet history fetched:", bets);
 
+        // Return the winning number from most recent bet if exists
         if (bets && bets.length > 0) {
           const lastNumber = Number(bets[0].winningNumber);
           console.log(
-            "Last winning number from history:",
+            "Found user's last winning number:",
             lastNumber,
-            typeof lastNumber,
+            "from total bets:",
+            totalBets,
           );
           return lastNumber;
         }
         return null;
       } catch (error) {
-        console.error("Error fetching winning number from history:", {
-          error,
-          errorMessage: error.message,
-          code: error.code,
-          data: error.data,
-        });
+        console.error("Error fetching user's winning number:", error);
         return null;
       }
     },
@@ -262,16 +269,18 @@ const BettingBoard = ({
   // Log when lastWinningNumber changes
   useEffect(() => {
     console.log(
-      "Last winning number updated from history:",
+      "User's last winning number updated:",
       lastWinningNumber,
       typeof lastWinningNumber,
+      "for account:",
+      account,
     );
-  }, [lastWinningNumber]);
+  }, [lastWinningNumber, account]);
 
   return (
     <div className="flex flex-col gap-3 p-6 bg-secondary-900/90 backdrop-blur-lg rounded-xl border border-white/5 shadow-2xl">
       {/* Main betting grid */}
-      <div className="grid grid-cols-[auto_45px_1fr] gap-2">
+      <div className="grid grid-cols-[auto_45px_1fr] gap-1">
         {/* Last Winning Number Display */}
         <div className="flex items-center justify-center w-24">
           <div
@@ -290,7 +299,7 @@ const BettingBoard = ({
             onClick={() => handleBet([0], BetTypes.STRAIGHT_BET)}
             onMouseEnter={() => setHoveredNumbers([0])}
             onMouseLeave={() => setHoveredNumbers([])}
-            className={`h-full w-full rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 shadow-lg hover:shadow-emerald-500/30 transition-all duration-200 flex items-center justify-center font-bold text-2xl relative ${
+            className={`number-button-zero ${
               getBetAmount([0], BetTypes.STRAIGHT_BET) > 0 || isNumberHovered(0)
                 ? "ring-2 ring-emerald-400/50 ring-offset-2 ring-offset-secondary-900"
                 : ""
@@ -298,19 +307,19 @@ const BettingBoard = ({
           >
             <span className="text-white/90">0</span>
             {getBetAmount([0], BetTypes.STRAIGHT_BET) > 0 && (
-              <div className="absolute -top-2 -right-2 bg-white/95 text-emerald-600 text-xs px-2 py-0.5 rounded-full z-10 shadow-lg font-bold border border-emerald-200/20">
+              <div className="chip-stack">
                 {getBetAmount([0], BetTypes.STRAIGHT_BET)}
               </div>
             )}
           </button>
         </div>
 
-        {/* Numbers 1-36 in grid layout with 2:1 buttons */}
-        <div className="grid grid-rows-3 gap-2">
+        {/* Numbers grid */}
+        <div className="grid grid-rows-3 gap-1">
           {numberGrid.map((row, rowIndex) => (
             <div
               key={rowIndex}
-              className="grid grid-cols-[repeat(12,minmax(0,1fr))_45px] gap-2"
+              className="grid grid-cols-[repeat(12,minmax(45px,1fr))_45px] gap-1"
             >
               {row.map((number) => (
                 <button
@@ -318,30 +327,24 @@ const BettingBoard = ({
                   onClick={() => handleBet([number], BetTypes.STRAIGHT_BET)}
                   onMouseEnter={() => setHoveredNumbers([number])}
                   onMouseLeave={() => setHoveredNumbers([])}
-                  className={`aspect-square rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 ${
-                    isRed(number)
-                      ? "bg-gradient-to-br from-gaming-primary to-gaming-primary/90 hover:from-gaming-primary hover:to-gaming-primary/80"
-                      : "bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800"
-                  } text-white font-bold text-xl relative ${
+                  className={`number-button ${
+                    isRed(number) ? "number-button-red" : "number-button-black"
+                  } ${
                     getBetAmount([number], BetTypes.STRAIGHT_BET) > 0 ||
                     isNumberHovered(number)
-                      ? `ring-2 ${
-                          isRed(number)
-                            ? "ring-gaming-primary/50"
-                            : "ring-gray-500/50"
-                        } ring-offset-2 ring-offset-secondary-900`
+                      ? "number-button-selected"
                       : ""
                   }`}
                 >
                   <span className="text-white/90">{number}</span>
                   {getBetAmount([number], BetTypes.STRAIGHT_BET) > 0 && (
-                    <div className="absolute -top-2 -right-2 bg-white/95 text-secondary-900 text-xs px-2 py-0.5 rounded-full z-10 shadow-lg font-bold border border-secondary-300/20">
+                    <div className="chip-stack">
                       {getBetAmount([number], BetTypes.STRAIGHT_BET)}
                     </div>
                   )}
                 </button>
               ))}
-              {/* 2:1 button for each row */}
+              {/* 2:1 button */}
               <button
                 onClick={() => {
                   const columnStart = 3 - rowIndex;
@@ -366,7 +369,7 @@ const BettingBoard = ({
                   setHoveredNumbers(numbers);
                 }}
                 onMouseLeave={() => setHoveredNumbers([])}
-                className="aspect-square rounded-lg bg-gradient-to-br from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 shadow-lg hover:shadow-indigo-500/20 transition-all duration-200 font-bold text-lg flex items-center justify-center text-white/90 relative"
+                className="column-bet"
               >
                 2:1
                 {getBetAmount(
@@ -377,7 +380,7 @@ const BettingBoard = ({
                       ? BetTypes.COLUMN_BET_SECOND
                       : BetTypes.COLUMN_BET_THIRD,
                 ) > 0 && (
-                  <div className="absolute -top-2 -right-2 bg-white/95 text-indigo-600 text-xs px-2 py-0.5 rounded-full z-10 shadow-lg font-bold border border-indigo-200/20">
+                  <div className="chip-stack">
                     {getBetAmount(
                       [3 - rowIndex],
                       3 - rowIndex === 1
