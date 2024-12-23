@@ -662,6 +662,7 @@ const FilterButton = ({ children, active, onClick }) => (
 // Add BettingHistory component
 const BettingHistory = ({ account, contracts }) => {
   const [filter, setFilter] = useState("all");
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const {
     data: userData,
@@ -672,20 +673,17 @@ const BettingHistory = ({ account, contracts }) => {
     queryFn: async () => {
       if (!contracts?.roulette || !account) return null;
       try {
-        // Get bet history with pagination (first 10 bets)
         const [bets, total] = await contracts.roulette.getUserBetHistory(
           account,
           0,
           10,
         );
 
-        // For new users with no bets, return empty array
         if (!bets || !Array.isArray(bets) || bets.length === 0) {
           console.log("No betting data found for new user");
           return [];
         }
 
-        // Convert BigInts to strings for proper serialization
         return bets.map((bet) => ({
           timestamp: Number(bet.timestamp),
           winningNumber: Number(bet.winningNumber),
@@ -695,25 +693,33 @@ const BettingHistory = ({ account, contracts }) => {
             amount: betDetail.amount.toString(),
             payout: betDetail.payout.toString(),
           })),
+          totalAmount: bet.bets.reduce(
+            (sum, b) => sum + BigInt(b.amount),
+            BigInt(0),
+          ),
+          totalPayout: bet.bets.reduce(
+            (sum, b) => sum + BigInt(b.payout),
+            BigInt(0),
+          ),
         }));
       } catch (error) {
         console.log("Error fetching betting history (new user):", error);
-        return []; // Return empty array instead of throwing error
+        return [];
       }
     },
     enabled: !!contracts?.roulette && !!account,
-    refetchInterval: 10000, // Refetch every 10 seconds
-    staleTime: 5000, // Consider data stale after 5 seconds
-    cacheTime: 30000, // Keep data in cache for 30 seconds
-    retry: 3, // Retry failed requests 3 times
-    retryDelay: 1000, // Wait 1 second between retries
-    structuralSharing: false, // Disable structural sharing to prevent serialization issues
+    refetchInterval: 10000,
+    staleTime: 5000,
+    cacheTime: 30000,
+    retry: 3,
+    retryDelay: 1000,
+    structuralSharing: false,
   });
 
   // Group bets by timestamp
   const groupedBets = useMemo(() => {
     if (!userData || !Array.isArray(userData) || userData.length === 0) {
-      return []; // Return empty array for new users
+      return [];
     }
 
     const grouped = userData.reduce((acc, bet) => {
@@ -728,7 +734,6 @@ const BettingHistory = ({ account, contracts }) => {
         };
       }
 
-      // Calculate totals from all bets in this spin
       if (bet.bets && Array.isArray(bet.bets)) {
         bet.bets.forEach((betDetail) => {
           acc[key].totalAmount += BigInt(betDetail.amount);
@@ -792,31 +797,6 @@ const BettingHistory = ({ account, contracts }) => {
     }
   }, [groupedBets, filter]);
 
-  // Render bet details
-  const renderBetDetails = (bets) => {
-    if (!bets || !Array.isArray(bets)) return null;
-
-    return (
-      <div className="font-medium flex flex-wrap gap-1">
-        {bets.map((bet, i) => (
-          <span
-            key={i}
-            className="inline-block px-2 py-1 bg-secondary-800/50 rounded-md text-sm"
-          >
-            {getBetTypeName(bet.betType)} - {ethers.formatEther(bet.amount)}{" "}
-            GAMA
-            {bet.payout > bet.amount && (
-              <span className="ml-1 text-gaming-success">
-                (+{ethers.formatEther(BigInt(bet.payout) - BigInt(bet.amount))}{" "}
-                GAMA)
-              </span>
-            )}
-          </span>
-        ))}
-      </div>
-    );
-  };
-
   if (isLoading) {
     return (
       <div className="betting-history glass-panel p-6 space-y-6">
@@ -841,155 +821,154 @@ const BettingHistory = ({ account, contracts }) => {
   }
 
   return (
-    <div className="betting-history">
-      {/* History Header */}
-      <div className="history-header">
-        <h2 className="history-title">Betting History</h2>
+    <div className="betting-history bg-secondary-900/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 p-6">
+      {/* History Header with Toggle */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-4">
+          <h2 className="text-lg font-semibold text-white/90">
+            Betting History
+          </h2>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setFilter("all")}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                filter === "all"
+                  ? "bg-gaming-primary text-white"
+                  : "text-secondary-300 hover:text-white"
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilter("wins")}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                filter === "wins"
+                  ? "bg-gaming-success text-white"
+                  : "text-secondary-300 hover:text-white"
+              }`}
+            >
+              Wins
+            </button>
+            <button
+              onClick={() => setFilter("losses")}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                filter === "losses"
+                  ? "bg-gaming-error text-white"
+                  : "text-secondary-300 hover:text-white"
+              }`}
+            >
+              Losses
+            </button>
+          </div>
+        </div>
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="text-secondary-300 hover:text-white transition-colors w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5"
+        >
+          {isExpanded ? "↑" : "↓"}
+        </button>
       </div>
 
-      {/* Bet History List */}
-      {filteredBets.length > 0 ? (
-        <div className="history-list">
-          <AnimatePresence>
-            {filteredBets.map((group, index) => (
-              <motion.div
-                key={`${group.timestamp}-${index}`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{
-                  type: "spring",
-                  stiffness: 500,
-                  damping: 30,
-                  delay: index * 0.05,
-                }}
-                className={`history-item ${
-                  group.totalPayout > group.totalAmount
-                    ? "history-item-win"
-                    : "history-item-loss"
-                }`}
-              >
-                {/* Header with timestamp and result */}
-                <div className="flex justify-between items-center mb-4">
-                  <div className="history-timestamp">
-                    <div
-                      className={`history-status-indicator ${
-                        group.totalPayout > group.totalAmount
-                          ? "history-status-win"
-                          : "history-status-loss"
-                      }`}
-                    ></div>
-                    {new Date(group.timestamp * 1000).toLocaleString()}
-                  </div>
-                  <div
-                    className={`history-result-badge ${
-                      group.totalPayout > group.totalAmount
-                        ? "history-result-badge-win"
-                        : "history-result-badge-loss"
-                    }`}
-                  >
-                    {group.totalPayout > group.totalAmount ? "WIN" : "LOSS"}
-                  </div>
-                </div>
-
-                {/* Main bet information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Winning Number Section */}
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={`history-number ${
-                        isRed(group.winningNumber)
-                          ? "history-number-red"
-                          : "history-number-black"
-                      }`}
-                    >
-                      <span className="history-number-text">
+      {/* History List */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+              {filteredBets.map((group, index) => (
+                <motion.div
+                  key={`${group.timestamp}-${index}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 500,
+                    damping: 30,
+                    delay: index * 0.05,
+                  }}
+                  className={`history-item p-4 rounded-xl border backdrop-blur-sm ${
+                    group.totalPayout > group.totalAmount
+                      ? "bg-gaming-success/5 border-gaming-success/20"
+                      : "bg-gaming-error/5 border-gaming-error/20"
+                  }`}
+                >
+                  {/* Header */}
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg font-bold ${
+                          isRed(group.winningNumber)
+                            ? "bg-gaming-primary/20 text-gaming-primary"
+                            : "bg-gray-800/20 text-gray-300"
+                        }`}
+                      >
                         {group.winningNumber}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="history-number-label">Winning Number</div>
-                      <div className="history-number-tags">
-                        <span
-                          className={`history-tag ${
-                            isRed(group.winningNumber)
-                              ? "history-tag-red"
-                              : "history-tag-black"
-                          }`}
-                        >
-                          {isRed(group.winningNumber) ? "RED" : "BLACK"}
-                        </span>
-                        <span className="history-tag history-tag-range">
-                          {group.winningNumber <= 18 ? "1-18" : "19-36"}
-                        </span>
+                      </div>
+                      <div className="text-sm text-secondary-300">
+                        {new Date(group.timestamp * 1000).toLocaleString()}
                       </div>
                     </div>
-                  </div>
-
-                  {/* Bet Details Section */}
-                  <div>
-                    <div className="history-number-label">Bet Details</div>
-                    <div className="history-bets">
-                      {group.bets.map((bet, i) => (
-                        <div key={i} className="history-bet-item">
-                          <div className="history-bet-type">
-                            {getBetTypeName(bet.betType)}
-                          </div>
-                          <div className="history-bet-amount">
-                            {ethers.formatEther(bet.amount)} GAMA
-                            {bet.payout > bet.amount && (
-                              <span className="history-bet-payout">
-                                (+
-                                {ethers.formatEther(
-                                  BigInt(bet.payout) - BigInt(bet.amount),
-                                )}{" "}
-                                GAMA)
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Amounts Section */}
-                <div className="history-totals">
-                  <div>
-                    <div className="history-total-label">Total Bet</div>
-                    <div className="history-total-value history-total-value-bet">
-                      {ethers.formatEther(group.totalAmount.toString())} GAMA
-                    </div>
-                  </div>
-                  <div>
-                    <div className="history-total-label">Total Payout</div>
                     <div
-                      className={`history-total-value ${
+                      className={`text-sm font-medium ${
                         group.totalPayout > group.totalAmount
-                          ? "history-total-value-win"
-                          : "history-total-value-loss"
+                          ? "text-gaming-success"
+                          : "text-gaming-error"
                       }`}
                     >
-                      {ethers.formatEther(group.totalPayout.toString())} GAMA
-                      {group.totalPayout > group.totalAmount && (
-                        <span className="history-total-diff">
-                          (+
-                          {ethers.formatEther(
-                            BigInt(group.totalPayout) -
-                              BigInt(group.totalAmount),
-                          )}{" "}
-                          GAMA)
-                        </span>
-                      )}
+                      {group.totalPayout > group.totalAmount ? "WIN" : "LOSS"}
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
-      ) : (
-        <div className="text-center py-12 bg-secondary-800/30 rounded-xl border border-secondary-700/30">
+
+                  {/* Bets */}
+                  <div className="space-y-2">
+                    {group.bets.map((bet, i) => (
+                      <div key={i} className="flex justify-between text-sm">
+                        <span className="text-secondary-300">
+                          {getBetTypeName(bet.betType)}
+                        </span>
+                        <span className="font-medium">
+                          {ethers.formatEther(bet.amount)} GAMA
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Total */}
+                  <div className="mt-3 pt-3 border-t border-white/5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-secondary-300">
+                        Total Payout
+                      </span>
+                      <span className="font-bold">
+                        {ethers.formatEther(group.totalPayout)} GAMA
+                        {group.totalPayout > group.totalAmount && (
+                          <span className="text-gaming-success ml-1">
+                            (+
+                            {ethers.formatEther(
+                              BigInt(group.totalPayout) -
+                                BigInt(group.totalAmount),
+                            )}
+                            )
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {filteredBets.length === 0 && (
+        <div className="text-center py-8 bg-secondary-800/30 rounded-xl border border-secondary-700/30">
           <div className="text-3xl mb-2 opacity-20">🎲</div>
           <div className="text-secondary-400 font-medium">
             No betting history available
@@ -999,6 +978,48 @@ const BettingHistory = ({ account, contracts }) => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// Add CompactHistory component
+const CompactHistory = ({ bets }) => {
+  if (!bets || bets.length === 0) return null;
+
+  return (
+    <div className="bg-secondary-900/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 p-4">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-sm font-medium text-secondary-300">
+          Recent Results
+        </h2>
+      </div>
+      <div className="flex gap-1.5">
+        {bets.slice(0, 3).map((group, index) => (
+          <div
+            key={`${group.timestamp}-${index}`}
+            className={`flex-1 p-2 rounded-lg border backdrop-blur-sm ${
+              group.totalPayout > group.totalAmount
+                ? "bg-gaming-success/10 border-gaming-success/20"
+                : "bg-gaming-error/10 border-gaming-error/20"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <div
+                className={`w-6 h-6 rounded-md flex items-center justify-center text-sm ${
+                  isRed(group.winningNumber)
+                    ? "bg-gaming-primary/20"
+                    : "bg-gray-800/20"
+                }`}
+              >
+                {group.winningNumber}
+              </div>
+              <div className="text-xs font-medium">
+                {Number(ethers.formatEther(group.totalPayout)).toFixed(0)} GAMA
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
@@ -1016,6 +1037,50 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
 
   // Get React Query client
   const queryClient = useQueryClient();
+
+  // Fetch user's betting data
+  const { data: userData } = useQuery({
+    queryKey: ["rouletteHistory", account],
+    queryFn: async () => {
+      if (!contracts?.roulette || !account) return null;
+      try {
+        const [bets, total] = await contracts.roulette.getUserBetHistory(
+          account,
+          0,
+          10,
+        );
+
+        if (!bets || !Array.isArray(bets) || bets.length === 0) {
+          return [];
+        }
+
+        return bets.map((bet) => ({
+          timestamp: Number(bet.timestamp),
+          winningNumber: Number(bet.winningNumber),
+          bets: bet.bets.map((betDetail) => ({
+            betType: Number(betDetail.betType),
+            numbers: betDetail.numbers.map((n) => Number(n)),
+            amount: betDetail.amount.toString(),
+            payout: betDetail.payout.toString(),
+          })),
+          totalAmount: bet.bets.reduce(
+            (sum, b) => sum + BigInt(b.amount),
+            BigInt(0),
+          ),
+          totalPayout: bet.bets.reduce(
+            (sum, b) => sum + BigInt(b.payout),
+            BigInt(0),
+          ),
+        }));
+      } catch (error) {
+        console.log("Error fetching betting history:", error);
+        return [];
+      }
+    },
+    enabled: !!contracts?.roulette && !!account,
+    refetchInterval: 10000,
+    staleTime: 5000,
+  });
 
   // Check token approval
   useEffect(() => {
@@ -1685,7 +1750,7 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
               />
             </div>
 
-            {/* Right Column - Stats & History */}
+            {/* Right Column - Stats & Compact History */}
             <div className="space-y-6">
               {/* Stats Cards */}
               <div className="grid grid-cols-2 gap-4">
@@ -1703,9 +1768,14 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
                 </div>
               </div>
 
-              {/* Betting History */}
-              <BettingHistory account={account} contracts={contracts} />
+              {/* Compact History */}
+              <CompactHistory bets={userData} />
             </div>
+          </div>
+
+          {/* Bottom Section - Detailed History */}
+          <div>
+            <BettingHistory account={account} contracts={contracts} />
           </div>
         </div>
       </div>
