@@ -241,14 +241,14 @@ const BettingBoard = ({
           <div className="flex flex-col gap-2">
             <button
               onClick={onUndoBet}
-              className="btn-secondary bg-gradient-to-br from-orange-600/90 to-orange-700/90 hover:from-orange-500/90 hover:to-orange-600/90 rounded-xl py-2 px-3 font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50 h-10"
+              className="w-24 h-10 btn-secondary bg-gradient-to-br from-orange-600/90 to-orange-700/90 hover:from-orange-500/90 hover:to-orange-600/90 rounded-xl font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50 flex items-center justify-center"
               disabled={disabled || selectedBets.length === 0}
             >
               ↩
             </button>
             <button
               onClick={onClearBets}
-              className="btn-secondary bg-gradient-to-br from-red-600/90 to-red-700/90 hover:from-red-500/90 hover:to-red-600/90 rounded-xl py-2 px-3 font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50 h-10"
+              className="w-24 h-10 btn-secondary bg-gradient-to-br from-red-600/90 to-red-700/90 hover:from-red-500/90 hover:to-red-600/90 rounded-xl font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50 flex items-center justify-center"
               disabled={disabled || selectedBets.length === 0}
             >
               Clear
@@ -342,7 +342,7 @@ const BettingBoard = ({
                   setHoveredNumbers(numbers);
                 }}
                 onMouseLeave={() => setHoveredNumbers([])}
-                className={`column-bet ${
+                className={`h-[45px] rounded-xl bg-gradient-to-br from-purple-600/90 to-purple-700/90 hover:from-purple-500/90 hover:to-purple-600/90 text-white/90 font-bold flex items-center justify-center transition-all duration-300 hover:scale-105 ${
                   getBetAmount(
                     [3 - rowIndex],
                     3 - rowIndex === 1
@@ -350,17 +350,8 @@ const BettingBoard = ({
                       : 3 - rowIndex === 2
                         ? BetTypes.COLUMN_BET_SECOND
                         : BetTypes.COLUMN_BET_THIRD,
-                  ) > 0 ||
-                  hoveredNumbers.some((num) =>
-                    getNumbersForBetType(
-                      3 - rowIndex === 1
-                        ? BetTypes.COLUMN_BET_FIRST
-                        : 3 - rowIndex === 2
-                          ? BetTypes.COLUMN_BET_SECOND
-                          : BetTypes.COLUMN_BET_THIRD,
-                    ).includes(num),
-                  )
-                    ? "column-bet-highlighted"
+                  ) > 0
+                    ? "ring-2 ring-white"
                     : ""
                 }`}
               >
@@ -403,16 +394,16 @@ const BettingBoard = ({
       </div>
 
       {/* Bottom betting options */}
-      <div className="flex flex-col gap-3 mt-2">
+      <div className="flex flex-col gap-2 mt-2">
         {/* Dozens */}
         <div className="grid grid-cols-[auto_45px_1fr] gap-2">
           <div className="w-24"></div>
           <div className="w-[45px]"></div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2">
             {[
-              { start: 1, label: "1 to 12", type: BetTypes.DOZEN_BET_FIRST },
-              { start: 13, label: "13 to 24", type: BetTypes.DOZEN_BET_SECOND },
-              { start: 25, label: "25 to 36", type: BetTypes.DOZEN_BET_THIRD },
+              { start: 1, label: "1st 12", type: BetTypes.DOZEN_BET_FIRST },
+              { start: 13, label: "2nd 12", type: BetTypes.DOZEN_BET_SECOND },
+              { start: 25, label: "3rd 12", type: BetTypes.DOZEN_BET_THIRD },
             ].map((dozen) => (
               <button
                 key={dozen.start}
@@ -427,7 +418,11 @@ const BettingBoard = ({
                   setHoveredNumbers(getNumbersForBetType(dozen.type))
                 }
                 onMouseLeave={() => setHoveredNumbers([])}
-                className="h-12 rounded-xl bg-gradient-to-br from-purple-600/90 to-purple-700/90 hover:from-purple-500 hover:to-purple-600 shadow-lg hover:shadow-purple-500/30 transform transition-all duration-300 hover:scale-105 text-base font-bold flex items-center justify-center text-white/90 relative border border-white/10"
+                className={`h-[45px] rounded-xl bg-gradient-to-br from-purple-600/90 to-purple-700/90 hover:from-purple-500/90 hover:to-purple-600/90 text-white/90 font-bold flex items-center justify-center transition-all duration-300 hover:scale-105 ${
+                  getBetAmount([dozen.start], dozen.type) > 0
+                    ? "ring-2 ring-white"
+                    : ""
+                }`}
               >
                 {dozen.label}
                 {getBetAmount([dozen.start], dozen.type) > 0 && (
@@ -449,19 +444,19 @@ const BettingBoard = ({
         <div className="grid grid-cols-[auto_45px_1fr] gap-2">
           <div className="w-24"></div>
           <div className="w-[45px]"></div>
-          <div className="grid grid-cols-6 gap-3">
+          <div className="grid grid-cols-6 gap-2">
             {[
-              { type: BetTypes.LOW_BET, label: "1 to 18", color: "cyan" },
-              { type: BetTypes.EVEN_BET, label: "Even", color: "cyan" },
+              { type: BetTypes.LOW_BET, label: "1-18", color: "cyan" },
+              { type: BetTypes.EVEN_BET, label: "EVEN", color: "cyan" },
               {
                 type: BetTypes.RED_BET,
-                label: "Red",
+                label: "RED",
                 color: "gaming-primary",
                 isRed: true,
               },
-              { type: BetTypes.BLACK_BET, label: "Black", color: "gray" },
-              { type: BetTypes.ODD_BET, label: "Odd", color: "cyan" },
-              { type: BetTypes.HIGH_BET, label: "19 to 36", color: "cyan" },
+              { type: BetTypes.BLACK_BET, label: "BLACK", color: "gray" },
+              { type: BetTypes.ODD_BET, label: "ODD", color: "cyan" },
+              { type: BetTypes.HIGH_BET, label: "19-36", color: "cyan" },
             ].map((option) => (
               <button
                 key={option.label}
@@ -470,13 +465,13 @@ const BettingBoard = ({
                   setHoveredNumbers(getNumbersForBetType(option.type))
                 }
                 onMouseLeave={() => setHoveredNumbers([])}
-                className={`h-12 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-105 text-base font-bold flex items-center justify-center relative border border-white/10 ${
+                className={`h-[45px] rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-105 text-base font-bold flex items-center justify-center relative border border-white/10 ${
                   option.isRed
                     ? "bg-gradient-to-br from-gaming-primary/90 to-gaming-primary/80 hover:from-gaming-primary hover:to-gaming-primary/90 text-white/90 hover:shadow-gaming-primary/30"
                     : option.color === "gray"
                       ? "bg-gradient-to-br from-gray-800/90 to-gray-900/90 hover:from-gray-700 hover:to-gray-800 text-white/90 hover:shadow-gray-500/30"
                       : `bg-gradient-to-br from-${option.color}-600/90 to-${option.color}-700/90 hover:from-${option.color}-500 hover:to-${option.color}-600 text-white/90 hover:shadow-${option.color}-500/30`
-                }`}
+                } ${getBetAmount([], option.type) > 0 ? "ring-2 ring-white" : ""}`}
               >
                 {option.label}
                 {getBetAmount([], option.type) > 0 && (
@@ -517,13 +512,13 @@ const BetControls = ({
         <h3 className="text-lg font-semibold text-secondary-300 mb-3">
           Select Chip Value
         </h3>
-        <div className="chip-selector">
+        <div className="chip-selector flex flex-wrap gap-2">
           {CHIP_VALUES.map((chip) => (
             <button
               key={chip.value}
               onClick={() => onChipValueChange(chip.value)}
               disabled={disabled}
-              className={`chip-button ${
+              className={`h-10 px-4 rounded-xl flex items-center justify-center font-semibold ${
                 selectedChipValue === chip.value ? "ring-2 ring-white" : ""
               } chip-${chip.label.toLowerCase()}`}
             >
@@ -536,7 +531,10 @@ const BetControls = ({
       {/* Place Bet Button */}
       <div className="flex items-end">
         {isCheckingApproval ? (
-          <button className="place-bet-button w-full" disabled={true}>
+          <button
+            className="h-12 w-full place-bet-button flex items-center justify-center"
+            disabled={true}
+          >
             <div className="flex items-center justify-center gap-2">
               <LoadingSpinner size="small" />
               Checking Approval...
@@ -545,7 +543,7 @@ const BetControls = ({
         ) : isApproved ? (
           <button
             onClick={onPlaceBets}
-            className="place-bet-button w-full"
+            className="h-12 w-full place-bet-button flex items-center justify-center"
             disabled={disabled || selectedBets.length === 0}
           >
             {gameState.isProcessing ? (
@@ -560,7 +558,7 @@ const BetControls = ({
         ) : (
           <button
             onClick={onApprove}
-            className="place-bet-button w-full"
+            className="h-12 w-full place-bet-button flex items-center justify-center"
             disabled={disabled}
           >
             Approve Token
@@ -572,23 +570,37 @@ const BetControls = ({
 };
 
 // Add helper function to get bet type name
-const getBetTypeName = (betType) => {
-  const types = {
-    [BetTypes.STRAIGHT_BET]: "Straight",
-    [BetTypes.DOZEN_BET_FIRST]: "First Dozen",
-    [BetTypes.DOZEN_BET_SECOND]: "Second Dozen",
-    [BetTypes.DOZEN_BET_THIRD]: "Third Dozen",
-    [BetTypes.COLUMN_BET_FIRST]: "First Column",
-    [BetTypes.COLUMN_BET_SECOND]: "Second Column",
-    [BetTypes.COLUMN_BET_THIRD]: "Third Column",
-    [BetTypes.RED_BET]: "Red",
-    [BetTypes.BLACK_BET]: "Black",
-    [BetTypes.EVEN_BET]: "Even",
-    [BetTypes.ODD_BET]: "Odd",
-    [BetTypes.LOW_BET]: "Low (1-18)",
-    [BetTypes.HIGH_BET]: "High (19-36)",
-  };
-  return types[betType] || "Unknown";
+const getBetTypeName = (betType, numbers) => {
+  switch (betType) {
+    case 0: // STRAIGHT_BET
+      return `Number ${numbers[0]}`;
+    case 1: // DOZEN_BET_FIRST
+      return "1-12";
+    case 2: // DOZEN_BET_SECOND
+      return "13-24";
+    case 3: // DOZEN_BET_THIRD
+      return "25-36";
+    case 4: // COLUMN_BET_FIRST
+      return "1st Column";
+    case 5: // COLUMN_BET_SECOND
+      return "2nd Column";
+    case 6: // COLUMN_BET_THIRD
+      return "3rd Column";
+    case 7: // RED_BET
+      return "Red";
+    case 8: // BLACK_BET
+      return "Black";
+    case 9: // EVEN_BET
+      return "Even";
+    case 10: // ODD_BET
+      return "Odd";
+    case 11: // LOW_BET
+      return "1-18";
+    case 12: // HIGH_BET
+      return "19-36";
+    default:
+      return "Unknown";
+  }
 };
 
 // Add StatBadge component for history stats
@@ -930,7 +942,7 @@ const BettingHistory = ({ account, contracts }) => {
                     {group.bets.map((bet, i) => (
                       <div key={i} className="flex justify-between text-sm">
                         <span className="text-secondary-300">
-                          {getBetTypeName(bet.betType)}
+                          {getBetTypeName(bet.betType, bet.numbers)}
                         </span>
                         <span className="font-medium">
                           {ethers.formatEther(bet.amount)} GAMA
