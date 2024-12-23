@@ -49,8 +49,8 @@ struct UserGameData {
 
 struct BetRequest {
     uint8 betTypeId;     // Using the constants above instead of enum
-    uint8 number;        // Single number for straight bets, or starting number for dozens/columns
-    uint256 amount;
+    uint8 number;        // Single number for straight bets
+    uint256 amount;      // Amount of tokens to bet
 }
 
 
@@ -140,6 +140,14 @@ contract RouletteV2 is ReentrancyGuard {
             if (bets[i].amount > MAX_BET_AMOUNT) revert InvalidBetParameters("Single bet amount too large");
             
             totalAmount += bets[i].amount;
+            
+            // Calculate potential payout based on bet type
+            (BetType betType,) = _processBetRequest(bets[i]);
+            uint256 multiplier = getPayoutMultiplier(betType);
+            uint256 potentialPayout = (bets[i].amount * multiplier) / DENOMINATOR;
+            
+            maxPossiblePayout += potentialPayout;
+            
             // Ensures total of all bets doesn't exceed MAX_TOTAL_BET_AMOUNT (500k tokens)
             if (totalAmount > MAX_TOTAL_BET_AMOUNT) revert InvalidBetParameters("Total bet amount too large");
         }
@@ -179,9 +187,12 @@ contract RouletteV2 is ReentrancyGuard {
         
         // Process all bets
         for (uint256 i = 0; i < bets.length; i++) {
+            // Convert betTypeId to BetType and get numbers
+            (BetType betType, uint8[] memory numbers) = _processBetRequest(bets[i]);
+            
             uint256 payout = _calculatePayout(
-                bets[i].numbers,
-                bets[i].betType,
+                numbers,
+                betType,
                 bets[i].amount,
                 winningNumber
             );
@@ -189,7 +200,17 @@ contract RouletteV2 is ReentrancyGuard {
             if (totalPayout + payout < totalPayout) revert("Payout overflow");
             totalPayout += payout;
 
-            _updateUserHistory(user, bets[i], payout);
+            // Create Bet struct for history
+            Bet memory newBet = Bet({
+                timestamp: block.timestamp,
+                betType: betType,
+                numbers: numbers,
+                amount: bets[i].amount,
+                payout: payout,
+                winningNumber: winningNumber
+            });
+
+            _updateUserHistory(user, newBet);
         }
 
         // Process payouts if any wins
@@ -203,16 +224,7 @@ contract RouletteV2 is ReentrancyGuard {
         return totalPayout;
     }
 
-    function _updateUserHistory(UserGameData storage user, BetRequest calldata bet, uint256 payout) private {
-        Bet memory newBet = Bet({
-            numbers: bet.numbers,
-            amount: bet.amount,
-            betType: bet.betType,
-            timestamp: block.timestamp,
-            payout: payout,
-            winningNumber: winningNumber
-        });
-
+    function _updateUserHistory(UserGameData storage user, Bet memory newBet) private {
         if (user.recentBets.length >= MAX_HISTORY_SIZE) {
             // Shift elements to make room for new bet
             for (uint256 j = 0; j < user.recentBets.length - 1; j++) {
@@ -420,6 +432,41 @@ contract RouletteV2 is ReentrancyGuard {
         ))) % (MAX_NUMBER + 1));
     }
 
+    // Move getBetTypeInfo before _processBetRequest
+    function getBetTypeInfo(uint8 betTypeId) public pure returns (
+        string memory name,
+        bool requiresNumber,
+        uint256 payoutMultiplier
+    ) {
+        if (betTypeId == STRAIGHT_BET) 
+            return ("Straight", true, 35 * DENOMINATOR);
+        if (betTypeId == DOZEN_BET_FIRST) 
+            return ("First Dozen (1-12)", false, 2 * DENOMINATOR);
+        if (betTypeId == DOZEN_BET_SECOND)
+            return ("Second Dozen (13-24)", false, 2 * DENOMINATOR);
+        if (betTypeId == DOZEN_BET_THIRD)
+            return ("Third Dozen (25-36)", false, 2 * DENOMINATOR);
+        if (betTypeId == COLUMN_BET_FIRST)
+            return ("First Column", false, 2 * DENOMINATOR);
+        if (betTypeId == COLUMN_BET_SECOND) 
+            return ("Second Column", false, 2 * DENOMINATOR);
+        if (betTypeId == COLUMN_BET_THIRD)
+            return ("Third Column", false, 2 * DENOMINATOR);
+        if (betTypeId == RED_BET)
+            return ("Red", false, DENOMINATOR);
+        if (betTypeId == BLACK_BET)
+            return ("Black", false, DENOMINATOR);
+        if (betTypeId == EVEN_BET)
+            return ("Even", false, DENOMINATOR);
+        if (betTypeId == ODD_BET)
+            return ("Odd", false, DENOMINATOR);
+        if (betTypeId == LOW_BET)
+            return ("Low (1-18)", false, DENOMINATOR);
+        if (betTypeId == HIGH_BET)
+            return ("High (19-36)", false, DENOMINATOR);
+        revert InvalidBetParameters("Invalid bet type ID");
+    }
+
     // Add helper function to convert betTypeId to BetType and generate numbers
     function _processBetRequest(BetRequest calldata bet) private pure returns (
         BetType betType,
@@ -468,40 +515,6 @@ contract RouletteV2 is ReentrancyGuard {
             return (BetType.High, new uint8[](0));
         }
         
-        revert InvalidBetParameters("Invalid bet type ID");
-    }
-
-    function getBetTypeInfo(uint8 betTypeId) external pure returns (
-        string memory name,
-        bool requiresNumber,
-        uint256 payoutMultiplier
-    ) {
-        if (betTypeId == STRAIGHT_BET) 
-            return ("Straight", true, 35 * DENOMINATOR);
-        if (betTypeId == DOZEN_BET_FIRST) 
-            return ("First Dozen (1-12)", false, 2 * DENOMINATOR);
-        if (betTypeId == DOZEN_BET_SECOND)
-            return ("Second Dozen (13-24)", false, 2 * DENOMINATOR);
-        if (betTypeId == DOZEN_BET_THIRD)
-            return ("Third Dozen (25-36)", false, 2 * DENOMINATOR);
-        if (betTypeId == COLUMN_BET_FIRST)
-            return ("First Column", false, 2 * DENOMINATOR);
-        if (betTypeId == COLUMN_BET_SECOND) 
-            return ("Second Column", false, 2 * DENOMINATOR);
-        if (betTypeId == COLUMN_BET_THIRD)
-            return ("Third Column", false, 2 * DENOMINATOR);
-        if (betTypeId == RED_BET)
-            return ("Red", false, DENOMINATOR);
-        if (betTypeId == BLACK_BET)
-            return ("Black", false, DENOMINATOR);
-        if (betTypeId == EVEN_BET)
-            return ("Even", false, DENOMINATOR);
-        if (betTypeId == ODD_BET)
-            return ("Odd", false, DENOMINATOR);
-        if (betTypeId == LOW_BET)
-            return ("Low (1-18)", false, DENOMINATOR);
-        if (betTypeId == HIGH_BET)
-            return ("High (19-36)", false, DENOMINATOR);
         revert InvalidBetParameters("Invalid bet type ID");
     }
 
@@ -564,7 +577,7 @@ contract RouletteV2 is ReentrancyGuard {
         uint8[] memory numbers,
         uint256 amount,
         uint256 payout,
-        uint8 winningNumber,
+        uint8 resultNumber,
         bool isWin
     ) {
         require(betIndex < userData[player].recentBets.length, "Invalid bet index");
