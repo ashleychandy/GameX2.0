@@ -6,54 +6,78 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 
 // Constants for bet types to match contract
 const BetTypes = {
-  STRAIGHT_BET: 0, // Single number bet
-  DOZEN_BET_FIRST: 1, // 1-12
-  DOZEN_BET_SECOND: 2, // 13-24
-  DOZEN_BET_THIRD: 3, // 25-36
-  COLUMN_BET_FIRST: 4, // 1,4,7...
-  COLUMN_BET_SECOND: 5, // 2,5,8...
-  COLUMN_BET_THIRD: 6, // 3,6,9...
-  RED_BET: 7, // Red numbers
-  BLACK_BET: 8, // Black numbers
-  EVEN_BET: 9, // Even numbers
-  ODD_BET: 10, // Odd numbers
-  LOW_BET: 11, // 1-18
-  HIGH_BET: 12, // 19-36
+  STRAIGHT: 0, // Single number bet
+  DOZEN: 1, // 12 numbers (1-12, 13-24, 25-36)
+  COLUMN: 2, // 12 numbers (vertical 2:1)
+  RED: 3, // Red numbers
+  BLACK: 4, // Black numbers
+  EVEN: 5, // Even numbers
+  ODD: 6, // Odd numbers
+  LOW: 7, // 1-18
+  HIGH: 8, // 19-36
 
   // Helper function to validate bet type
   isValid: function (type) {
-    return type >= 0 && type <= 12;
+    return type >= 0 && type <= 8;
   },
 
   // Helper function to get numbers for a bet type
-  getNumbers: function (type, number = 0) {
+  getNumbers: function (type, startNumber = 1) {
     switch (type) {
-      case this.STRAIGHT_BET:
-        return [number];
-      case this.DOZEN_BET_FIRST:
-        return Array.from({ length: 12 }, (_, i) => 1 + i);
-      case this.DOZEN_BET_SECOND:
-        return Array.from({ length: 12 }, (_, i) => 13 + i);
-      case this.DOZEN_BET_THIRD:
-        return Array.from({ length: 12 }, (_, i) => 25 + i);
-      case this.COLUMN_BET_FIRST:
-        return Array.from({ length: 12 }, (_, i) => 1 + i * 3);
-      case this.COLUMN_BET_SECOND:
-        return Array.from({ length: 12 }, (_, i) => 2 + i * 3);
-      case this.COLUMN_BET_THIRD:
-        return Array.from({ length: 12 }, (_, i) => 3 + i * 3);
-      case this.RED_BET:
-      case this.BLACK_BET:
-      case this.EVEN_BET:
-      case this.ODD_BET:
-      case this.LOW_BET:
-      case this.HIGH_BET:
-        return [];
+      case this.STRAIGHT:
+        return []; // For straight bets, numbers are provided separately
+      case this.DOZEN:
+        // Based on startNumber (1, 13, or 25)
+        if (![1, 13, 25].includes(startNumber)) {
+          throw new Error("Invalid dozen start number");
+        }
+        return Array.from({ length: 12 }, (_, i) => startNumber + i);
+      case this.COLUMN:
+        // Based on startNumber (1, 2, or 3)
+        if (![1, 2, 3].includes(startNumber)) {
+          throw new Error("Invalid column start number");
+        }
+        return Array.from({ length: 12 }, (_, i) => startNumber + i * 3);
+      case this.RED:
+        return redNumbers;
+      case this.BLACK:
+        return Array.from({ length: 36 }, (_, i) => i + 1).filter(
+          (num) => !redNumbers.includes(num) && num !== 0,
+        );
+      case this.EVEN:
+        return Array.from({ length: 36 }, (_, i) => i + 1).filter(
+          (num) => num % 2 === 0 && num !== 0,
+        );
+      case this.ODD:
+        return Array.from({ length: 36 }, (_, i) => i + 1).filter(
+          (num) => num % 2 === 1,
+        );
+      case this.LOW:
+        return Array.from({ length: 18 }, (_, i) => i + 1);
+      case this.HIGH:
+        return Array.from({ length: 18 }, (_, i) => i + 19);
       default:
         throw new Error(`Invalid bet type: ${type}`);
     }
   },
 };
+
+// Define dozen betting options
+const dozenBettingOptions = [
+  { start: 1, label: "1st 12", type: BetTypes.DOZEN },
+  { start: 13, label: "2nd 12", type: BetTypes.DOZEN },
+  { start: 25, label: "3rd 12", type: BetTypes.DOZEN },
+];
+
+// Define bottom betting options
+const bottomBettingOptions = [
+  { type: BetTypes.LOW, label: "1-18", color: "cyan" },
+  { type: BetTypes.EVEN, label: "EVEN", color: "cyan" },
+  { type: BetTypes.RED, label: "RED", color: "gaming-primary", isRed: true },
+  { type: BetTypes.BLACK, label: "BLACK", color: "gray" },
+  { type: BetTypes.ODD, label: "ODD", color: "cyan" },
+  { type: BetTypes.HIGH, label: "19-36", color: "cyan" },
+];
 
 // Contract constants
 const CONTRACT_CONSTANTS = {
@@ -124,37 +148,29 @@ const BettingBoard = ({
   const isNumberHovered = (number) => hoveredNumbers.includes(number);
 
   // Helper function to get numbers for different bet types
-  const getNumbersForBetType = useCallback((type, start = 1) => {
+  const getNumbersForBetType = useCallback((type) => {
     switch (type) {
-      case BetTypes.DOZEN_BET_FIRST:
+      case BetTypes.DOZEN:
         return Array.from({ length: 12 }, (_, i) => i + 1);
-      case BetTypes.DOZEN_BET_SECOND:
-        return Array.from({ length: 12 }, (_, i) => i + 13);
-      case BetTypes.DOZEN_BET_THIRD:
-        return Array.from({ length: 12 }, (_, i) => i + 25);
-      case BetTypes.COLUMN_BET_FIRST:
-        return Array.from({ length: 12 }, (_, i) => 1 + i * 3);
-      case BetTypes.COLUMN_BET_SECOND:
-        return Array.from({ length: 12 }, (_, i) => 2 + i * 3);
-      case BetTypes.COLUMN_BET_THIRD:
-        return Array.from({ length: 12 }, (_, i) => 3 + i * 3);
-      case BetTypes.RED_BET:
+      case BetTypes.COLUMN:
+        return Array.from({ length: 12 }, (_, i) => 1 + i * 3); // 1,4,7...
+      case BetTypes.RED:
         return redNumbers;
-      case BetTypes.BLACK_BET:
+      case BetTypes.BLACK:
         return Array.from({ length: 36 }, (_, i) => i + 1).filter(
-          (num) => !redNumbers.includes(num),
+          (num) => !redNumbers.includes(num) && num !== 0,
         );
-      case BetTypes.EVEN_BET:
+      case BetTypes.EVEN:
         return Array.from({ length: 36 }, (_, i) => i + 1).filter(
-          (num) => num % 2 === 0,
+          (num) => num % 2 === 0 && num !== 0,
         );
-      case BetTypes.ODD_BET:
+      case BetTypes.ODD:
         return Array.from({ length: 36 }, (_, i) => i + 1).filter(
           (num) => num % 2 === 1,
         );
-      case BetTypes.LOW_BET:
+      case BetTypes.LOW:
         return Array.from({ length: 18 }, (_, i) => i + 1);
-      case BetTypes.HIGH_BET:
+      case BetTypes.HIGH:
         return Array.from({ length: 18 }, (_, i) => i + 19);
       default:
         return [];
@@ -164,47 +180,30 @@ const BettingBoard = ({
   // Helper function to get total bet amount for a position
   const getBetAmount = useCallback(
     (numbers, type) => {
-      // For column bets, find by first number
-      if (
-        type === BetTypes.COLUMN_BET_FIRST ||
-        type === BetTypes.COLUMN_BET_SECOND ||
-        type === BetTypes.COLUMN_BET_THIRD
-      ) {
-        const columnStart = Array.isArray(numbers) ? numbers[0] : numbers;
+      // For straight bets
+      if (type === BetTypes.STRAIGHT) {
         const bet = selectedBets.find(
           (bet) =>
             bet.type === type &&
-            bet.numbers.length === 12 &&
-            bet.numbers[0] === columnStart,
+            bet.numbers[0] === (Array.isArray(numbers) ? numbers[0] : numbers),
         );
         return bet ? Math.floor(parseFloat(ethers.formatEther(bet.amount))) : 0;
       }
 
-      // For dozen bets, find by first number
-      if (
-        type === BetTypes.DOZEN_BET_FIRST ||
-        type === BetTypes.DOZEN_BET_SECOND ||
-        type === BetTypes.DOZEN_BET_THIRD
-      ) {
-        const dozenStart = Array.isArray(numbers) ? numbers[0] : numbers;
-        const bet = selectedBets.find(
-          (bet) =>
-            bet.type === type &&
-            bet.numbers.length === 12 &&
-            bet.numbers[0] === dozenStart,
-        );
+      // For column bets
+      if (type === BetTypes.COLUMN) {
+        const bet = selectedBets.find((bet) => bet.type === type);
         return bet ? Math.floor(parseFloat(ethers.formatEther(bet.amount))) : 0;
       }
 
-      // For other bets
-      const bet = selectedBets.find(
-        (bet) =>
-          bet.type === type &&
-          JSON.stringify(bet.numbers.sort()) ===
-            JSON.stringify(
-              Array.isArray(numbers) ? numbers.sort() : [numbers].sort(),
-            ),
-      );
+      // For dozen bets
+      if (type === BetTypes.DOZEN) {
+        const bet = selectedBets.find((bet) => bet.type === type);
+        return bet ? Math.floor(parseFloat(ethers.formatEther(bet.amount))) : 0;
+      }
+
+      // For other bets (Red, Black, Even, Odd, Low, High)
+      const bet = selectedBets.find((bet) => bet.type === type);
       return bet ? Math.floor(parseFloat(ethers.formatEther(bet.amount))) : 0;
     },
     [selectedBets],
@@ -259,23 +258,23 @@ const BettingBoard = ({
         {/* Zero */}
         <div className="row-span-3">
           <button
-            onClick={() => handleBet([0], BetTypes.STRAIGHT_BET)}
+            onClick={() => handleBet([0], BetTypes.STRAIGHT)}
             onMouseEnter={() => setHoveredNumbers([0])}
             onMouseLeave={() => setHoveredNumbers([])}
             className={`number-button-zero ${
-              getBetAmount([0], BetTypes.STRAIGHT_BET) > 0 || isNumberHovered(0)
+              getBetAmount([0], BetTypes.STRAIGHT) > 0 || isNumberHovered(0)
                 ? "number-button-highlighted"
                 : ""
             }`}
           >
             <span className="text-white/90 text-2xl">0</span>
-            {getBetAmount([0], BetTypes.STRAIGHT_BET) > 0 && (
+            {getBetAmount([0], BetTypes.STRAIGHT) > 0 && (
               <div
                 className="chip-stack"
-                data-value={getBetAmount([0], BetTypes.STRAIGHT_BET)}
+                data-value={getBetAmount([0], BetTypes.STRAIGHT)}
               >
                 <span className="chip-stack-value">
-                  {getBetAmount([0], BetTypes.STRAIGHT_BET)}
+                  {getBetAmount([0], BetTypes.STRAIGHT)}
                 </span>
               </div>
             )}
@@ -292,27 +291,22 @@ const BettingBoard = ({
               {row.map((number) => (
                 <button
                   key={number}
-                  onClick={() => handleBet([number], BetTypes.STRAIGHT_BET)}
+                  onClick={() => handleBet([number], BetTypes.STRAIGHT)}
                   onMouseEnter={() => setHoveredNumbers([number])}
                   onMouseLeave={() => setHoveredNumbers([])}
-                  className={`number-button ${
+                  className={`number-button relative ${
                     isRed(number) ? "number-button-red" : "number-button-black"
                   } ${
-                    getBetAmount([number], BetTypes.STRAIGHT_BET) > 0 ||
+                    getBetAmount([number], BetTypes.STRAIGHT) > 0 ||
                     isNumberHovered(number)
                       ? "number-button-highlighted"
                       : ""
                   }`}
                 >
                   <span className="text-white/90 text-xl">{number}</span>
-                  {getBetAmount([number], BetTypes.STRAIGHT_BET) > 0 && (
-                    <div
-                      className="chip-stack"
-                      data-value={getBetAmount([number], BetTypes.STRAIGHT_BET)}
-                    >
-                      <span className="chip-stack-value">
-                        {getBetAmount([number], BetTypes.STRAIGHT_BET)}
-                      </span>
+                  {getBetAmount([number], BetTypes.STRAIGHT) > 0 && (
+                    <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gaming-primary border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
+                      {getBetAmount([number], BetTypes.STRAIGHT)}
                     </div>
                   )}
                 </button>
@@ -320,73 +314,45 @@ const BettingBoard = ({
               {/* 2:1 button */}
               <button
                 onClick={() => {
-                  const columnStart = 3 - rowIndex;
-                  const numbers = Array.from(
-                    { length: 12 },
-                    (_, i) => columnStart + i * 3,
-                  );
                   const columnType =
-                    columnStart === 1
-                      ? BetTypes.COLUMN_BET_FIRST
-                      : columnStart === 2
-                        ? BetTypes.COLUMN_BET_SECOND
-                        : BetTypes.COLUMN_BET_THIRD;
+                    rowIndex === 0
+                      ? BetTypes.COLUMN
+                      : rowIndex === 1
+                        ? BetTypes.COLUMN
+                        : BetTypes.COLUMN;
+                  const numbers = getNumbersForBetType(columnType);
                   handleBet(numbers, columnType);
                 }}
                 onMouseEnter={() => {
-                  const columnStart = 3 - rowIndex;
-                  const numbers = Array.from(
-                    { length: 12 },
-                    (_, i) => columnStart + i * 3,
-                  );
-                  setHoveredNumbers(numbers);
+                  const columnType =
+                    rowIndex === 0
+                      ? BetTypes.COLUMN
+                      : rowIndex === 1
+                        ? BetTypes.COLUMN
+                        : BetTypes.COLUMN;
+                  setHoveredNumbers(getNumbersForBetType(columnType));
                 }}
                 onMouseLeave={() => setHoveredNumbers([])}
                 className={`h-[45px] rounded-xl bg-gradient-to-br from-purple-600/90 to-purple-700/90 hover:from-purple-500/90 hover:to-purple-600/90 text-white/90 font-bold flex items-center justify-center transition-all duration-300 hover:scale-105 ${
                   getBetAmount(
-                    [3 - rowIndex],
-                    3 - rowIndex === 1
-                      ? BetTypes.COLUMN_BET_FIRST
-                      : 3 - rowIndex === 2
-                        ? BetTypes.COLUMN_BET_SECOND
-                        : BetTypes.COLUMN_BET_THIRD,
+                    getNumbersForBetType(
+                      rowIndex === 0
+                        ? BetTypes.COLUMN
+                        : rowIndex === 1
+                          ? BetTypes.COLUMN
+                          : BetTypes.COLUMN,
+                    ),
+                    rowIndex === 0
+                      ? BetTypes.COLUMN
+                      : rowIndex === 1
+                        ? BetTypes.COLUMN
+                        : BetTypes.COLUMN,
                   ) > 0
                     ? "ring-2 ring-white"
                     : ""
                 }`}
               >
                 2:1
-                {getBetAmount(
-                  [3 - rowIndex],
-                  3 - rowIndex === 1
-                    ? BetTypes.COLUMN_BET_FIRST
-                    : 3 - rowIndex === 2
-                      ? BetTypes.COLUMN_BET_SECOND
-                      : BetTypes.COLUMN_BET_THIRD,
-                ) > 0 && (
-                  <div
-                    className="chip-stack"
-                    data-value={getBetAmount(
-                      [3 - rowIndex],
-                      3 - rowIndex === 1
-                        ? BetTypes.COLUMN_BET_FIRST
-                        : 3 - rowIndex === 2
-                          ? BetTypes.COLUMN_BET_SECOND
-                          : BetTypes.COLUMN_BET_THIRD,
-                    )}
-                  >
-                    <span className="chip-stack-value">
-                      {getBetAmount(
-                        [3 - rowIndex],
-                        3 - rowIndex === 1
-                          ? BetTypes.COLUMN_BET_FIRST
-                          : 3 - rowIndex === 2
-                            ? BetTypes.COLUMN_BET_SECOND
-                            : BetTypes.COLUMN_BET_THIRD,
-                      )}
-                    </span>
-                  </div>
-                )}
               </button>
             </div>
           ))}
@@ -400,11 +366,7 @@ const BettingBoard = ({
           <div className="w-24"></div>
           <div className="w-[45px]"></div>
           <div className="grid grid-cols-3 gap-2">
-            {[
-              { start: 1, label: "1st 12", type: BetTypes.DOZEN_BET_FIRST },
-              { start: 13, label: "2nd 12", type: BetTypes.DOZEN_BET_SECOND },
-              { start: 25, label: "3rd 12", type: BetTypes.DOZEN_BET_THIRD },
-            ].map((dozen) => (
+            {dozenBettingOptions.map((dozen) => (
               <button
                 key={dozen.start}
                 onClick={() => {
@@ -418,7 +380,7 @@ const BettingBoard = ({
                   setHoveredNumbers(getNumbersForBetType(dozen.type))
                 }
                 onMouseLeave={() => setHoveredNumbers([])}
-                className={`h-[45px] rounded-xl bg-gradient-to-br from-purple-600/90 to-purple-700/90 hover:from-purple-500/90 hover:to-purple-600/90 text-white/90 font-bold flex items-center justify-center transition-all duration-300 hover:scale-105 ${
+                className={`h-[45px] rounded-xl relative bg-gradient-to-br from-purple-600/90 to-purple-700/90 hover:from-purple-500/90 hover:to-purple-600/90 text-white/90 font-bold flex items-center justify-center transition-all duration-300 hover:scale-105 ${
                   getBetAmount([dozen.start], dozen.type) > 0
                     ? "ring-2 ring-white"
                     : ""
@@ -426,13 +388,8 @@ const BettingBoard = ({
               >
                 {dozen.label}
                 {getBetAmount([dozen.start], dozen.type) > 0 && (
-                  <div
-                    className="chip-stack"
-                    data-value={getBetAmount([dozen.start], dozen.type)}
-                  >
-                    <span className="chip-stack-value">
-                      {getBetAmount([dozen.start], dozen.type)}
-                    </span>
+                  <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gaming-primary border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
+                    {getBetAmount([dozen.start], dozen.type)}
                   </div>
                 )}
               </button>
@@ -445,19 +402,7 @@ const BettingBoard = ({
           <div className="w-24"></div>
           <div className="w-[45px]"></div>
           <div className="grid grid-cols-6 gap-2">
-            {[
-              { type: BetTypes.LOW_BET, label: "1-18", color: "cyan" },
-              { type: BetTypes.EVEN_BET, label: "EVEN", color: "cyan" },
-              {
-                type: BetTypes.RED_BET,
-                label: "RED",
-                color: "gaming-primary",
-                isRed: true,
-              },
-              { type: BetTypes.BLACK_BET, label: "BLACK", color: "gray" },
-              { type: BetTypes.ODD_BET, label: "ODD", color: "cyan" },
-              { type: BetTypes.HIGH_BET, label: "19-36", color: "cyan" },
-            ].map((option) => (
+            {bottomBettingOptions.map((option) => (
               <button
                 key={option.label}
                 onClick={() => handleBet([], option.type)}
@@ -465,7 +410,7 @@ const BettingBoard = ({
                   setHoveredNumbers(getNumbersForBetType(option.type))
                 }
                 onMouseLeave={() => setHoveredNumbers([])}
-                className={`h-[45px] rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-105 text-base font-bold flex items-center justify-center relative border border-white/10 ${
+                className={`h-[45px] rounded-xl relative shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-105 text-base font-bold flex items-center justify-center border border-white/10 ${
                   option.isRed
                     ? "bg-gradient-to-br from-gaming-primary/90 to-gaming-primary/80 hover:from-gaming-primary hover:to-gaming-primary/90 text-white/90 hover:shadow-gaming-primary/30"
                     : option.color === "gray"
@@ -475,13 +420,8 @@ const BettingBoard = ({
               >
                 {option.label}
                 {getBetAmount([], option.type) > 0 && (
-                  <div
-                    className="chip-stack"
-                    data-value={getBetAmount([], option.type)}
-                  >
-                    <span className="chip-stack-value">
-                      {getBetAmount([], option.type)}
-                    </span>
+                  <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gaming-primary border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
+                    {getBetAmount([], option.type)}
                   </div>
                 )}
               </button>
@@ -571,37 +511,65 @@ const BetControls = ({
 
 // Add helper function to get bet type name
 const getBetTypeName = (betType, numbers) => {
-  switch (betType) {
-    case 0: // STRAIGHT_BET
-      return `Number ${numbers[0]}`;
-    case 1: // DOZEN_BET_FIRST
-      return "1-12";
-    case 2: // DOZEN_BET_SECOND
-      return "13-24";
-    case 3: // DOZEN_BET_THIRD
-      return "25-36";
-    case 4: // COLUMN_BET_FIRST
-      return "1st Column";
-    case 5: // COLUMN_BET_SECOND
-      return "2nd Column";
-    case 6: // COLUMN_BET_THIRD
-      return "3rd Column";
-    case 7: // RED_BET
+  // Convert betType to number if it's a string
+  const type = Number(betType);
+
+  // For straight bets (single number)
+  if (type === BetTypes.STRAIGHT) {
+    return `Straight (${numbers[0]})`;
+  }
+
+  // For dozen bets
+  if (type === BetTypes.DOZEN) {
+    const start = numbers[0];
+    if (start === 1) return "First Dozen (1-12)";
+    if (start === 13) return "Second Dozen (13-24)";
+    if (start === 25) return "Third Dozen (25-36)";
+    return "Dozen";
+  }
+
+  // For column bets
+  if (type === BetTypes.COLUMN) {
+    const start = numbers[0];
+    if (start === 1) return "First Column";
+    if (start === 2) return "Second Column";
+    if (start === 3) return "Third Column";
+    return "Column";
+  }
+
+  // For other bets
+  switch (type) {
+    case BetTypes.RED:
       return "Red";
-    case 8: // BLACK_BET
+    case BetTypes.BLACK:
       return "Black";
-    case 9: // EVEN_BET
+    case BetTypes.EVEN:
       return "Even";
-    case 10: // ODD_BET
+    case BetTypes.ODD:
       return "Odd";
-    case 11: // LOW_BET
-      return "1-18";
-    case 12: // HIGH_BET
-      return "19-36";
+    case BetTypes.LOW:
+      return "Low (1-18)";
+    case BetTypes.HIGH:
+      return "High (19-36)";
     default:
-      return "Unknown";
+      return "Unknown Bet Type";
   }
 };
+
+// Get all possible winning numbers for a bet type
+function getPossibleWinningNumbers(betTypeId, startNumber = 1) {
+  const type = Number(betTypeId);
+
+  if (type === BetTypes.STRAIGHT) {
+    const numbers = new Array(37);
+    for (let i = 0; i <= 36; i++) {
+      numbers[i] = i;
+    }
+    return numbers;
+  }
+
+  return BetTypes.getNumbers(type, startNumber);
+}
 
 // Add StatBadge component for history stats
 const StatBadge = ({ label, value, color = "primary" }) => (
@@ -699,12 +667,24 @@ const BettingHistory = ({ account, contracts }) => {
         return bets.map((bet) => ({
           timestamp: Number(bet.timestamp),
           winningNumber: Number(bet.winningNumber),
-          bets: bet.bets.map((betDetail) => ({
-            betType: Number(betDetail.betType),
-            numbers: betDetail.numbers.map((n) => Number(n)),
-            amount: betDetail.amount.toString(),
-            payout: betDetail.payout.toString(),
-          })),
+          bets: bet.bets.map((betDetail) => {
+            const betType = Number(betDetail.betType);
+            const numbers = betDetail.numbers.map((n) => Number(n));
+            // For dozen and column bets, we need to determine the start number
+            let startNumber = numbers[0];
+            if (betType === BetTypes.DOZEN) {
+              startNumber = numbers[0]; // Will be 1, 13, or 25
+            } else if (betType === BetTypes.COLUMN) {
+              startNumber = numbers[0]; // Will be 1, 2, or 3
+            }
+            return {
+              betType,
+              numbers,
+              startNumber,
+              amount: betDetail.amount.toString(),
+              payout: betDetail.payout.toString(),
+            };
+          }),
           totalAmount: bet.bets.reduce(
             (sum, b) => sum + BigInt(b.amount),
             BigInt(0),
@@ -945,7 +925,10 @@ const BettingHistory = ({ account, contracts }) => {
                           {getBetTypeName(bet.betType, bet.numbers)}
                         </span>
                         <span className="font-medium">
-                          {ethers.formatEther(bet.amount)} GAMA
+                          {parseFloat(ethers.formatEther(bet.amount)).toFixed(
+                            1,
+                          )}{" "}
+                          GAMA
                         </span>
                       </div>
                     ))}
@@ -958,14 +941,19 @@ const BettingHistory = ({ account, contracts }) => {
                         Total Payout
                       </span>
                       <span className="font-bold">
-                        {ethers.formatEther(group.totalPayout)} GAMA
+                        {parseFloat(
+                          ethers.formatEther(group.totalPayout),
+                        ).toFixed(1)}{" "}
+                        GAMA
                         {group.totalPayout > group.totalAmount && (
                           <span className="text-gaming-success ml-1">
                             (+
-                            {ethers.formatEther(
-                              BigInt(group.totalPayout) -
-                                BigInt(group.totalAmount),
-                            )}
+                            {parseFloat(
+                              ethers.formatEther(
+                                BigInt(group.totalPayout) -
+                                  BigInt(group.totalAmount),
+                              ),
+                            ).toFixed(1)}
                             )
                           </span>
                         )}
@@ -1255,7 +1243,7 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
         let betNumbers;
         try {
           betNumbers =
-            type === BetTypes.STRAIGHT_BET
+            type === BetTypes.STRAIGHT
               ? [Array.isArray(numbers) ? numbers[0] : numbers]
               : BetTypes.getNumbers(type);
         } catch (error) {
@@ -1265,7 +1253,7 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
         }
 
         // Additional validation for straight bets
-        if (type === BetTypes.STRAIGHT_BET) {
+        if (type === BetTypes.STRAIGHT) {
           if (betNumbers[0] > 36) {
             addToast("Invalid number for straight bet", "error");
             return prev;
@@ -1390,13 +1378,13 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
         // Format bets for contract according to BetRequest structure
         const betRequests = selectedBets.map((bet) => {
           // Validate bet type
-          if (bet.type < 0 || bet.type > 12) {
+          if (bet.type < 0 || bet.type > 8) {
             throw new Error(`Invalid bet type: ${bet.type}`);
           }
 
           // For straight bets, validate number
           if (
-            bet.type === BetTypes.STRAIGHT_BET &&
+            bet.type === BetTypes.STRAIGHT &&
             (bet.numbers.length !== 1 || bet.numbers[0] > 36)
           ) {
             throw new Error(
@@ -1407,7 +1395,7 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
           // Convert to contract format
           return {
             betTypeId: bet.type,
-            number: bet.type === BetTypes.STRAIGHT_BET ? bet.numbers[0] : 0,
+            number: bet.type === BetTypes.STRAIGHT ? bet.numbers[0] : 0,
             amount: BigInt(bet.amount).toString(), // Ensure amount is BigInt
           };
         });
