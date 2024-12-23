@@ -560,19 +560,48 @@ const getBetTypeName = (betType) => {
 const StatBadge = ({ label, value, color = "primary" }) => (
   <div
     className={`
-    px-3 py-1 rounded-lg 
-    ${
-      color === "success"
-        ? "bg-gaming-success/20 text-gaming-success"
-        : color === "error"
-          ? "bg-gaming-error/20 text-gaming-error"
-          : "bg-gaming-primary/20 text-gaming-primary"
-    }
-    flex items-center gap-2
-  `}
+      px-4 py-2 rounded-lg
+      backdrop-blur-sm
+      border
+      ${
+        color === "success"
+          ? "bg-gaming-success/10 border-gaming-success/20 shadow-gaming-success/10"
+          : color === "error"
+            ? "bg-gaming-error/10 border-gaming-error/20 shadow-gaming-error/10"
+            : "bg-gaming-primary/10 border-gaming-primary/20 shadow-gaming-primary/10"
+      }
+      flex items-center gap-3
+      transform hover:scale-105 transition-all duration-200 ease-out
+    `}
   >
-    <span className="text-sm font-medium">{label}</span>
-    <span className="text-sm font-bold">{value}</span>
+    <span
+      className={`
+      text-sm font-medium
+      ${
+        color === "success"
+          ? "text-gaming-success/80"
+          : color === "error"
+            ? "text-gaming-error/80"
+            : "text-gaming-primary/80"
+      }
+    `}
+    >
+      {label}
+    </span>
+    <span
+      className={`
+      text-lg font-bold
+      ${
+        color === "success"
+          ? "text-gaming-success"
+          : color === "error"
+            ? "text-gaming-error"
+            : "text-gaming-primary"
+      }
+    `}
+    >
+      {value}
+    </span>
   </div>
 );
 
@@ -582,11 +611,12 @@ const FilterButton = ({ children, active, onClick }) => (
     onClick={onClick}
     className={`
       px-4 py-2 rounded-lg font-medium text-sm
-      transition-all duration-200
+      transition-all duration-200 ease-out
+      transform hover:scale-105
       ${
         active
-          ? "bg-gaming-primary text-white"
-          : "bg-secondary-700 text-secondary-300 hover:bg-secondary-600"
+          ? "bg-gaming-primary text-white shadow-lg shadow-gaming-primary/20"
+          : "bg-secondary-700/50 text-secondary-300 hover:bg-secondary-600/50 hover:text-white"
       }
     `}
   >
@@ -776,8 +806,15 @@ const BettingHistory = ({ account, contracts }) => {
   return (
     <div className="betting-history glass-panel p-6 space-y-6">
       {/* Header with Stats */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h3 className="text-2xl font-bold text-white/90">Recent Bets</h3>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-secondary-700/50">
+        <div className="flex items-center gap-3">
+          <h3 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gaming-primary to-gaming-success">
+            Recent Bets
+          </h3>
+          <div className="px-2 py-1 rounded-full bg-secondary-800/70 text-xs text-secondary-400">
+            Last {filteredBets.length} games
+          </div>
+        </div>
         <div className="flex flex-wrap items-center gap-3">
           <StatBadge label="Wins" value={stats.totalWins} color="success" />
           <StatBadge label="Losses" value={stats.totalLosses} color="error" />
@@ -786,29 +823,47 @@ const BettingHistory = ({ account, contracts }) => {
             value={`${stats.winRate}%`}
             color="primary"
           />
+          <div className="hidden sm:block w-px h-8 bg-secondary-700/50"></div>
+          <div className="text-sm">
+            <span className="text-secondary-400">Total Profit: </span>
+            <span
+              className={`font-bold ${stats.totalProfit >= 0 ? "text-gaming-success" : "text-gaming-error"}`}
+            >
+              {ethers.formatEther(stats.totalProfit)} GAMA
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <FilterButton
-          active={filter === "all"}
-          onClick={() => setFilter("all")}
-        >
-          All Bets
-        </FilterButton>
-        <FilterButton
-          active={filter === "wins"}
-          onClick={() => setFilter("wins")}
-        >
-          Wins
-        </FilterButton>
-        <FilterButton
-          active={filter === "losses"}
-          onClick={() => setFilter("losses")}
-        >
-          Losses
-        </FilterButton>
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="text-sm text-secondary-400">Filter by:</div>
+        <div className="flex gap-2 p-1 bg-secondary-800/50 rounded-lg backdrop-blur-sm">
+          <FilterButton
+            active={filter === "all"}
+            onClick={() => setFilter("all")}
+          >
+            All Bets
+          </FilterButton>
+          <FilterButton
+            active={filter === "wins"}
+            onClick={() => setFilter("wins")}
+          >
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-gaming-success"></span>
+              Wins
+            </span>
+          </FilterButton>
+          <FilterButton
+            active={filter === "losses"}
+            onClick={() => setFilter("losses")}
+          >
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-gaming-error"></span>
+              Losses
+            </span>
+          </FilterButton>
+        </div>
       </div>
 
       {/* Bet History List */}
@@ -823,70 +878,157 @@ const BettingHistory = ({ account, contracts }) => {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ delay: index * 0.05 }}
                 className={`
-                  history-item bg-secondary-700/50 backdrop-blur-sm
+                  relative p-6 rounded-xl border backdrop-blur-sm
                   ${
                     group.totalPayout > group.totalAmount
                       ? "border-gaming-success/20 bg-gaming-success/5 hover:border-gaming-success/30"
                       : "border-gaming-error/20 bg-gaming-error/5 hover:border-gaming-error/30"
                   }
+                  hover:transform hover:scale-[1.02] transition-all duration-300
+                  shadow-lg hover:shadow-xl
                 `}
               >
                 {/* Header with timestamp and result */}
-                <div className="flex justify-between items-start">
-                  <div className="text-sm text-secondary-400">
-                    {new Date(group.timestamp * 1000).toLocaleString()}
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`
+                      w-3 h-3 rounded-full animate-pulse
+                      ${group.totalPayout > group.totalAmount ? "bg-gaming-success" : "bg-gaming-error"}
+                    `}
+                    ></div>
+                    <div className="text-sm text-secondary-400">
+                      {new Date(group.timestamp * 1000).toLocaleString()}
+                    </div>
                   </div>
                   <div
-                    className={`text-lg font-bold ${
-                      group.totalPayout > group.totalAmount
-                        ? "text-gaming-success"
-                        : "text-gaming-error"
-                    }`}
+                    className={`
+                      px-3 py-1 rounded-full text-sm font-bold
+                      ${
+                        group.totalPayout > group.totalAmount
+                          ? "bg-gaming-success/20 text-gaming-success"
+                          : "bg-gaming-error/20 text-gaming-error"
+                      }
+                    `}
                   >
                     {group.totalPayout > group.totalAmount ? "WIN" : "LOSS"}
                   </div>
                 </div>
 
                 {/* Main bet information */}
-                <div className="grid grid-cols-2 gap-4 mt-3">
-                  <div>
-                    <div className="text-sm text-secondary-400">
-                      Winning Number
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Winning Number Section */}
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={`
+                      w-16 h-16 rounded-xl flex items-center justify-center
+                      ${isRed(group.winningNumber) ? "bg-gaming-primary/20" : "bg-gray-800/50"}
+                      border-2 ${isRed(group.winningNumber) ? "border-gaming-primary/30" : "border-gray-700/30"}
+                      shadow-lg
+                    `}
+                    >
+                      <span className="text-3xl font-bold text-white">
+                        {group.winningNumber}
+                      </span>
                     </div>
-                    <div className="text-2xl font-bold">
-                      #{group.winningNumber}
+                    <div>
+                      <div className="text-sm text-secondary-400 mb-1">
+                        Winning Number
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`
+                          px-2 py-0.5 rounded text-xs font-medium
+                          ${isRed(group.winningNumber) ? "bg-gaming-primary/20 text-gaming-primary" : "bg-gray-800 text-gray-300"}
+                        `}
+                        >
+                          {isRed(group.winningNumber) ? "RED" : "BLACK"}
+                        </span>
+                        <span
+                          className={`
+                          px-2 py-0.5 rounded text-xs font-medium bg-secondary-700/50 text-secondary-300
+                        `}
+                        >
+                          {group.winningNumber <= 18 ? "1-18" : "19-36"}
+                        </span>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Bet Details Section */}
                   <div>
-                    <div className="text-sm text-secondary-400">
+                    <div className="text-sm text-secondary-400 mb-2">
                       Bet Details
                     </div>
-                    {renderBetDetails(group.bets)}
+                    <div className="flex flex-wrap gap-2">
+                      {group.bets.map((bet, i) => (
+                        <div
+                          key={i}
+                          className="
+                            px-3 py-1.5 rounded-lg
+                            bg-secondary-800/70 backdrop-blur-sm
+                            border border-secondary-700/50
+                            hover:border-secondary-600/50
+                            transition-colors duration-200
+                          "
+                        >
+                          <div className="text-sm font-medium text-secondary-200">
+                            {getBetTypeName(bet.betType)}
+                          </div>
+                          <div className="text-xs text-secondary-400 mt-0.5">
+                            {ethers.formatEther(bet.amount)} GAMA
+                            {bet.payout > bet.amount && (
+                              <span className="ml-1 text-gaming-success">
+                                (+
+                                {ethers.formatEther(
+                                  BigInt(bet.payout) - BigInt(bet.amount),
+                                )}{" "}
+                                GAMA)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                {/* Amounts */}
-                <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-secondary-600/50">
+                {/* Amounts Section */}
+                <div
+                  className="
+                  grid grid-cols-2 gap-4 mt-6 pt-4
+                  border-t border-secondary-600/30
+                "
+                >
                   <div>
-                    <div className="text-sm text-secondary-400">
-                      Total Amount
+                    <div className="text-sm text-secondary-400 mb-1">
+                      Total Bet
                     </div>
-                    <div className="font-medium">
+                    <div className="text-lg font-medium text-secondary-200">
                       {ethers.formatEther(group.totalAmount.toString())} GAMA
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-secondary-400">
+                    <div className="text-sm text-secondary-400 mb-1">
                       Total Payout
                     </div>
                     <div
-                      className={`font-bold ${
-                        group.totalPayout > group.totalAmount
-                          ? "text-gaming-success"
-                          : "text-gaming-error"
-                      }`}
+                      className={`
+                      text-lg font-bold
+                      ${group.totalPayout > group.totalAmount ? "text-gaming-success" : "text-gaming-error"}
+                    `}
                     >
                       {ethers.formatEther(group.totalPayout.toString())} GAMA
+                      {group.totalPayout > group.totalAmount && (
+                        <span className="text-sm ml-2">
+                          (+
+                          {ethers.formatEther(
+                            BigInt(group.totalPayout) -
+                              BigInt(group.totalAmount),
+                          )}{" "}
+                          GAMA)
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
