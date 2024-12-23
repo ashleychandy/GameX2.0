@@ -644,9 +644,9 @@ const BettingHistory = ({ account, contracts }) => {
           10,
         );
 
-        // Check if data exists and is an array
-        if (!bets || !Array.isArray(bets)) {
-          console.log("No betting data found or invalid format:", bets);
+        // For new users with no bets, return empty array
+        if (!bets || !Array.isArray(bets) || bets.length === 0) {
+          console.log("No betting data found for new user");
           return [];
         }
 
@@ -662,8 +662,8 @@ const BettingHistory = ({ account, contracts }) => {
           })),
         }));
       } catch (error) {
-        console.error("Error fetching betting history:", error);
-        throw error;
+        console.log("Error fetching betting history (new user):", error);
+        return []; // Return empty array instead of throwing error
       }
     },
     enabled: !!contracts?.roulette && !!account,
@@ -677,7 +677,9 @@ const BettingHistory = ({ account, contracts }) => {
 
   // Group bets by timestamp
   const groupedBets = useMemo(() => {
-    if (!userData || !Array.isArray(userData)) return [];
+    if (!userData || !Array.isArray(userData) || userData.length === 0) {
+      return []; // Return empty array for new users
+    }
 
     const grouped = userData.reduce((acc, bet) => {
       const key = bet.timestamp;
@@ -1641,17 +1643,22 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
           );
           return lastNumber;
         }
-        console.log("No bets found in history");
+        // For new users with no bets, return null without error
+        console.log("No bets found in history - new user");
         return null;
       } catch (error) {
-        console.error("Error fetching last winning number:", error);
+        // Log the error but don't throw it - return null instead
+        console.log("Error fetching last winning number (new user):", error);
         return null;
       }
     },
     enabled: !!contracts?.roulette && !!account,
-    refetchInterval: 2000, // Refetch more frequently to catch new results
-    staleTime: 1000, // Consider data stale sooner
-    cacheTime: 5000, // Keep in cache for less time
+    refetchInterval: 10000,
+    staleTime: 5000,
+    cacheTime: 30000,
+    retry: 3,
+    retryDelay: 1000,
+    structuralSharing: false,
   });
 
   // Get background color class based on number
