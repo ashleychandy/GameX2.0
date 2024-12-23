@@ -54,7 +54,7 @@ struct BetRequest {
 }
 
 
-contract RouletteV2 is ReentrancyGuard {
+contract Roulette is ReentrancyGuard {
     // Constants
     uint8 public constant MAX_NUMBER = 36;
     uint256 public constant DENOMINATOR = 10000;
@@ -77,7 +77,6 @@ contract RouletteV2 is ReentrancyGuard {
 
     // Errors
     error InvalidBetParameters(string reason);
-    error InsufficientContractBalance(uint256 required, uint256 available);
     error InvalidBetType(uint256 betType);
     error InsufficientUserBalance(uint256 required, uint256 available);
     error TransferFailed(address from, address to, uint256 amount);
@@ -123,7 +122,7 @@ contract RouletteV2 is ReentrancyGuard {
         (totalAmount, maxPossiblePayout) = _validateAndCalculateTotals(betRequests);
 
         // 4. Balance and allowance checks
-        _checkBalancesAndAllowances(msg.sender, totalAmount, maxPossiblePayout);
+        _checkBalancesAndAllowances(msg.sender, totalAmount);
 
         // 5. Process the game
         uint256 totalPayout = _processGame(betRequests, user, totalAmount);
@@ -153,17 +152,13 @@ contract RouletteV2 is ReentrancyGuard {
         }
     }
 
-    function _checkBalancesAndAllowances(address player, uint256 totalAmount, uint256 maxPossiblePayout) private view {
+    function _checkBalancesAndAllowances(address player, uint256 totalAmount) private view {
         if (gamaToken.balanceOf(player) < totalAmount) {
             revert InsufficientUserBalance(totalAmount, gamaToken.balanceOf(player));
         }
 
         if (gamaToken.allowance(player, address(this)) < totalAmount) {
             revert InsufficientAllowance(totalAmount, gamaToken.allowance(player, address(this)));
-        }
-
-        if (gamaToken.balanceOf(address(this)) + totalAmount < maxPossiblePayout) {
-            revert InsufficientContractBalance(maxPossiblePayout, gamaToken.balanceOf(address(this)) + totalAmount);
         }
 
         if (!gamaToken.hasRole(BURNER_ROLE, address(this))) {
@@ -245,12 +240,13 @@ contract RouletteV2 is ReentrancyGuard {
             if (multiplier == 0) revert("Invalid multiplier");
             
             uint256 winnings = (betAmount * multiplier) / DENOMINATOR;
+            uint256 totalPayout = winnings + betAmount; // Add original bet amount to winnings
             
-            if (winnings > MAX_POSSIBLE_PAYOUT) {
-                revert MaxPayoutExceeded(winnings, MAX_POSSIBLE_PAYOUT);
+            if (totalPayout > MAX_POSSIBLE_PAYOUT) {
+                revert MaxPayoutExceeded(totalPayout, MAX_POSSIBLE_PAYOUT);
             }
             
-            return winnings;
+            return totalPayout;
         }
         return 0;
     }
@@ -593,26 +589,6 @@ contract RouletteV2 is ReentrancyGuard {
             bet.payout,
             bet.winningNumber,
             bet.payout > 0
-        );
-    }
-
-    // Check if contract has sufficient balance and permissions
-    function checkContractHealth() external view returns (
-        bool hasSufficientBalance,
-        bool hasMinterRole,
-        bool hasBurnerRole,
-        uint256 currentBalance,
-        uint256 maxRequiredBalance
-    ) {
-        currentBalance = gamaToken.balanceOf(address(this));
-        maxRequiredBalance = MAX_POSSIBLE_PAYOUT;
-        
-        return (
-            currentBalance >= maxRequiredBalance,
-            gamaToken.hasRole(MINTER_ROLE, address(this)),
-            gamaToken.hasRole(BURNER_ROLE, address(this)),
-            currentBalance,
-            maxRequiredBalance
         );
     }
 

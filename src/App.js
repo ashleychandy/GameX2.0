@@ -45,7 +45,7 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
 );
 
 // Environment variables
@@ -105,10 +105,10 @@ const Toast = ({ message, type, onClose }) => (
                   type === "success"
                     ? "bg-gaming-success/10 border-gaming-success/30"
                     : type === "error"
-                    ? "bg-gaming-error/10 border-gaming-error/30"
-                    : type === "warning"
-                    ? "bg-gaming-warning/10 border-gaming-warning/30"
-                    : "bg-gaming-info/10 border-gaming-info/30"
+                      ? "bg-gaming-error/10 border-gaming-error/30"
+                      : type === "warning"
+                        ? "bg-gaming-warning/10 border-gaming-warning/30"
+                        : "bg-gaming-info/10 border-gaming-info/30"
                 }`}
   >
     <div className="flex items-center justify-between">
@@ -119,10 +119,10 @@ const Toast = ({ message, type, onClose }) => (
                         type === "success"
                           ? "bg-gaming-success/20"
                           : type === "error"
-                          ? "bg-gaming-error/20"
-                          : type === "warning"
-                          ? "bg-gaming-warning/20"
-                          : "bg-gaming-info/20"
+                            ? "bg-gaming-error/20"
+                            : type === "warning"
+                              ? "bg-gaming-warning/20"
+                              : "bg-gaming-info/20"
                       }`}
         >
           {/* Icon based on type */}
@@ -163,8 +163,8 @@ const NetworkIndicator = ({ chainId }) => {
         isApothem
           ? "bg-blue-500/20 text-blue-400"
           : isAmoy
-          ? "bg-purple-500/20 text-purple-400"
-          : "bg-green-500/20 text-green-400"
+            ? "bg-purple-500/20 text-purple-400"
+            : "bg-green-500/20 text-green-400"
       }
     `}
     >
@@ -278,8 +278,8 @@ const switchNetwork = async (networkType) => {
     networkType === "mainnet"
       ? NETWORKS.MAINNET
       : networkType === "testnet"
-      ? NETWORKS.APOTHEM
-      : NETWORKS.AMOY;
+        ? NETWORKS.APOTHEM
+        : NETWORKS.AMOY;
   const chainIdHex = `0x${network.chainId.toString(16)}`;
 
   try {
@@ -387,7 +387,7 @@ const BetInput = ({
 
       // Check if potential win (6x bet) would overflow uint256
       const MAX_UINT256 = BigInt(
-        "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+        "115792089237316195423570985008687907853269984665640564039457584007913129639935",
       );
       const potentialWin = weiValue * BigInt(6);
       if (potentialWin > MAX_UINT256) {
@@ -449,7 +449,7 @@ const BetInput = ({
 
       // Check if potential win (6x bet) would overflow uint256
       const MAX_UINT256 = BigInt(
-        "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+        "115792089237316195423570985008687907853269984665640564039457584007913129639935",
       );
       const potentialWin = amount * BigInt(6);
       if (potentialWin > MAX_UINT256) {
@@ -483,7 +483,7 @@ const BetInput = ({
       const step = balance / BigInt(100); // 1% step
       const minValue = BigInt(min);
       const MAX_UINT256 = BigInt(
-        "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+        "115792089237316195423570985008687907853269984665640564039457584007913129639935",
       );
 
       let newValue;
@@ -766,8 +766,8 @@ const BalancePanel = ({ userBalance, allowance, potentialWinnings }) => {
                     <span className="text-white">
                       {formatValue(
                         ethers.formatEther(
-                          userBalance > allowance ? allowance : userBalance
-                        )
+                          userBalance > allowance ? allowance : userBalance,
+                        ),
                       )}{" "}
                       GameX
                     </span>
@@ -1138,8 +1138,8 @@ const StatusPanel = ({ gameState }) => {
                                   item.type === "success"
                                     ? "text-gaming-success"
                                     : item.type === "warning"
-                                    ? "text-gaming-warning"
-                                    : "text-gaming-error"
+                                      ? "text-gaming-warning"
+                                      : "text-gaming-error"
                                 }`}
                 >
                   {item.icon}
@@ -1151,8 +1151,8 @@ const StatusPanel = ({ gameState }) => {
                       item.type === "success"
                         ? "text-gaming-success"
                         : item.type === "warning"
-                        ? "text-gaming-warning"
-                        : "text-gaming-error"
+                          ? "text-gaming-warning"
+                          : "text-gaming-error"
                     }`}
                   >
                     {item.value}
@@ -1165,8 +1165,8 @@ const StatusPanel = ({ gameState }) => {
                                 item.type === "success"
                                   ? "bg-gaming-success"
                                   : item.type === "warning"
-                                  ? "bg-gaming-warning"
-                                  : "bg-gaming-error"
+                                    ? "bg-gaming-warning"
+                                    : "bg-gaming-error"
                               }`}
               />
             </div>
@@ -1292,7 +1292,7 @@ const GameHistory = ({ diceContract, account, onError }) => {
             totalGamesLost: 0,
             totalWinAmount: BigInt(0),
             totalBetAmount: BigInt(0),
-          }
+          },
         );
 
         return { games: processedGames, stats };
@@ -1500,8 +1500,8 @@ const StatusIndicator = ({ status, isActive }) => {
             ? status === "COMPLETED_WIN"
               ? "bg-gaming-success"
               : status === "COMPLETED_LOSS"
-              ? "bg-gaming-error"
-              : "bg-gaming-warning animate-pulse"
+                ? "bg-gaming-error"
+                : "bg-gaming-warning animate-pulse"
             : "bg-secondary-600"
         }`}
       />
@@ -1511,8 +1511,8 @@ const StatusIndicator = ({ status, isActive }) => {
             ? status === "COMPLETED_WIN"
               ? "text-gaming-success"
               : status === "COMPLETED_LOSS"
-              ? "text-gaming-error"
-              : "text-gaming-warning"
+                ? "text-gaming-error"
+                : "text-gaming-warning"
             : "text-secondary-400"
         }`}
       >
@@ -1741,7 +1741,7 @@ const Home = () => {
         networkName = "Amoy Testnet";
       } else {
         throw new Error(
-          `Please connect to XDC Mainnet, Apothem Testnet, or Amoy Testnet (current network: chain ID ${chainIdDecimal})`
+          `Please connect to XDC Mainnet, Apothem Testnet, or Amoy Testnet (current network: chain ID ${chainIdDecimal})`,
         );
       }
 
@@ -1754,7 +1754,7 @@ const Home = () => {
       const tokenContract = new ethers.Contract(
         tokenAddress,
         TokenABI.abi,
-        provider
+        provider,
       );
 
       // Fetch token details
@@ -1782,7 +1782,7 @@ const Home = () => {
       if (wasAdded) {
         addToast(
           `GameX token was added to MetaMask on ${networkName} successfully!`,
-          "success"
+          "success",
         );
       } else {
         throw new Error("User rejected the request");
@@ -2043,7 +2043,7 @@ const GameStats = ({ diceContract, account }) => {
             gamesWon: 0,
             totalWinnings: BigInt(0),
             biggestWin: BigInt(0),
-          }
+          },
         );
       } catch (error) {
         console.error("Error fetching game stats:", error);
@@ -2096,8 +2096,8 @@ const StatCard = ({ title, value, icon, color = "primary" }) => (
         color === "success"
           ? "border-gaming-success/20 bg-gaming-success/5"
           : color === "error"
-          ? "border-gaming-error/20 bg-gaming-error/5"
-          : "border-gaming-primary/20 bg-gaming-primary/5"
+            ? "border-gaming-error/20 bg-gaming-error/5"
+            : "border-gaming-primary/20 bg-gaming-primary/5"
       }
     `}
   >
@@ -2111,8 +2111,8 @@ const StatCard = ({ title, value, icon, color = "primary" }) => (
           color === "success"
             ? "text-gaming-success"
             : color === "error"
-            ? "text-gaming-error"
-            : "text-gaming-primary"
+              ? "text-gaming-error"
+              : "text-gaming-primary"
         }
       >
         {value}
@@ -2289,12 +2289,12 @@ const GameControls = ({
       // Check allowance
       const allowance = await tokenContract.allowance(
         account,
-        diceContract.address
+        diceContract.address,
       );
       if (allowance < betAmount) {
         const approveTx = await tokenContract.approve(
           diceContract.address,
-          ethers.MaxUint256
+          ethers.MaxUint256,
         );
         await approveTx.wait();
         if (!isMounted.current) return;
@@ -2367,10 +2367,10 @@ const GameControls = ({
             gameState.status === "COMPLETED_WIN"
               ? "status-success"
               : gameState.status === "COMPLETED_LOSS"
-              ? "status-error"
-              : gameState.status === "STARTED"
-              ? "status-warning"
-              : "status-info"
+                ? "status-error"
+                : gameState.status === "STARTED"
+                  ? "status-warning"
+                  : "status-info"
           }`}
         >
           {gameState.status}
@@ -2516,19 +2516,19 @@ function AdminPage({
     console.log("Environment Variables Used:");
     console.log(
       "REACT_APP_DICE_GAME_ADDRESS:",
-      process.env.REACT_APP_DICE_GAME_ADDRESS
+      process.env.REACT_APP_DICE_GAME_ADDRESS,
     );
     console.log(
       "REACT_APP_TOKEN_ADDRESS:",
-      process.env.REACT_APP_TOKEN_ADDRESS
+      process.env.REACT_APP_TOKEN_ADDRESS,
     );
     console.log(
       "REACT_APP_XDC_MAINNET_RPC_URL:",
-      process.env.REACT_APP_XDC_MAINNET_RPC_URL
+      process.env.REACT_APP_XDC_MAINNET_RPC_URL,
     );
     console.log(
       "REACT_APP_XDC_MAINNET_BLOCK_EXPLORER_URL:",
-      process.env.REACT_APP_XDC_MAINNET_BLOCK_EXPLORER_URL
+      process.env.REACT_APP_XDC_MAINNET_BLOCK_EXPLORER_URL,
     );
   }, []);
 
@@ -2681,7 +2681,7 @@ function AdminPage({
 
       addToast(
         `${formInputs.selectedRole} ${action}ed successfully for ${formInputs.selectedContract} contract`,
-        "success"
+        "success",
       );
 
       // Refresh stats
@@ -2730,7 +2730,7 @@ function AdminPage({
       await tx.wait();
       addToast(
         `Game ${gameStats.isPaused ? "unpaused" : "paused"} successfully`,
-        "success"
+        "success",
       );
       await fetchGameStats();
     } catch (error) {
@@ -2790,7 +2790,7 @@ function AdminPage({
 
     // Find matching network
     const network = Object.values(NETWORKS).find(
-      (n) => n.chainId === chainIdDecimal
+      (n) => n.chainId === chainIdDecimal,
     );
     if (!network) {
       throw new Error("Unsupported network");
@@ -2819,8 +2819,8 @@ function AdminPage({
               {loading.stats
                 ? "Loading..."
                 : gameStats.isPaused
-                ? "Paused"
-                : "Active"}
+                  ? "Paused"
+                  : "Active"}
             </p>
           </div>
           <div>
@@ -3285,9 +3285,9 @@ const DicePage = ({
         setShowWinAnimation(true);
         addToast(
           `Congratulations! You won ${ethers.formatEther(
-            updatedGame.payout
+            updatedGame.payout,
           )} GameX!`,
-          "success"
+          "success",
         );
       } else {
         setShowLoseAnimation(true);
@@ -3339,23 +3339,19 @@ const DicePage = ({
     }
 
     try {
-      // Set processing state
       setGameState((prev) => ({ ...prev, isProcessing: true }));
 
-      // Get current allowance
+      // Get current allowance using updated function name
       const currentAllowance = await contracts.token.allowance(
         account,
-        contracts.dice.target
+        contracts.dice.target,
       );
 
-      // If current allowance is less than amount, approve max amount
       if (currentAllowance < amount) {
-        // Use MaxUint256 for unlimited approval
         const maxApproval = ethers.MaxUint256;
-
         const tx = await contracts.token.approve(
           contracts.dice.target,
-          maxApproval
+          maxApproval,
         );
         const receipt = await tx.wait();
 
@@ -3363,10 +3359,10 @@ const DicePage = ({
           throw new Error("Token approval transaction failed");
         }
 
-        // Verify the new allowance
+        // Verify new allowance using updated function name
         const newAllowance = await contracts.token.allowance(
           account,
-          contracts.dice.target
+          contracts.dice.target,
         );
 
         if (newAllowance < amount) {
@@ -3389,7 +3385,7 @@ const DicePage = ({
   const checkApprovals = async () => {
     const allowance = await contracts.token.allowance(
       account,
-      contracts.dice.target
+      contracts.dice.target,
     );
     const balance = await contracts.token.balanceOf(account);
     console.log({
@@ -3462,7 +3458,7 @@ const DicePage = ({
         setGameState((prev) => ({ ...prev, isProcessing: false }));
       }
     }, 500),
-    [contracts.dice, account, chosenNumber, betAmount, gameState.isProcessing]
+    [contracts.dice, account, chosenNumber, betAmount, gameState.isProcessing],
   );
 
   // Cleanup effect
@@ -3487,7 +3483,7 @@ const DicePage = ({
       // Check token approvals
       const allowance = await contracts.token.allowance(
         account,
-        contracts.dice.target
+        contracts.dice.target,
       );
       const balance = await contracts.token.balanceOf(account);
       console.log("Token status:", {
@@ -3511,7 +3507,7 @@ const DicePage = ({
           case "InvalidBetParameters":
             addToast(
               "Invalid bet parameters. Check your bet amount and chosen number.",
-              "error"
+              "error",
             );
             break;
           case "InsufficientUserBalance":
@@ -3520,7 +3516,7 @@ const DicePage = ({
           case "GameError":
             addToast(
               "You have an active game. Please resolve it first.",
-              "error"
+              "error",
             );
             break;
           default:
@@ -3895,7 +3891,7 @@ function App() {
       // Return the error message in case the caller needs it
       return errorMessage;
     },
-    [addToast, setError]
+    [addToast, setError],
   );
 
   // Update the validateNetwork function to be more detailed
@@ -3913,15 +3909,15 @@ function App() {
           currentChainId === NETWORKS.MAINNET.chainId
             ? "XDC Mainnet"
             : currentChainId === NETWORKS.APOTHEM.chainId
-            ? "XDC Apothem"
-            : currentChainId === NETWORKS.AMOY.chainId
-            ? "Amoy Testnet"
-            : "Unknown",
+              ? "XDC Apothem"
+              : currentChainId === NETWORKS.AMOY.chainId
+                ? "Amoy Testnet"
+                : "Unknown",
       });
 
       if (!SUPPORTED_CHAIN_IDS.includes(currentChainId)) {
         throw new Error(
-          `Please switch to a supported network. Connected to chain ID: ${currentChainId}`
+          `Please switch to a supported network. Connected to chain ID: ${currentChainId}`,
         );
       }
 
@@ -3930,8 +3926,8 @@ function App() {
         currentChainId === NETWORKS.MAINNET.chainId
           ? NETWORKS.MAINNET
           : currentChainId === NETWORKS.APOTHEM.chainId
-          ? NETWORKS.APOTHEM
-          : NETWORKS.AMOY;
+            ? NETWORKS.APOTHEM
+            : NETWORKS.AMOY;
 
       console.log("Network Configuration:", {
         network: currentNetwork.name,
@@ -4020,7 +4016,7 @@ function App() {
       // Validate required addresses (dice and token are always required)
       if (!networkConfig.diceAddress || !networkConfig.tokenAddress) {
         throw new Error(
-          "Missing required contract addresses for current network"
+          "Missing required contract addresses for current network",
         );
       }
 
@@ -4064,13 +4060,13 @@ function App() {
       const diceContract = new ethers.Contract(
         contractAddresses.dice,
         DiceABI.abi,
-        signer
+        signer,
       );
 
       const tokenContract = new ethers.Contract(
         contractAddresses.token,
         TokenABI.abi,
-        signer
+        signer,
       );
 
       // Only initialize roulette contract if address exists
@@ -4078,7 +4074,7 @@ function App() {
         ? new ethers.Contract(
             contractAddresses.roulette,
             RouletteABI.abi,
-            signer
+            signer,
           )
         : null;
 
@@ -4179,7 +4175,7 @@ function App() {
           try {
             hasAdminRole = await contracts.token.hasRole(
               DEFAULT_ADMIN_ROLE,
-              newAccount
+              newAccount,
             );
           } catch (err) {
             console.error("Error checking token admin role:", err);
@@ -4221,7 +4217,7 @@ function App() {
         try {
           hasAdminRole = await contracts.token.hasRole(
             DEFAULT_ADMIN_ROLE,
-            account
+            account,
           );
         } catch (err) {
           console.error("Error checking token admin role:", err);
@@ -4331,7 +4327,7 @@ function App() {
       return () => {
         window.ethereum.removeListener(
           "accountsChanged",
-          handleAccountsChanged
+          handleAccountsChanged,
         );
         window.ethereum.removeListener("chainChanged", handleChainChanged);
       };
