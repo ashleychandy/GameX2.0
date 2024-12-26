@@ -35,7 +35,7 @@ import {
 import RoulettePage from "./pages/Roulette";
 
 import DiceABI from "./contracts/abi/Dice.json";
-import TokenABI from "./contracts/abi/Token.json";
+import TokenABI from "./contracts/abi/GamaToken.json";
 import RouletteABI from "./contracts/abi/Roulette.json";
 
 ChartJS.register(

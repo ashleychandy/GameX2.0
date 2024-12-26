@@ -40,30 +40,28 @@
 
   /* Number Buttons */
   .number-button {
-    @apply relative rounded-xl text-xl font-bold transition-all duration-300 transform border border-white/10 hover:scale-105 hover:z-10 active:scale-95 cursor-pointer backdrop-blur-sm shadow-lg hover:shadow-2xl text-white;
-    aspect-ratio: 1;
-    min-width: 45px;
-    min-height: 45px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    @apply aspect-square w-full rounded-xl font-bold flex items-center justify-center transition-all duration-300 hover:scale-105;
+  }
+
+  .number-button-red {
+    @apply bg-gradient-to-br from-gaming-primary/90 to-gaming-primary/80 hover:from-gaming-primary hover:to-gaming-primary/90 text-white/90 hover:shadow-gaming-primary/30;
+  }
+
+  .number-button-black {
+    @apply bg-gradient-to-br from-gray-800/90 to-gray-900/90 hover:from-gray-700 hover:to-gray-800 text-white/90 hover:shadow-gray-500/30;
   }
 
   .number-button-highlighted {
-    @apply ring-2 ring-offset-2 ring-offset-secondary-900 scale-105 z-20 shadow-[0_0_20px_rgba(var(--gaming-primary),0.4)] border-gaming-primary/50;
+    @apply ring-2 ring-white shadow-lg;
+  }
+
+  .number-button:disabled {
+    @apply opacity-50 cursor-not-allowed;
   }
 
   .number-button-zero {
     @apply bg-gradient-to-br from-emerald-500/90 to-emerald-600/90 hover:from-emerald-400 hover:to-emerald-500 border-emerald-400/20 hover:shadow-emerald-500/30 h-full w-[45px];
     grid-row: span 3;
-  }
-
-  .number-button-red {
-    @apply bg-gradient-to-br from-gaming-primary/90 to-gaming-accent/90 hover:from-gaming-primary hover:to-gaming-accent border-gaming-primary/20 hover:shadow-gaming-primary/30;
-  }
-
-  .number-button-black {
-    @apply bg-gradient-to-br from-gray-800/90 to-gray-900/90 hover:from-gray-700 hover:to-gray-800 border-gray-700/20 hover:shadow-gray-500/30;
   }
 
   /* Column Bets */
