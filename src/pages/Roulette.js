@@ -4,32 +4,28 @@ import { ethers } from "ethers";
 import { Link } from "react-router-dom";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 
-// Constants for bet types to match contract
+// Updated BetTypes object to match contract constants exactly
 const BetTypes = {
-  STRAIGHT: 0,
-  DOZEN_FIRST: 1,
-  DOZEN_SECOND: 2,
-  DOZEN_THIRD: 3,
-  COLUMN_FIRST: 4,
-  COLUMN_SECOND: 5,
-  COLUMN_THIRD: 6,
-  RED: 7,
-  BLACK: 8,
-  EVEN: 9,
-  ODD: 10,
-  LOW: 11,
-  HIGH: 12,
-
-  // Helper function to validate bet type
+  STRAIGHT: 0, // STRAIGHT_BET
+  DOZEN_FIRST: 1, // DOZEN_BET_FIRST
+  DOZEN_SECOND: 2, // DOZEN_BET_SECOND
+  DOZEN_THIRD: 3, // DOZEN_BET_THIRD
+  COLUMN_FIRST: 4, // COLUMN_BET_FIRST
+  COLUMN_SECOND: 5, // COLUMN_BET_SECOND
+  COLUMN_THIRD: 6, // COLUMN_BET_THIRD
+  RED: 7, // RED_BET
+  BLACK: 8, // BLACK_BET
+  EVEN: 9, // EVEN_BET
+  ODD: 10, // ODD_BET
+  LOW: 11, // LOW_BET
+  HIGH: 12, // HIGH_BET
   isValid: function (type) {
     return type >= 0 && type <= 12;
   },
-
-  // Helper function to get numbers for a bet type
   getNumbers: function (type) {
-    switch (type) {
+    switch (Number(type)) {
       case this.STRAIGHT:
-        return []; // For straight bets, numbers are provided separately
+        return []; // Numbers provided directly for straight bets
       case this.DOZEN_FIRST:
         return Array.from({ length: 12 }, (_, i) => i + 1);
       case this.DOZEN_SECOND:
@@ -43,52 +39,94 @@ const BetTypes = {
       case this.COLUMN_THIRD:
         return Array.from({ length: 12 }, (_, i) => 3 + i * 3);
       case this.RED:
-        return redNumbers;
+        return [
+          1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
+        ];
       case this.BLACK:
-        return Array.from({ length: 36 }, (_, i) => i + 1).filter(
-          (num) => !redNumbers.includes(num) && num !== 0,
-        );
+        return [
+          2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35,
+        ];
       case this.EVEN:
-        return Array.from({ length: 36 }, (_, i) => i + 1).filter(
-          (num) => num % 2 === 0 && num !== 0,
-        );
+        return Array.from({ length: 18 }, (_, i) => (i + 1) * 2);
       case this.ODD:
-        return Array.from({ length: 36 }, (_, i) => i + 1).filter(
-          (num) => num % 2 === 1,
-        );
+        return Array.from({ length: 18 }, (_, i) => i * 2 + 1);
       case this.LOW:
         return Array.from({ length: 18 }, (_, i) => i + 1);
       case this.HIGH:
         return Array.from({ length: 18 }, (_, i) => i + 19);
       default:
-        throw new Error(`Invalid bet type: ${type}`);
+        return [];
     }
   },
 };
 
-// Define dozen betting options
+// Update betting options arrays to match contract order
 const dozenBettingOptions = [
-  { type: BetTypes.DOZEN_FIRST, label: "1st 12", color: "cyan" },
-  { type: BetTypes.DOZEN_SECOND, label: "2nd 12", color: "cyan" },
-  { type: BetTypes.DOZEN_THIRD, label: "3rd 12", color: "cyan" },
+  { label: "1st 12", type: BetTypes.DOZEN_FIRST },
+  { label: "2nd 12", type: BetTypes.DOZEN_SECOND },
+  { label: "3rd 12", type: BetTypes.DOZEN_THIRD },
 ];
 
-// Define column betting options
-const columnBettingOptions = [
-  { type: BetTypes.COLUMN_FIRST, label: "2:1", color: "cyan" },
-  { type: BetTypes.COLUMN_SECOND, label: "2:1", color: "cyan" },
-  { type: BetTypes.COLUMN_THIRD, label: "2:1", color: "cyan" },
-];
-
-// Define bottom betting options
 const bottomBettingOptions = [
-  { type: BetTypes.LOW, label: "1-18", color: "cyan" },
-  { type: BetTypes.EVEN, label: "EVEN", color: "cyan" },
-  { type: BetTypes.RED, label: "RED", color: "gaming-primary", isRed: true },
-  { type: BetTypes.BLACK, label: "BLACK", color: "gray" },
-  { type: BetTypes.ODD, label: "ODD", color: "cyan" },
-  { type: BetTypes.HIGH, label: "19-36", color: "cyan" },
+  { label: "1-18", type: BetTypes.LOW },
+  { label: "EVEN", type: BetTypes.EVEN },
+  { label: "RED", type: BetTypes.RED },
+  { label: "BLACK", type: BetTypes.BLACK },
+  { label: "ODD", type: BetTypes.ODD },
+  { label: "19-36", type: BetTypes.HIGH },
 ];
+
+// Fix column betting in BettingBoard component
+const handleColumnBet = (rowIndex, onBetPlace) => {
+  // rowIndex is 0 for bottom row, 1 for middle, 2 for top
+  const columnType =
+    rowIndex === 0
+      ? BetTypes.COLUMN_FIRST // 1,4,7...
+      : rowIndex === 1
+        ? BetTypes.COLUMN_SECOND // 2,5,8...
+        : BetTypes.COLUMN_THIRD; // 3,6,9...
+
+  const numbers = BetTypes.getNumbers(columnType);
+  onBetPlace(numbers, columnType);
+};
+
+// Update bet validation in handlePlaceBets
+const validateBet = (bet) => {
+  // Validate bet type range
+  if (bet.type < 0 || bet.type > 12) {
+    throw new Error(`Invalid bet type: ${bet.type}`);
+  }
+
+  // Validate straight bets
+  if (bet.type === BetTypes.STRAIGHT) {
+    if (bet.numbers.length !== 1 || bet.numbers[0] > 36) {
+      throw new Error(`Invalid number for straight bet: ${bet.numbers[0]}`);
+    }
+  }
+
+  // Validate column bets
+  if (
+    [
+      BetTypes.COLUMN_FIRST,
+      BetTypes.COLUMN_SECOND,
+      BetTypes.COLUMN_THIRD,
+    ].includes(bet.type)
+  ) {
+    const expectedNumbers = BetTypes.getNumbers(bet.type);
+    if (!bet.numbers.every((num, idx) => num === expectedNumbers[idx])) {
+      throw new Error(`Invalid numbers for column bet type: ${bet.type}`);
+    }
+  }
+
+  return true;
+};
+
+// Update bet request formatting
+const formatBetRequest = (bet) => ({
+  betTypeId: bet.type,
+  number: bet.type === BetTypes.STRAIGHT ? bet.numbers[0] : 0,
+  amount: BigInt(bet.amount).toString(),
+});
 
 // Contract constants
 const CONTRACT_CONSTANTS = {
@@ -99,7 +137,17 @@ const CONTRACT_CONSTANTS = {
   MINTER_ROLE: ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE")),
   BURNER_ROLE: ethers.keccak256(ethers.toUtf8Bytes("BURNER_ROLE")),
 };
-
+const CONTRACT_ERRORS = {
+  InvalidBetParameters: "Invalid bet parameters. Please check your bets.",
+  InvalidBetType: "Invalid bet type selected.",
+  InsufficientUserBalance: "Insufficient balance to place bet.",
+  TransferFailed: "Token transfer failed.",
+  BurnFailed: "Token burn failed.",
+  MintFailed: "Token mint failed.",
+  MissingContractRole: "Contract is missing required roles.",
+  InsufficientAllowance: "Insufficient token allowance.",
+  MaxPayoutExceeded: "Maximum potential payout exceeded.",
+};
 // Chip values for betting
 const CHIP_VALUES = [
   { value: "1000000000000000000", label: "1" },
@@ -303,20 +351,20 @@ const BettingBoard = ({
                 onClick={() => {
                   const columnType =
                     rowIndex === 0
-                      ? BetTypes.COLUMN_THIRD
+                      ? BetTypes.COLUMN_FIRST
                       : rowIndex === 1
                         ? BetTypes.COLUMN_SECOND
-                        : BetTypes.COLUMN_FIRST;
+                        : BetTypes.COLUMN_THIRD;
                   const numbers = BetTypes.getNumbers(columnType);
                   handleBet(numbers, columnType);
                 }}
                 onMouseEnter={() => {
                   const columnType =
                     rowIndex === 0
-                      ? BetTypes.COLUMN_THIRD
+                      ? BetTypes.COLUMN_FIRST
                       : rowIndex === 1
                         ? BetTypes.COLUMN_SECOND
-                        : BetTypes.COLUMN_FIRST;
+                        : BetTypes.COLUMN_THIRD;
                   const numbers = BetTypes.getNumbers(columnType);
                   setHoveredNumbers(numbers);
                 }}
@@ -325,10 +373,10 @@ const BettingBoard = ({
                 className={`h-[45px] rounded-xl relative bg-gradient-to-br from-purple-600/80 to-purple-700/80 hover:from-purple-500 hover:to-purple-600 text-white border border-white/10 shadow-lg hover:shadow-purple-500/30 transition-all duration-300 font-bold text-sm flex items-center justify-center transform hover:scale-105 ${(() => {
                   const columnType =
                     rowIndex === 0
-                      ? BetTypes.COLUMN_THIRD
+                      ? BetTypes.COLUMN_FIRST
                       : rowIndex === 1
                         ? BetTypes.COLUMN_SECOND
-                        : BetTypes.COLUMN_FIRST;
+                        : BetTypes.COLUMN_THIRD;
                   const numbers = BetTypes.getNumbers(columnType);
                   return getBetAmount([], columnType) > 0 ||
                     isBetTypeHovered(columnType, numbers)
@@ -340,10 +388,10 @@ const BettingBoard = ({
                 {(() => {
                   const columnType =
                     rowIndex === 0
-                      ? BetTypes.COLUMN_THIRD
+                      ? BetTypes.COLUMN_FIRST
                       : rowIndex === 1
                         ? BetTypes.COLUMN_SECOND
-                        : BetTypes.COLUMN_FIRST;
+                        : BetTypes.COLUMN_THIRD;
                   const amount = getBetAmount([], columnType);
                   return (
                     amount > 0 && (
@@ -519,34 +567,55 @@ const BetControls = ({
 
 // Add helper function to get bet type name
 const getBetTypeName = (betType, numbers) => {
-  // Convert betType to number if it's a string
-  const type = Number(betType);
+  // Convert contract's internal enum to our frontend bet type
+  const convertedType = (() => {
+    switch (Number(betType)) {
+      case 0:
+        return BetTypes.STRAIGHT; // Straight
+      case 1: // Dozen
+        if (numbers[0] === 1) return BetTypes.DOZEN_FIRST;
+        if (numbers[0] === 13) return BetTypes.DOZEN_SECOND;
+        if (numbers[0] === 25) return BetTypes.DOZEN_THIRD;
+        break;
+      case 2: // Column
+        if (numbers[0] === 1) return BetTypes.COLUMN_FIRST;
+        if (numbers[0] === 2) return BetTypes.COLUMN_SECOND;
+        if (numbers[0] === 3) return BetTypes.COLUMN_THIRD;
+        break;
+      case 3:
+        return BetTypes.RED; // Red
+      case 4:
+        return BetTypes.BLACK; // Black
+      case 5:
+        return BetTypes.EVEN; // Even
+      case 6:
+        return BetTypes.ODD; // Odd
+      case 7:
+        return BetTypes.LOW; // Low
+      case 8:
+        return BetTypes.HIGH; // High
+      default:
+        console.error("Unknown bet type:", betType);
+        return betType;
+    }
+  })();
 
-  // For straight bets (single number)
-  if (type === BetTypes.STRAIGHT) {
-    return `Straight (${numbers[0]})`;
-  }
-
-  // For dozen bets
-  if (type === BetTypes.DOZEN) {
-    const start = numbers[0];
-    if (start === 1) return "First Dozen (1-12)";
-    if (start === 13) return "Second Dozen (13-24)";
-    if (start === 25) return "Third Dozen (25-36)";
-    return "Dozen";
-  }
-
-  // For column bets
-  if (type === BetTypes.COLUMN) {
-    const start = numbers[0];
-    if (start === 1) return "First Column";
-    if (start === 2) return "Second Column";
-    if (start === 3) return "Third Column";
-    return "Column";
-  }
-
-  // For other bets
-  switch (type) {
+  // Now use the converted type to get the display name
+  switch (convertedType) {
+    case BetTypes.STRAIGHT:
+      return `Number ${numbers[0]}`;
+    case BetTypes.DOZEN_FIRST:
+      return "First Dozen (1-12)";
+    case BetTypes.DOZEN_SECOND:
+      return "Second Dozen (13-24)";
+    case BetTypes.DOZEN_THIRD:
+      return "Third Dozen (25-36)";
+    case BetTypes.COLUMN_FIRST:
+      return "First Column";
+    case BetTypes.COLUMN_SECOND:
+      return "Second Column";
+    case BetTypes.COLUMN_THIRD:
+      return "Third Column";
     case BetTypes.RED:
       return "Red";
     case BetTypes.BLACK:
@@ -560,7 +629,7 @@ const getBetTypeName = (betType, numbers) => {
     case BetTypes.HIGH:
       return "High (19-36)";
     default:
-      return "Unknown Bet Type";
+      return "Unknown Bet";
   }
 };
 
@@ -672,48 +741,52 @@ const BettingHistory = ({ account, contracts }) => {
           return [];
         }
 
-        return bets.map((bet) => ({
-          timestamp: Number(bet.timestamp),
-          winningNumber: Number(bet.winningNumber),
-          bets: bet.bets.map((betDetail) => {
-            const betType = Number(betDetail.betType);
-            const numbers = betDetail.numbers.map((n) => Number(n));
-            // For dozen and column bets, we need to determine the start number
-            let startNumber = numbers[0];
-            if (betType === BetTypes.DOZEN) {
-              startNumber = numbers[0]; // Will be 1, 13, or 25
-            } else if (betType === BetTypes.COLUMN) {
-              startNumber = numbers[0]; // Will be 1, 2, or 3
-            }
-            return {
-              betType,
-              numbers,
-              startNumber,
-              amount: betDetail.amount.toString(),
-              payout: betDetail.payout.toString(),
-            };
-          }),
-          totalAmount: bet.bets.reduce(
-            (sum, b) => sum + BigInt(b.amount),
-            BigInt(0),
-          ),
-          totalPayout: bet.bets.reduce(
-            (sum, b) => sum + BigInt(b.payout),
-            BigInt(0),
-          ),
-        }));
+        // Debug the raw contract response
+        console.log("Raw contract response:", bets);
+
+        const processedBets = bets.map((bet) => {
+          // Debug each bet's raw data
+          console.log("Processing bet:", bet);
+
+          const processed = {
+            timestamp: Number(bet.timestamp),
+            winningNumber: Number(bet.winningNumber),
+            bets: bet.bets.map((betDetail) => {
+              // Debug each bet detail
+              console.log("Processing bet detail:", betDetail);
+
+              return {
+                betType: Number(betDetail.betType),
+                numbers: betDetail.numbers.map((n) => Number(n)),
+                amount: betDetail.amount.toString(),
+                payout: betDetail.payout.toString(),
+              };
+            }),
+            totalAmount: bet.bets.reduce(
+              (sum, b) => sum + BigInt(b.amount),
+              BigInt(0),
+            ),
+            totalPayout: bet.bets.reduce(
+              (sum, b) => sum + BigInt(b.payout),
+              BigInt(0),
+            ),
+          };
+
+          // Debug the processed bet
+          console.log("Processed bet:", processed);
+
+          return processed;
+        });
+
+        return processedBets;
       } catch (error) {
-        console.log("Error fetching betting history (new user):", error);
+        console.log("Error fetching betting history:", error);
         return [];
       }
     },
     enabled: !!contracts?.roulette && !!account,
     refetchInterval: 10000,
     staleTime: 5000,
-    cacheTime: 30000,
-    retry: 3,
-    retryDelay: 1000,
-    structuralSharing: false,
   });
 
   // Group bets by timestamp
@@ -911,7 +984,33 @@ const BettingHistory = ({ account, contracts }) => {
                         {group.winningNumber}
                       </div>
                       <div className="text-sm text-secondary-300">
-                        {new Date(group.timestamp * 1000).toLocaleString()}
+                        {group.bets.map((bet, idx) => {
+                          // Debug logging
+                          console.log("Raw bet from contract:", {
+                            betType: bet.betType,
+                            numbers: bet.numbers,
+                            rawBetType: typeof bet.betType,
+                            convertedType: Number(bet.betType),
+                          });
+
+                          // Map contract bet type to frontend bet type
+                          const betType = Number(bet.betType);
+                          const numbers = bet.numbers.map((n) => Number(n));
+
+                          // Debug the mapped values
+                          console.log("Mapped bet values:", {
+                            betType,
+                            numbers,
+                            displayName: getBetTypeName(betType, numbers),
+                          });
+
+                          return (
+                            <span key={idx} className="mr-2">
+                              {getBetTypeName(betType, numbers)}
+                              {idx < group.bets.length - 1 ? ", " : ""}
+                            </span>
+                          );
+                        })}
                       </div>
                     </div>
                     <div
@@ -927,19 +1026,24 @@ const BettingHistory = ({ account, contracts }) => {
 
                   {/* Bets */}
                   <div className="space-y-2">
-                    {group.bets.map((bet, i) => (
-                      <div key={i} className="flex justify-between text-sm">
-                        <span className="text-secondary-300">
-                          {getBetTypeName(bet.betType, bet.numbers)}
-                        </span>
-                        <span className="font-medium">
-                          {parseFloat(ethers.formatEther(bet.amount)).toFixed(
-                            1,
-                          )}{" "}
-                          GAMA
-                        </span>
-                      </div>
-                    ))}
+                    {group.bets.map((bet, i) => {
+                      // Map contract bet type to frontend bet type
+                      const betType = Number(bet.betType);
+                      const numbers = bet.numbers.map((n) => Number(n));
+                      return (
+                        <div key={i} className="flex justify-between text-sm">
+                          <span className="text-secondary-300">
+                            {getBetTypeName(betType, numbers)}
+                          </span>
+                          <span className="font-medium">
+                            {parseFloat(ethers.formatEther(bet.amount)).toFixed(
+                              1,
+                            )}{" "}
+                            GAMA
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* Total */}
@@ -1028,6 +1132,165 @@ const CompactHistory = ({ bets }) => {
   );
 };
 
+// Add this helper function to validate column numbers
+const validateColumnNumbers = (type, numbers) => {
+  switch (type) {
+    case BetTypes.COLUMN_FIRST: // 1,4,7...
+      return numbers.every((n, i) => n === 1 + i * 3);
+    case BetTypes.COLUMN_SECOND: // 2,5,8...
+      return numbers.every((n, i) => n === 2 + i * 3);
+    case BetTypes.COLUMN_THIRD: // 3,6,9...
+      return numbers.every((n, i) => n === 3 + i * 3);
+    default:
+      return true;
+  }
+};
+
+// Add helper functions to match contract functionality
+const BetHelpers = {
+  // Get all possible winning numbers for a bet type (matches contract's getPossibleWinningNumbers)
+  getPossibleWinningNumbers: (betTypeId) => {
+    switch (Number(betTypeId)) {
+      case BetTypes.STRAIGHT:
+        return Array.from({ length: 37 }, (_, i) => i); // 0-36
+      case BetTypes.RED:
+        return [
+          1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
+        ];
+      case BetTypes.BLACK:
+        return [
+          2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35,
+        ];
+      case BetTypes.EVEN:
+        return Array.from({ length: 18 }, (_, i) => (i + 1) * 2);
+      case BetTypes.ODD:
+        return Array.from({ length: 18 }, (_, i) => i * 2 + 1);
+      case BetTypes.LOW:
+        return Array.from({ length: 18 }, (_, i) => i + 1);
+      case BetTypes.HIGH:
+        return Array.from({ length: 18 }, (_, i) => i + 19);
+      case BetTypes.DOZEN_FIRST:
+        return Array.from({ length: 12 }, (_, i) => i + 1);
+      case BetTypes.DOZEN_SECOND:
+        return Array.from({ length: 12 }, (_, i) => i + 13);
+      case BetTypes.DOZEN_THIRD:
+        return Array.from({ length: 12 }, (_, i) => i + 25);
+      case BetTypes.COLUMN_FIRST:
+        return Array.from({ length: 12 }, (_, i) => 1 + i * 3);
+      case BetTypes.COLUMN_SECOND:
+        return Array.from({ length: 12 }, (_, i) => 2 + i * 3);
+      case BetTypes.COLUMN_THIRD:
+        return Array.from({ length: 12 }, (_, i) => 3 + i * 3);
+      default:
+        throw new Error("Invalid bet type ID for number generation");
+    }
+  },
+
+  // Get bet type info (matches contract's getBetTypeInfo)
+  getBetTypeInfo: (betTypeId) => {
+    switch (Number(betTypeId)) {
+      case BetTypes.STRAIGHT:
+        return { name: "Straight", requiresNumber: true, multiplier: 35000 }; // 35x
+      case BetTypes.DOZEN_FIRST:
+        return {
+          name: "First Dozen (1-12)",
+          requiresNumber: false,
+          multiplier: 20000,
+        }; // 2x
+      case BetTypes.DOZEN_SECOND:
+        return {
+          name: "Second Dozen (13-24)",
+          requiresNumber: false,
+          multiplier: 20000,
+        };
+      case BetTypes.DOZEN_THIRD:
+        return {
+          name: "Third Dozen (25-36)",
+          requiresNumber: false,
+          multiplier: 20000,
+        };
+      case BetTypes.COLUMN_FIRST:
+        return {
+          name: "First Column",
+          requiresNumber: false,
+          multiplier: 20000,
+        };
+      case BetTypes.COLUMN_SECOND:
+        return {
+          name: "Second Column",
+          requiresNumber: false,
+          multiplier: 20000,
+        };
+      case BetTypes.COLUMN_THIRD:
+        return {
+          name: "Third Column",
+          requiresNumber: false,
+          multiplier: 20000,
+        };
+      case BetTypes.RED:
+        return { name: "Red", requiresNumber: false, multiplier: 10000 }; // 1x
+      case BetTypes.BLACK:
+        return { name: "Black", requiresNumber: false, multiplier: 10000 };
+      case BetTypes.EVEN:
+        return { name: "Even", requiresNumber: false, multiplier: 10000 };
+      case BetTypes.ODD:
+        return { name: "Odd", requiresNumber: false, multiplier: 10000 };
+      case BetTypes.LOW:
+        return { name: "Low (1-18)", requiresNumber: false, multiplier: 10000 };
+      case BetTypes.HIGH:
+        return {
+          name: "High (19-36)",
+          requiresNumber: false,
+          multiplier: 10000,
+        };
+      default:
+        throw new Error("Invalid bet type");
+    }
+  },
+
+  // Calculate potential payout (helper for UI)
+  calculatePotentialPayout: (betAmount, betTypeId) => {
+    const { multiplier } = BetHelpers.getBetTypeInfo(betTypeId);
+    return (BigInt(betAmount) * BigInt(multiplier)) / BigInt(10000);
+  },
+
+  // Validate bet parameters (matches contract's validation)
+  validateBetParameters: (bet) => {
+    // Check bet type range
+    if (bet.type < 0 || bet.type > 12) {
+      throw new Error("Invalid bet type");
+    }
+
+    // Check bet amount
+    if (bet.amount <= 0 || bet.amount > CONTRACT_CONSTANTS.MAX_BET_AMOUNT) {
+      throw new Error("Invalid bet amount");
+    }
+
+    // For straight bets, validate number
+    if (bet.type === BetTypes.STRAIGHT) {
+      if (bet.numbers.length !== 1 || bet.numbers[0] > 36) {
+        throw new Error("Invalid number for straight bet");
+      }
+    }
+
+    // For column and dozen bets, validate numbers array
+    if (
+      [
+        BetTypes.COLUMN_FIRST,
+        BetTypes.COLUMN_SECOND,
+        BetTypes.COLUMN_THIRD,
+      ].includes(bet.type)
+    ) {
+      const expectedNumbers = BetHelpers.getPossibleWinningNumbers(bet.type);
+      if (!bet.numbers.every((num, idx) => num === expectedNumbers[idx])) {
+        throw new Error("Invalid numbers for bet type");
+      }
+    }
+
+    return true;
+  },
+};
+
 const RoulettePage = ({ contracts, account, onError, addToast }) => {
   // State management
   const [selectedBets, setSelectedBets] = useState([]);
@@ -1055,27 +1318,48 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
         );
 
         if (!bets || !Array.isArray(bets) || bets.length === 0) {
+          console.log("No betting data found for new user");
           return [];
         }
 
-        return bets.map((bet) => ({
-          timestamp: Number(bet.timestamp),
-          winningNumber: Number(bet.winningNumber),
-          bets: bet.bets.map((betDetail) => ({
-            betType: Number(betDetail.betType),
-            numbers: betDetail.numbers.map((n) => Number(n)),
-            amount: betDetail.amount.toString(),
-            payout: betDetail.payout.toString(),
-          })),
-          totalAmount: bet.bets.reduce(
-            (sum, b) => sum + BigInt(b.amount),
-            BigInt(0),
-          ),
-          totalPayout: bet.bets.reduce(
-            (sum, b) => sum + BigInt(b.payout),
-            BigInt(0),
-          ),
-        }));
+        // Debug the raw contract response
+        console.log("Raw contract response:", bets);
+
+        const processedBets = bets.map((bet) => {
+          // Debug each bet's raw data
+          console.log("Processing bet:", bet);
+
+          const processed = {
+            timestamp: Number(bet.timestamp),
+            winningNumber: Number(bet.winningNumber),
+            bets: bet.bets.map((betDetail) => {
+              // Debug each bet detail
+              console.log("Processing bet detail:", betDetail);
+
+              return {
+                betType: Number(betDetail.betType),
+                numbers: betDetail.numbers.map((n) => Number(n)),
+                amount: betDetail.amount.toString(),
+                payout: betDetail.payout.toString(),
+              };
+            }),
+            totalAmount: bet.bets.reduce(
+              (sum, b) => sum + BigInt(b.amount),
+              BigInt(0),
+            ),
+            totalPayout: bet.bets.reduce(
+              (sum, b) => sum + BigInt(b.payout),
+              BigInt(0),
+            ),
+          };
+
+          // Debug the processed bet
+          console.log("Processed bet:", processed);
+
+          return processed;
+        });
+
+        return processedBets;
       } catch (error) {
         console.log("Error fetching betting history:", error);
         return [];
@@ -1212,23 +1496,9 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
       // Handle specific error cases
       if (error.code === "ACTION_REJECTED") {
         addToast("Token approval was rejected", "error");
-      } else if (error.code === "CALL_EXCEPTION") {
-        // Try to decode the error
-        if (error.data) {
-          const errorData = error.data;
-          if (errorData.includes("MissingContractRole")) {
-            addToast(
-              "Contract is missing required roles. Please contact support.",
-              "error",
-            );
-            return;
-          }
-        }
-        addToast("Token approval failed - contract error", "error");
       } else {
-        addToast("Failed to approve token. Please try again.", "error");
+        onError(error);
       }
-      onError(error);
     } finally {
       setIsProcessing(false);
     }
@@ -1240,40 +1510,26 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
       if (isProcessing) return;
 
       setSelectedBets((prev) => {
-        // Validate bet type
+        // Validate bet type matches contract expectations
         if (!BetTypes.isValid(type)) {
           console.error("Invalid bet type:", type);
           addToast("Invalid bet type selected", "error");
           return prev;
         }
 
-        // Get the correct numbers array for this bet type
-        let betNumbers;
-        try {
-          betNumbers =
-            type === BetTypes.STRAIGHT
-              ? [Array.isArray(numbers) ? numbers[0] : numbers]
-              : BetTypes.getNumbers(type);
-        } catch (error) {
-          console.error("Error getting bet numbers:", error);
-          addToast("Invalid bet numbers", "error");
-          return prev;
-        }
-
-        // Additional validation for straight bets
-        if (type === BetTypes.STRAIGHT) {
-          if (betNumbers[0] > 36) {
-            addToast("Invalid number for straight bet", "error");
-            return prev;
-          }
-        }
+        // Format bet for contract
+        const betRequest = {
+          betTypeId: type,
+          number: type === BetTypes.STRAIGHT ? numbers[0] : 0,
+          amount: BigInt(selectedChipValue).toString(),
+        };
 
         // Check if bet already exists
         const existingBetIndex = prev.findIndex(
           (bet) =>
             bet.type === type &&
             JSON.stringify(bet.numbers.sort()) ===
-              JSON.stringify(betNumbers.sort()),
+              JSON.stringify(betRequest.numbers.sort()),
         );
 
         const newBets = [...prev];
@@ -1308,9 +1564,9 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
           }
 
           newBets.push({
-            numbers: betNumbers,
-            type: type,
-            amount: betAmount.toString(),
+            numbers,
+            type: betRequest.betTypeId,
+            amount: betRequest.amount,
           });
         }
 
@@ -1386,8 +1642,23 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
         // Format bets for contract according to BetRequest structure
         const betRequests = selectedBets.map((bet) => {
           // Validate bet type
-          if (bet.type < 0 || bet.type > 8) {
+          if (bet.type < 0 || bet.type > 12) {
             throw new Error(`Invalid bet type: ${bet.type}`);
+          }
+
+          // Validate column numbers
+          if (
+            [
+              BetTypes.COLUMN_FIRST,
+              BetTypes.COLUMN_SECOND,
+              BetTypes.COLUMN_THIRD,
+            ].includes(bet.type)
+          ) {
+            if (!validateColumnNumbers(bet.type, bet.numbers)) {
+              throw new Error(
+                `Invalid numbers for column bet type: ${bet.type}`,
+              );
+            }
           }
 
           // For straight bets, validate number
@@ -1400,11 +1671,10 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
             );
           }
 
-          // Convert to contract format
           return {
             betTypeId: bet.type,
             number: bet.type === BetTypes.STRAIGHT ? bet.numbers[0] : 0,
-            amount: BigInt(bet.amount).toString(), // Ensure amount is BigInt
+            amount: BigInt(bet.amount).toString(),
           };
         });
 
@@ -1549,38 +1819,12 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
           // Try to extract error name from data if available
           const errorName = error.data ? error.data.split("(")[0] : null;
 
-          switch (errorName) {
-            case "InvalidBetParameters":
-              addToast(
-                "Invalid bet parameters. Please check your bets.",
-                "error",
-              );
-              break;
-            case "InsufficientUserBalance":
-              addToast("Insufficient balance", "error");
-              break;
-            case "MaxPayoutExceeded":
-              addToast("Maximum potential payout exceeded", "error");
-              break;
-            case "MissingContractRole":
-              addToast(
-                "Contract is missing required roles. Please contact support.",
-                "error",
-              );
-              break;
-            case "InsufficientAllowance":
-              addToast(
-                "Insufficient token allowance. Please approve more tokens.",
-                "error",
-              );
-              break;
-            default:
-              // If we can't determine the specific error, show the raw error message
-              addToast(
-                `Transaction failed: ${error.message || "Unknown error"}`,
-                "error",
-              );
-              onError(error);
+          const errorMessage =
+            CONTRACT_ERRORS[errorName] ||
+            `Transaction failed: ${error.message || "Unknown error"}`;
+          addToast(errorMessage, "error");
+          if (!CONTRACT_ERRORS[errorName]) {
+            onError(error);
           }
         } else if (error.code === "ACTION_REJECTED") {
           addToast("Transaction rejected by user", "error");
