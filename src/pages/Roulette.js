@@ -156,7 +156,26 @@ const BettingBoard = ({
   const [hoveredNumbers, setHoveredNumbers] = useState([]);
 
   // Helper function to check if a number is currently hovered
-  const isNumberHovered = (number) => hoveredNumbers.includes(number);
+  const isNumberHovered = useCallback(
+    (number) => {
+      return hoveredNumbers.includes(number);
+    },
+    [hoveredNumbers],
+  );
+
+  // Helper function to check if a bet type is currently hovered
+  const isBetTypeHovered = useCallback(
+    (type, numbers) => {
+      if (!hoveredNumbers.length) return false;
+      // Only consider this bet type hovered if ALL its numbers are hovered AND
+      // the number of hovered numbers matches exactly (prevents overlap highlighting)
+      return (
+        numbers.every((num) => hoveredNumbers.includes(num)) &&
+        hoveredNumbers.length === numbers.length
+      );
+    },
+    [hoveredNumbers],
+  );
 
   // Helper function to get total bet amount for a position
   const getBetAmount = useCallback(
@@ -260,12 +279,14 @@ const BettingBoard = ({
                   onMouseEnter={() => setHoveredNumbers([number])}
                   onMouseLeave={() => setHoveredNumbers([])}
                   disabled={disabled}
-                  className={`number-button relative ${
-                    isRed(number) ? "number-button-red" : "number-button-black"
+                  className={`relative rounded-xl text-xl font-bold transition-all duration-300 transform border border-white/10 hover:scale-105 hover:z-10 active:scale-95 cursor-pointer backdrop-blur-sm shadow-lg hover:shadow-2xl text-white ${
+                    isRed(number)
+                      ? "bg-gradient-to-br from-gaming-primary/90 to-gaming-accent/90 hover:from-gaming-primary hover:to-gaming-accent border-gaming-primary/20 hover:shadow-gaming-primary/30"
+                      : "bg-gradient-to-br from-gray-800/90 to-gray-900/90 hover:from-gray-700 hover:to-gray-800 border-gray-700/20 hover:shadow-gray-500/30"
                   } ${
                     getBetAmount([number], BetTypes.STRAIGHT) > 0 ||
                     isNumberHovered(number)
-                      ? "number-button-highlighted"
+                      ? "ring-2 ring-offset-2 ring-offset-secondary-900 scale-105 z-20 shadow-[0_0_20px_rgba(var(--gaming-primary),0.4)] border-gaming-primary/50"
                       : ""
                   }`}
                 >
@@ -286,7 +307,8 @@ const BettingBoard = ({
                       : rowIndex === 1
                         ? BetTypes.COLUMN_SECOND
                         : BetTypes.COLUMN_FIRST;
-                  handleBet(BetTypes.getNumbers(columnType), columnType);
+                  const numbers = BetTypes.getNumbers(columnType);
+                  handleBet(numbers, columnType);
                 }}
                 onMouseEnter={() => {
                   const columnType =
@@ -295,50 +317,42 @@ const BettingBoard = ({
                       : rowIndex === 1
                         ? BetTypes.COLUMN_SECOND
                         : BetTypes.COLUMN_FIRST;
-                  setHoveredNumbers(BetTypes.getNumbers(columnType));
+                  const numbers = BetTypes.getNumbers(columnType);
+                  setHoveredNumbers(numbers);
                 }}
                 onMouseLeave={() => setHoveredNumbers([])}
                 disabled={disabled}
-                className={`h-[45px] w-[45px] rounded-xl relative bg-gradient-to-br from-purple-600/90 to-purple-700/90 hover:from-purple-500/90 hover:to-purple-600/90 text-white/90 font-bold flex items-center justify-center transition-all duration-300 hover:scale-105 ${
-                  getBetAmount(
-                    [],
+                className={`h-[45px] rounded-xl relative bg-gradient-to-br from-purple-600/80 to-purple-700/80 hover:from-purple-500 hover:to-purple-600 text-white border border-white/10 shadow-lg hover:shadow-purple-500/30 transition-all duration-300 font-bold text-sm flex items-center justify-center transform hover:scale-105 ${(() => {
+                  const columnType =
                     rowIndex === 0
                       ? BetTypes.COLUMN_THIRD
                       : rowIndex === 1
                         ? BetTypes.COLUMN_SECOND
-                        : BetTypes.COLUMN_FIRST,
-                  ) > 0 ||
-                  BetTypes.getNumbers(
-                    rowIndex === 0
-                      ? BetTypes.COLUMN_THIRD
-                      : rowIndex === 1
-                        ? BetTypes.COLUMN_SECOND
-                        : BetTypes.COLUMN_FIRST,
-                  ).some((n) => isNumberHovered(n))
-                    ? "ring-2 ring-white shadow-lg"
-                    : ""
-                }`}
+                        : BetTypes.COLUMN_FIRST;
+                  const numbers = BetTypes.getNumbers(columnType);
+                  return getBetAmount([], columnType) > 0 ||
+                    isBetTypeHovered(columnType, numbers)
+                    ? "ring-2 ring-offset-2 ring-offset-secondary-900 scale-105 z-20 shadow-[0_0_15px_rgba(167,139,250,0.3)] border-purple-400/50"
+                    : "";
+                })()}`}
               >
                 2:1
-                {getBetAmount(
-                  [],
-                  rowIndex === 0
-                    ? BetTypes.COLUMN_THIRD
-                    : rowIndex === 1
-                      ? BetTypes.COLUMN_SECOND
-                      : BetTypes.COLUMN_FIRST,
-                ) > 0 && (
-                  <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gaming-primary border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
-                    {getBetAmount(
-                      [],
-                      rowIndex === 0
-                        ? BetTypes.COLUMN_THIRD
-                        : rowIndex === 1
-                          ? BetTypes.COLUMN_SECOND
-                          : BetTypes.COLUMN_FIRST,
-                    )}
-                  </div>
-                )}
+                {(() => {
+                  const columnType =
+                    rowIndex === 0
+                      ? BetTypes.COLUMN_THIRD
+                      : rowIndex === 1
+                        ? BetTypes.COLUMN_SECOND
+                        : BetTypes.COLUMN_FIRST;
+                  const amount = getBetAmount([], columnType);
+                  return (
+                    amount > 0 && (
+                      <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gaming-primary border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
+                        {amount}
+                      </div>
+                    )
+                  );
+                })()}
               </button>
             </div>
           ))}
@@ -350,18 +364,20 @@ const BettingBoard = ({
         {dozenBettingOptions.map((option) => (
           <button
             key={option.label}
-            onClick={() =>
-              handleBet(BetTypes.getNumbers(option.type), option.type)
-            }
-            onMouseEnter={() =>
-              setHoveredNumbers(BetTypes.getNumbers(option.type))
-            }
+            onClick={() => {
+              const numbers = BetTypes.getNumbers(option.type);
+              handleBet(numbers, option.type);
+            }}
+            onMouseEnter={() => {
+              const numbers = BetTypes.getNumbers(option.type);
+              setHoveredNumbers(numbers);
+            }}
             onMouseLeave={() => setHoveredNumbers([])}
             disabled={disabled}
-            className={`h-[45px] rounded-xl relative bg-gradient-to-br from-purple-600/90 to-purple-700/90 hover:from-purple-500/90 hover:to-purple-600/90 text-white/90 font-bold flex items-center justify-center transition-all duration-300 hover:scale-105 ${
+            className={`h-[45px] rounded-xl relative bg-gradient-to-br from-purple-600/80 to-purple-700/80 hover:from-purple-500 hover:to-purple-600 text-white border border-white/10 shadow-lg hover:shadow-purple-500/30 transition-all duration-300 font-bold text-sm flex items-center justify-center transform hover:scale-105 ${
               getBetAmount([], option.type) > 0 ||
-              BetTypes.getNumbers(option.type).some((n) => isNumberHovered(n))
-                ? "ring-2 ring-white shadow-lg"
+              isBetTypeHovered(option.type, BetTypes.getNumbers(option.type))
+                ? "ring-2 ring-offset-2 ring-offset-secondary-900 scale-105 z-20 shadow-[0_0_15px_rgba(167,139,250,0.3)] border-purple-400/50"
                 : ""
             }`}
           >
@@ -380,12 +396,14 @@ const BettingBoard = ({
         {bottomBettingOptions.map((option) => (
           <button
             key={option.label}
-            onClick={() =>
-              handleBet(BetTypes.getNumbers(option.type), option.type)
-            }
-            onMouseEnter={() =>
-              setHoveredNumbers(BetTypes.getNumbers(option.type))
-            }
+            onClick={() => {
+              const numbers = BetTypes.getNumbers(option.type);
+              handleBet(numbers, option.type);
+            }}
+            onMouseEnter={() => {
+              const numbers = BetTypes.getNumbers(option.type);
+              setHoveredNumbers(numbers);
+            }}
             onMouseLeave={() => setHoveredNumbers([])}
             disabled={disabled}
             className={`h-[45px] rounded-xl relative shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-105 text-base font-bold flex items-center justify-center border border-white/10 ${
@@ -394,7 +412,12 @@ const BettingBoard = ({
                 : option.color === "gray"
                   ? "bg-gradient-to-br from-gray-800/90 to-gray-900/90 hover:from-gray-700 hover:to-gray-800 text-white/90 hover:shadow-gray-500/30"
                   : `bg-gradient-to-br from-${option.color}-600/90 to-${option.color}-700/90 hover:from-${option.color}-500 hover:to-${option.color}-600 text-white/90 hover:shadow-${option.color}-500/30`
-            } ${getBetAmount([], option.type) > 0 ? "ring-2 ring-white" : ""}`}
+            } ${
+              getBetAmount([], option.type) > 0 ||
+              isBetTypeHovered(option.type, BetTypes.getNumbers(option.type))
+                ? "ring-2 ring-offset-2 ring-offset-secondary-900 scale-105 z-20 shadow-[0_0_20px_rgba(var(--gaming-primary),0.4)] border-gaming-primary/50"
+                : ""
+            }`}
           >
             {option.label}
             {getBetAmount([], option.type) > 0 && (
