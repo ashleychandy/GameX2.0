@@ -351,20 +351,20 @@ const BettingBoard = ({
                 onClick={() => {
                   const columnType =
                     rowIndex === 0
-                      ? BetTypes.COLUMN_FIRST
+                      ? BetTypes.COLUMN_THIRD // Top row (3,6,9...)
                       : rowIndex === 1
-                        ? BetTypes.COLUMN_SECOND
-                        : BetTypes.COLUMN_THIRD;
+                        ? BetTypes.COLUMN_SECOND // Middle row (2,5,8...)
+                        : BetTypes.COLUMN_FIRST; // Bottom row (1,4,7...)
                   const numbers = BetTypes.getNumbers(columnType);
                   handleBet(numbers, columnType);
                 }}
                 onMouseEnter={() => {
                   const columnType =
                     rowIndex === 0
-                      ? BetTypes.COLUMN_FIRST
+                      ? BetTypes.COLUMN_THIRD // Top row (3,6,9...)
                       : rowIndex === 1
-                        ? BetTypes.COLUMN_SECOND
-                        : BetTypes.COLUMN_THIRD;
+                        ? BetTypes.COLUMN_SECOND // Middle row (2,5,8...)
+                        : BetTypes.COLUMN_FIRST; // Bottom row (1,4,7...)
                   const numbers = BetTypes.getNumbers(columnType);
                   setHoveredNumbers(numbers);
                 }}
@@ -373,10 +373,10 @@ const BettingBoard = ({
                 className={`h-[45px] rounded-xl relative bg-gradient-to-br from-purple-600/80 to-purple-700/80 hover:from-purple-500 hover:to-purple-600 text-white border border-white/10 shadow-lg hover:shadow-purple-500/30 transition-all duration-300 font-bold text-sm flex items-center justify-center transform hover:scale-105 ${(() => {
                   const columnType =
                     rowIndex === 0
-                      ? BetTypes.COLUMN_FIRST
+                      ? BetTypes.COLUMN_THIRD // Top row (3,6,9...)
                       : rowIndex === 1
-                        ? BetTypes.COLUMN_SECOND
-                        : BetTypes.COLUMN_THIRD;
+                        ? BetTypes.COLUMN_SECOND // Middle row (2,5,8...)
+                        : BetTypes.COLUMN_FIRST; // Bottom row (1,4,7...)
                   const numbers = BetTypes.getNumbers(columnType);
                   return getBetAmount([], columnType) > 0 ||
                     isBetTypeHovered(columnType, numbers)
@@ -388,10 +388,10 @@ const BettingBoard = ({
                 {(() => {
                   const columnType =
                     rowIndex === 0
-                      ? BetTypes.COLUMN_FIRST
+                      ? BetTypes.COLUMN_THIRD // Top row (3,6,9...)
                       : rowIndex === 1
-                        ? BetTypes.COLUMN_SECOND
-                        : BetTypes.COLUMN_THIRD;
+                        ? BetTypes.COLUMN_SECOND // Middle row (2,5,8...)
+                        : BetTypes.COLUMN_FIRST; // Bottom row (1,4,7...)
                   const amount = getBetAmount([], columnType);
                   return (
                     amount > 0 && (
