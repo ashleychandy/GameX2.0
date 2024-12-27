@@ -1995,7 +1995,7 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
   }, [lastWinningNumber, account]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-secondary-900 to-secondary-950 text-white">
+    <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-8">
           {/* Header Section */}
@@ -2012,43 +2012,47 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
           <div className="grid lg:grid-cols-[2fr_1fr] gap-8">
             {/* Left Column - Betting Board */}
             <div className="space-y-6">
-              <BettingBoard
-                onBetSelect={handleBetSelect}
-                selectedBets={selectedBets}
-                disabled={isProcessing}
-                selectedChipValue={selectedChipValue}
-                lastWinningNumber={lastWinningNumber}
-                getNumberBackgroundClass={getNumberBackgroundClass}
-                onUndoBet={handleUndoBet}
-                onClearBets={handleClearBets}
-              />
+              <div className="bg-white border border-gray-200 rounded-2xl shadow-2xl p-4">
+                <BettingBoard
+                  onBetSelect={handleBetSelect}
+                  selectedBets={selectedBets}
+                  disabled={isProcessing}
+                  selectedChipValue={selectedChipValue}
+                  lastWinningNumber={lastWinningNumber}
+                  getNumberBackgroundClass={getNumberBackgroundClass}
+                  onUndoBet={handleUndoBet}
+                  onClearBets={handleClearBets}
+                />
+              </div>
 
-              <BetControls
-                selectedChipValue={selectedChipValue}
-                onChipValueChange={handleChipValueChange}
-                selectedBets={selectedBets}
-                onPlaceBets={handlePlaceBets}
-                onApprove={handleApprove}
-                isApproved={isApproved}
-                isCheckingApproval={isCheckingApproval}
-                disabled={isProcessing}
-                gameState={{ isProcessing }}
-              />
+              <div className="bg-white border border-gray-200 rounded-2xl shadow-2xl p-4">
+                <BetControls
+                  selectedChipValue={selectedChipValue}
+                  onChipValueChange={handleChipValueChange}
+                  selectedBets={selectedBets}
+                  onPlaceBets={handlePlaceBets}
+                  onApprove={handleApprove}
+                  isApproved={isApproved}
+                  isCheckingApproval={isCheckingApproval}
+                  disabled={isProcessing}
+                  gameState={{ isProcessing }}
+                />
+              </div>
             </div>
 
             {/* Right Column - Stats & Compact History */}
             <div className="space-y-6">
               {/* Stats Cards */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="stat-card">
-                  <div className="stat-label">Total Bets</div>
-                  <div className="stat-value animate-float">
+                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-md">
+                  <div className="text-gray-600">Total Bets</div>
+                  <div className="text-black font-bold animate-float">
                     {selectedBets.length}
                   </div>
                 </div>
-                <div className="stat-card">
-                  <div className="stat-label">Total Amount</div>
-                  <div className="stat-value animate-float">
+                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-md">
+                  <div className="text-gray-600">Total Amount</div>
+                  <div className="text-black font-bold animate-float">
                     {parseFloat(ethers.formatEther(totalBetAmount)).toFixed(0)}{" "}
                     GAMA
                   </div>
@@ -2056,16 +2060,18 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
               </div>
 
               {/* Compact History */}
-              <CompactHistory
-                bets={userData}
-                account={account}
-                contracts={contracts}
-              />
+              <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-4">
+                <CompactHistory
+                  bets={userData}
+                  account={account}
+                  contracts={contracts}
+                />
+              </div>
             </div>
           </div>
 
           {/* Bottom Section - Detailed History */}
-          <div>
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-6">
             <BettingHistory account={account} contracts={contracts} />
           </div>
         </div>
