@@ -99,8 +99,8 @@ const validateBet = (bet) => {
 
   // Validate straight bets
   if (bet.type === BetTypes.STRAIGHT) {
-    if (bet.numbers.length !== 1 || bet.numbers[0] > 36) {
-      throw new Error(`Invalid number for straight bet: ${bet.numbers[0]}`);
+    if (!bet.numbers || bet.numbers.length !== 1 || bet.numbers[0] > 36) {
+      throw new Error(`Invalid number for straight bet: ${bet.numbers?.[0]}`);
     }
   }
 
@@ -113,7 +113,10 @@ const validateBet = (bet) => {
     ].includes(bet.type)
   ) {
     const expectedNumbers = BetTypes.getNumbers(bet.type);
-    if (!bet.numbers.every((num, idx) => num === expectedNumbers[idx])) {
+    if (
+      !bet.numbers ||
+      !bet.numbers.every((num, idx) => num === expectedNumbers[idx])
+    ) {
       throw new Error(`Invalid numbers for column bet type: ${bet.type}`);
     }
   }
@@ -233,7 +236,8 @@ const BettingBoard = ({
         const bet = selectedBets.find(
           (bet) =>
             bet.type === type &&
-            bet.numbers[0] === (Array.isArray(numbers) ? numbers[0] : numbers),
+            bet.numbers?.[0] ===
+              (Array.isArray(numbers) ? numbers[0] : numbers),
         );
         return bet ? Math.floor(parseFloat(ethers.formatEther(bet.amount))) : 0;
       }
@@ -1099,7 +1103,7 @@ const CompactHistory = ({ bets }) => {
   if (!bets || bets.length === 0) return null;
 
   // Sort bets by timestamp in descending order (most recent first)
-  const sortedBets = [...bets].sort((a, b) => b.timestamp - a.timestamp);
+  const sortedBets = (bets || []).sort((a, b) => b.timestamp - a.timestamp);
 
   return (
     <div className="bg-secondary-900/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 p-3">
@@ -1134,6 +1138,8 @@ const CompactHistory = ({ bets }) => {
 
 // Add this helper function to validate column numbers
 const validateColumnNumbers = (type, numbers) => {
+  if (!numbers || !Array.isArray(numbers)) return false;
+
   switch (type) {
     case BetTypes.COLUMN_FIRST: // 1,4,7...
       return numbers.every((n, i) => n === 1 + i * 3);
@@ -1528,8 +1534,8 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
         const existingBetIndex = prev.findIndex(
           (bet) =>
             bet.type === type &&
-            JSON.stringify(bet.numbers.sort()) ===
-              JSON.stringify(numbers.sort()),
+            JSON.stringify((bet.numbers || []).sort()) ===
+              JSON.stringify((numbers || []).sort()),
         );
 
         const newBets = [...prev];
