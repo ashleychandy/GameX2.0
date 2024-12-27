@@ -1041,7 +1041,7 @@ const BettingHistory = ({ account, contracts }) => {
                           </span>
                           <span className="font-medium">
                             {parseFloat(ethers.formatEther(bet.amount)).toFixed(
-                              1,
+                              0,
                             )}{" "}
                             GAMA
                           </span>
@@ -1059,7 +1059,7 @@ const BettingHistory = ({ account, contracts }) => {
                       <span className="font-bold">
                         {parseFloat(
                           ethers.formatEther(group.totalPayout),
-                        ).toFixed(1)}{" "}
+                        ).toFixed(0)}{" "}
                         GAMA
                         {group.totalPayout > group.totalAmount && (
                           <span className="text-gaming-success ml-1">
@@ -1069,7 +1069,7 @@ const BettingHistory = ({ account, contracts }) => {
                                 BigInt(group.totalPayout) -
                                   BigInt(group.totalAmount),
                               ),
-                            ).toFixed(1)}
+                            ).toFixed(0)}
                             )
                           </span>
                         )}
@@ -1099,14 +1099,34 @@ const BettingHistory = ({ account, contracts }) => {
 };
 
 // Add CompactHistory component
-const CompactHistory = ({ bets }) => {
+const CompactHistory = ({ bets, account, contracts }) => {
+  // Add balance query
+  const { data: balanceData } = useQuery({
+    queryKey: ["balance", account, contracts?.token?.target],
+    queryFn: async () => {
+      if (!contracts?.token || !account) return null;
+
+      const [balance, tokenAllowance] = await Promise.all([
+        contracts.token.balanceOf(account),
+        contracts.token.allowance(account, contracts.roulette.target),
+      ]);
+
+      return {
+        balance,
+        allowance: tokenAllowance,
+      };
+    },
+    enabled: !!contracts?.token && !!account,
+    refetchInterval: 5000,
+  });
+
   if (!bets || bets.length === 0) return null;
 
   // Sort bets by timestamp in descending order (most recent first)
   const sortedBets = (bets || []).sort((a, b) => b.timestamp - a.timestamp);
 
   return (
-    <div className="bg-secondary-900/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 p-3">
+    <div className="bg-secondary-900/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 p-3 space-y-3">
       <div className="flex items-center justify-between mb-1.5">
         <h2 className="text-xs font-medium text-secondary-300">Last Results</h2>
       </div>
@@ -1131,6 +1151,16 @@ const CompactHistory = ({ bets }) => {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Balance Display */}
+      <div className="flex items-center justify-between pt-2 border-t border-white/5">
+        <span className="text-xs text-secondary-400">Balance:</span>
+        <span className="text-sm font-medium text-white">
+          {balanceData?.balance
+            ? `${parseFloat(ethers.formatEther(balanceData.balance)).toFixed(2)} GAMA`
+            : "Loading..."}
+        </span>
       </div>
     </div>
   );
@@ -2017,13 +2047,18 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
                 <div className="stat-card">
                   <div className="stat-label">Total Amount</div>
                   <div className="stat-value animate-float">
-                    {ethers.formatEther(totalBetAmount)} GAMA
+                    {parseFloat(ethers.formatEther(totalBetAmount)).toFixed(0)}{" "}
+                    GAMA
                   </div>
                 </div>
               </div>
 
               {/* Compact History */}
-              <CompactHistory bets={userData} />
+              <CompactHistory
+                bets={userData}
+                account={account}
+                contracts={contracts}
+              />
             </div>
           </div>
 

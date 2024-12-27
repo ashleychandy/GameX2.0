@@ -678,7 +678,7 @@ const BalancePanel = ({ userBalance, allowance, potentialWinnings }) => {
 
   const formatValue = (value) => {
     if (value === "Approved" || value === "Not Approved") return value;
-    const formatted = parseFloat(value).toFixed(6);
+    const formatted = parseFloat(value).toFixed(0);
     return formatted.replace(/\.?0+$/, "");
   };
 
