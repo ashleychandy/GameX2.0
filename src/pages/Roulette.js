@@ -1529,7 +1529,7 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
           (bet) =>
             bet.type === type &&
             JSON.stringify(bet.numbers.sort()) ===
-              JSON.stringify(betRequest.numbers.sort()),
+              JSON.stringify(numbers.sort()),
         );
 
         const newBets = [...prev];
