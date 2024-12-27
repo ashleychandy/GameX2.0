@@ -980,9 +980,11 @@ const BettingHistory = ({ account, contracts }) => {
                     <div className="flex items-center gap-2">
                       <div
                         className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg font-bold ${
-                          isRed(group.winningNumber)
-                            ? "bg-gaming-primary/20 text-gaming-primary"
-                            : "bg-gray-800/20 text-gray-300"
+                          group.winningNumber === 0
+                            ? "bg-emerald-500/20 text-emerald-400"
+                            : isRed(group.winningNumber)
+                              ? "bg-gaming-primary/20 text-gaming-primary"
+                              : "bg-gray-800/20 text-gray-300"
                         }`}
                       >
                         {group.winningNumber}
