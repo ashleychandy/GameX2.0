@@ -280,14 +280,17 @@ const BettingBoard = ({
           <div className="flex flex-col gap-2">
             <button
               onClick={onUndoBet}
-              className="w-24 h-10 btn-secondary rounded-xl font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50 flex items-center justify-center"
+              className="w-24 h-10 bg-gray-900 hover:bg-gray-800 text-secondary-300 hover:text-white rounded-xl font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 border border-white/10"
               disabled={disabled || selectedBets.length === 0}
             >
-              ↩
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" />
+              </svg>
+              Undo
             </button>
             <button
               onClick={onClearBets}
-              className="w-24 h-10 btn-secondary rounded-xl font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50 flex items-center justify-center"
+              className="w-24 h-10 bg-gaming-error/10 hover:bg-gaming-error/20 text-gaming-error rounded-xl font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 border border-gaming-error/20"
               disabled={disabled || selectedBets.length === 0}
             >
               Clear
@@ -302,18 +305,21 @@ const BettingBoard = ({
             onMouseEnter={() => setHoveredNumbers([0])}
             onMouseLeave={() => setHoveredNumbers([])}
             disabled={disabled}
-            className={`w-[45px] h-[147px] rounded-xl text-white/90 font-bold flex items-center justify-center transition-all duration-300 hover:scale-105 ${
-              getBetAmount([0], BetTypes.STRAIGHT) > 0 || isNumberHovered(0)
-                ? "border-gaming-primary/20 hover:shadow-gaming-primary/30"
-                : ""
-            }`}
+            className={`w-[45px] h-[147px] rounded-xl text-white/90 font-bold flex items-center justify-center transition-all duration-300 hover:scale-105 
+              ${
+                getBetAmount([0], BetTypes.STRAIGHT) > 0 || isNumberHovered(0)
+                  ? "bg-gradient-to-br from-emerald-500 to-emerald-600 border-emerald-400 shadow-emerald-500/30"
+                  : "bg-gradient-to-br from-emerald-500/80 to-emerald-600/80 border-emerald-400/50"
+              } border hover:shadow-lg hover:from-emerald-500 hover:to-emerald-600`}
           >
-            <span className="text-white/90 text-2xl">0</span>
-            {getBetAmount([0], BetTypes.STRAIGHT) > 0 && (
-              <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
-                {getBetAmount([0], BetTypes.STRAIGHT)}
-              </div>
-            )}
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-2xl">0</span>
+              {getBetAmount([0], BetTypes.STRAIGHT) > 0 && (
+                <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
+                  {getBetAmount([0], BetTypes.STRAIGHT)}
+                </div>
+              )}
+            </div>
           </button>
         </div>
 
@@ -492,9 +498,12 @@ const BetControls = ({
               key={chip.value}
               onClick={() => onChipValueChange(chip.value)}
               disabled={disabled}
-              className={`h-10 px-4 rounded-xl flex items-center justify-center font-semibold ${
-                selectedChipValue === chip.value ? "ring-2 ring-white" : ""
-              } chip-${chip.label.toLowerCase()}`}
+              className={`h-12 px-6 rounded-xl flex items-center justify-center font-bold transition-all duration-300 
+                ${
+                  selectedChipValue === chip.value
+                    ? "bg-gaming-primary text-white shadow-glow scale-105"
+                    : "bg-secondary-800/50 text-secondary-300 hover:bg-secondary-700/50 hover:text-white hover:scale-105"
+                } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
             >
               {chip.label}
             </button>
@@ -506,7 +515,7 @@ const BetControls = ({
       <div className="flex items-end">
         {isCheckingApproval ? (
           <button
-            className="h-14 w-full place-bet-button text-secondary-300 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+            className="h-14 w-full bg-secondary-800/50 text-secondary-300 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
             disabled={true}
           >
             <LoadingSpinner size="small" />
@@ -516,11 +525,12 @@ const BetControls = ({
           <button
             onClick={onPlaceBets}
             disabled={disabled || selectedBets.length === 0}
-            className={`h-14 w-full rounded-xl font-bold flex items-center justify-center gap-2 transition-all duration-300 ${
-              disabled || selectedBets.length === 0
-                ? "text-secondary-300"
-                : "text-white hover:scale-105"
-            }`}
+            className={`h-14 w-full rounded-xl font-bold flex items-center justify-center gap-2 transition-all duration-300
+              ${
+                disabled || selectedBets.length === 0
+                  ? "bg-secondary-800/50 text-secondary-300"
+                  : "bg-gradient-to-br from-gray-900 to-gray-800 text-white hover:scale-105 shadow-lg hover:shadow-white/20 border border-white/10 hover:border-white/20"
+              }`}
           >
             {gameState.isProcessing ? (
               <>
@@ -538,9 +548,12 @@ const BetControls = ({
           <button
             onClick={onApprove}
             disabled={disabled}
-            className={`h-14 w-full rounded-xl font-bold flex items-center justify-center gap-2 transition-all duration-300 ${
-              disabled ? "text-secondary-300" : "text-white hover:scale-105"
-            }`}
+            className={`h-14 w-full rounded-xl font-bold flex items-center justify-center gap-2 transition-all duration-300
+              ${
+                disabled
+                  ? "bg-secondary-800/50 text-secondary-300"
+                  : "bg-gradient-to-br from-gaming-success to-emerald-500 text-white hover:scale-105 shadow-lg hover:shadow-gaming-success/20"
+              }`}
           >
             Approve Token
           </button>
