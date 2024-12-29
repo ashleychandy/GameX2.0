@@ -831,11 +831,12 @@ const BettingHistory = ({ account, contracts }) => {
     return groupedBets.reduce(
       (acc, group) => {
         const isWin = group.totalPayout > group.totalAmount;
+        const isLoss = group.totalPayout < group.totalAmount;
         const profit = group.totalPayout - group.totalAmount;
 
         return {
           totalWins: acc.totalWins + (isWin ? 1 : 0),
-          totalLosses: acc.totalLosses + (isWin ? 0 : 1),
+          totalLosses: acc.totalLosses + (isLoss ? 1 : 0),
           totalProfit: acc.totalProfit + profit,
           winRate:
             groupedBets.length > 0
@@ -861,7 +862,7 @@ const BettingHistory = ({ account, contracts }) => {
         );
       case "losses":
         return groupedBets.filter(
-          (group) => group.totalPayout <= group.totalAmount,
+          (group) => group.totalPayout < group.totalAmount,
         );
       default:
         return groupedBets;
@@ -966,7 +967,9 @@ const BettingHistory = ({ account, contracts }) => {
                   className={`history-item p-4 rounded-xl border backdrop-blur-sm ${
                     group.totalPayout > group.totalAmount
                       ? "bg-gaming-success/5 border-gaming-success/20"
-                      : "bg-gaming-error/5 border-gaming-error/20"
+                      : group.totalPayout < group.totalAmount
+                        ? "bg-gaming-error/5 border-gaming-error/20"
+                        : "bg-secondary-800/5 border-secondary-700/20"
                   }`}
                 >
                   {/* Header */}
@@ -985,25 +988,9 @@ const BettingHistory = ({ account, contracts }) => {
                       </div>
                       <div className="text-sm text-secondary-300">
                         {group.bets.map((bet, idx) => {
-                          // Debug logging
-                          console.log("Raw bet from contract:", {
-                            betType: bet.betType,
-                            numbers: bet.numbers,
-                            rawBetType: typeof bet.betType,
-                            convertedType: Number(bet.betType),
-                          });
-
                           // Map contract bet type to frontend bet type
                           const betType = Number(bet.betType);
                           const numbers = bet.numbers.map((n) => Number(n));
-
-                          // Debug the mapped values
-                          console.log("Mapped bet values:", {
-                            betType,
-                            numbers,
-                            displayName: getBetTypeName(betType, numbers),
-                          });
-
                           return (
                             <span key={idx} className="mr-2">
                               {getBetTypeName(betType, numbers)}
@@ -1017,10 +1004,16 @@ const BettingHistory = ({ account, contracts }) => {
                       className={`text-sm font-medium ${
                         group.totalPayout > group.totalAmount
                           ? "text-gaming-success"
-                          : "text-gaming-error"
+                          : group.totalPayout < group.totalAmount
+                            ? "text-gaming-error"
+                            : "text-secondary-400"
                       }`}
                     >
-                      {group.totalPayout > group.totalAmount ? "WIN" : "LOSS"}
+                      {group.totalPayout > group.totalAmount
+                        ? "WIN"
+                        : group.totalPayout < group.totalAmount
+                          ? "LOSS"
+                          : "EVEN"}
                     </div>
                   </div>
 
