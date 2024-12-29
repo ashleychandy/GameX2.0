@@ -266,7 +266,7 @@ const BettingBoard = ({
   ];
 
   return (
-    <div className="flex flex-col gap-3 p-8 bg-secondary-900/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300">
+    <div className="flex flex-col gap-3 p-8 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300">
       {/* Main betting grid */}
       <div className="grid grid-cols-[auto_45px_1fr] gap-2">
         <div className="flex flex-col gap-2">
@@ -280,14 +280,14 @@ const BettingBoard = ({
           <div className="flex flex-col gap-2">
             <button
               onClick={onUndoBet}
-              className="w-24 h-10 btn-secondary bg-gradient-to-br from-orange-600/90 to-orange-700/90 hover:from-orange-500/90 hover:to-orange-600/90 rounded-xl font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50 flex items-center justify-center"
+              className="w-24 h-10 btn-secondary rounded-xl font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50 flex items-center justify-center"
               disabled={disabled || selectedBets.length === 0}
             >
               ↩
             </button>
             <button
               onClick={onClearBets}
-              className="w-24 h-10 btn-secondary bg-gradient-to-br from-red-600/90 to-red-700/90 hover:from-red-500/90 hover:to-red-600/90 rounded-xl font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50 flex items-center justify-center"
+              className="w-24 h-10 btn-secondary rounded-xl font-semibold transform hover:scale-105 transition-all duration-300 disabled:opacity-50 flex items-center justify-center"
               disabled={disabled || selectedBets.length === 0}
             >
               Clear
@@ -302,15 +302,15 @@ const BettingBoard = ({
             onMouseEnter={() => setHoveredNumbers([0])}
             onMouseLeave={() => setHoveredNumbers([])}
             disabled={disabled}
-            className={`w-[45px] h-[147px] rounded-xl bg-gradient-to-br from-emerald-600/90 to-emerald-700/90 hover:from-emerald-500/90 hover:to-emerald-600/90 text-white/90 font-bold flex items-center justify-center transition-all duration-300 hover:scale-105 relative ${
+            className={`w-[45px] h-[147px] rounded-xl text-white/90 font-bold flex items-center justify-center transition-all duration-300 hover:scale-105 ${
               getBetAmount([0], BetTypes.STRAIGHT) > 0 || isNumberHovered(0)
-                ? "ring-2 ring-white shadow-lg shadow-emerald-500/20"
+                ? "border-gaming-primary/20 hover:shadow-gaming-primary/30"
                 : ""
             }`}
           >
             <span className="text-white/90 text-2xl">0</span>
             {getBetAmount([0], BetTypes.STRAIGHT) > 0 && (
-              <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gaming-primary border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
+              <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
                 {getBetAmount([0], BetTypes.STRAIGHT)}
               </div>
             )}
@@ -344,7 +344,7 @@ const BettingBoard = ({
                 >
                   <span className="text-white/90 text-xl">{number}</span>
                   {getBetAmount([number], BetTypes.STRAIGHT) > 0 && (
-                    <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gaming-primary border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
+                    <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
                       {getBetAmount([number], BetTypes.STRAIGHT)}
                     </div>
                   )}
@@ -374,19 +374,7 @@ const BettingBoard = ({
                 }}
                 onMouseLeave={() => setHoveredNumbers([])}
                 disabled={disabled}
-                className={`h-[45px] rounded-xl relative bg-gradient-to-br from-purple-600/80 to-purple-700/80 hover:from-purple-500 hover:to-purple-600 text-white border border-white/10 shadow-lg hover:shadow-purple-500/30 transition-all duration-300 font-bold text-sm flex items-center justify-center transform hover:scale-105 ${(() => {
-                  const columnType =
-                    rowIndex === 0
-                      ? BetTypes.COLUMN_THIRD // Top row (3,6,9...)
-                      : rowIndex === 1
-                        ? BetTypes.COLUMN_SECOND // Middle row (2,5,8...)
-                        : BetTypes.COLUMN_FIRST; // Bottom row (1,4,7...)
-                  const numbers = BetTypes.getNumbers(columnType);
-                  return getBetAmount([], columnType) > 0 ||
-                    isBetTypeHovered(columnType, numbers)
-                    ? "ring-2 ring-offset-2 ring-offset-secondary-900 scale-105 z-20 shadow-[0_0_15px_rgba(167,139,250,0.3)] border-purple-400/50"
-                    : "";
-                })()}`}
+                className={`h-[45px] rounded-xl relative text-white border border-white/10 shadow-lg hover:shadow-purple-500/30 transition-all duration-300 font-bold`}
               >
                 2:1
                 {(() => {
@@ -399,7 +387,7 @@ const BettingBoard = ({
                   const amount = getBetAmount([], columnType);
                   return (
                     amount > 0 && (
-                      <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gaming-primary border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
+                      <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
                         {amount}
                       </div>
                     )
@@ -426,16 +414,11 @@ const BettingBoard = ({
             }}
             onMouseLeave={() => setHoveredNumbers([])}
             disabled={disabled}
-            className={`h-[45px] rounded-xl relative bg-gradient-to-br from-purple-600/80 to-purple-700/80 hover:from-purple-500 hover:to-purple-600 text-white border border-white/10 shadow-lg hover:shadow-purple-500/30 transition-all duration-300 font-bold text-sm flex items-center justify-center transform hover:scale-105 ${
-              getBetAmount([], option.type) > 0 ||
-              isBetTypeHovered(option.type, BetTypes.getNumbers(option.type))
-                ? "ring-2 ring-offset-2 ring-offset-secondary-900 scale-105 z-20 shadow-[0_0_15px_rgba(167,139,250,0.3)] border-purple-400/50"
-                : ""
-            }`}
+            className={`h-[45px] rounded-xl relative text-white border border-white/10 shadow-lg hover:shadow-purple-500/30 transition-all duration-300 font-bold`}
           >
             {option.label}
             {getBetAmount([], option.type) > 0 && (
-              <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gaming-primary border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
+              <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
                 {getBetAmount([], option.type)}
               </div>
             )}
@@ -458,7 +441,7 @@ const BettingBoard = ({
             }}
             onMouseLeave={() => setHoveredNumbers([])}
             disabled={disabled}
-            className={`h-[45px] rounded-xl relative shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-105 text-base font-bold flex items-center justify-center border border-white/10 ${
+            className={`h-[45px] rounded-xl relative text-white border border-white/10 shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-105 ${
               option.isRed
                 ? "bg-gradient-to-br from-gaming-primary/90 to-gaming-primary/80 hover:from-gaming-primary hover:to-gaming-primary/90 text-white/90 hover:shadow-gaming-primary/30"
                 : option.color === "gray"
@@ -473,7 +456,7 @@ const BettingBoard = ({
           >
             {option.label}
             {getBetAmount([], option.type) > 0 && (
-              <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gaming-primary border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
+              <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
                 {getBetAmount([], option.type)}
               </div>
             )}
@@ -523,7 +506,7 @@ const BetControls = ({
       <div className="flex items-end">
         {isCheckingApproval ? (
           <button
-            className="h-14 w-full place-bet-button bg-gradient-to-br from-secondary-700 to-secondary-800 text-secondary-300 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+            className="h-14 w-full place-bet-button text-secondary-300 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
             disabled={true}
           >
             <LoadingSpinner size="small" />
@@ -535,8 +518,8 @@ const BetControls = ({
             disabled={disabled || selectedBets.length === 0}
             className={`h-14 w-full rounded-xl font-bold flex items-center justify-center gap-2 transition-all duration-300 ${
               disabled || selectedBets.length === 0
-                ? "bg-gradient-to-br from-secondary-700 to-secondary-800 text-secondary-300"
-                : "bg-gradient-to-br from-gaming-primary to-gaming-accent text-white shadow-lg shadow-gaming-primary/20 hover:shadow-xl hover:shadow-gaming-primary/40 hover:scale-105"
+                ? "text-secondary-300"
+                : "text-white hover:scale-105"
             }`}
           >
             {gameState.isProcessing ? (
@@ -556,9 +539,7 @@ const BetControls = ({
             onClick={onApprove}
             disabled={disabled}
             className={`h-14 w-full rounded-xl font-bold flex items-center justify-center gap-2 transition-all duration-300 ${
-              disabled
-                ? "bg-gradient-to-br from-secondary-700 to-secondary-800 text-secondary-300"
-                : "bg-gradient-to-br from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-500/20 hover:shadow-xl hover:shadow-purple-500/40 hover:scale-105"
+              disabled ? "text-secondary-300" : "text-white hover:scale-105"
             }`}
           >
             Approve Token
@@ -898,7 +879,7 @@ const BettingHistory = ({ account, contracts }) => {
   }
 
   return (
-    <div className="betting-history bg-secondary-900/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 p-6">
+    <div className="betting-history backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 p-6">
       {/* History Header with Toggle */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
@@ -1128,7 +1109,7 @@ const CompactHistory = ({ bets, account, contracts }) => {
   const sortedBets = (bets || []).sort((a, b) => b.timestamp - a.timestamp);
 
   return (
-    <div className="bg-secondary-900/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 p-3 space-y-3">
+    <div className="backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 p-3 space-y-3">
       <div className="flex items-center justify-between mb-1.5">
         <h2 className="text-xs font-medium text-secondary-300">Last Results</h2>
       </div>
@@ -2012,7 +1993,7 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
           <div className="grid lg:grid-cols-[2fr_1fr] gap-8">
             {/* Left Column - Betting Board */}
             <div className="space-y-6">
-              <div className="bg-white border border-gray-200 rounded-2xl shadow-2xl p-4">
+              <div className="glass-panel p-4">
                 <BettingBoard
                   onBetSelect={handleBetSelect}
                   selectedBets={selectedBets}
@@ -2025,7 +2006,7 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
                 />
               </div>
 
-              <div className="bg-white border border-gray-200 rounded-2xl shadow-2xl p-4">
+              <div className="glass-panel p-4">
                 <BetControls
                   selectedChipValue={selectedChipValue}
                   onChipValueChange={handleChipValueChange}
@@ -2044,15 +2025,15 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
             <div className="space-y-6">
               {/* Stats Cards */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-md">
-                  <div className="text-gray-600">Total Bets</div>
-                  <div className="text-black font-bold animate-float">
+                <div className="glass-panel p-4">
+                  <div className="text-secondary-300">Total Bets</div>
+                  <div className="text-white font-bold animate-float">
                     {selectedBets.length}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-md">
-                  <div className="text-gray-600">Total Amount</div>
-                  <div className="text-black font-bold animate-float">
+                <div className="glass-panel p-4">
+                  <div className="text-secondary-300">Total Amount</div>
+                  <div className="text-white font-bold animate-float">
                     {parseFloat(ethers.formatEther(totalBetAmount)).toFixed(0)}{" "}
                     GAMA
                   </div>
@@ -2060,7 +2041,7 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
               </div>
 
               {/* Compact History */}
-              <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-4">
+              <div className="glass-panel p-4">
                 <CompactHistory
                   bets={userData}
                   account={account}
@@ -2071,7 +2052,7 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
           </div>
 
           {/* Bottom Section - Detailed History */}
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-6">
+          <div className="glass-panel p-6">
             <BettingHistory account={account} contracts={contracts} />
           </div>
         </div>
