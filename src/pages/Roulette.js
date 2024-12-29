@@ -1990,10 +1990,10 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
 
   return (
     <div className="min-h-screen bg-white bg-mesh bg-fixed">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="space-y-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-8">
           {/* Header Section */}
-          <div className="text-center space-y-4 animate-fade-in">
+          <div className="text-center space-y-3 animate-fade-in">
             <h1 className="text-5xl font-bold bg-gradient-to-r from-gaming-primary to-gaming-accent bg-clip-text text-transparent drop-shadow-xl">
               Roulette
             </h1>
@@ -2004,10 +2004,10 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
           </div>
 
           {/* Main Game Section */}
-          <div className="grid lg:grid-cols-[2fr_1fr] gap-12">
+          <div className="grid lg:grid-cols-[2fr_1fr] gap-8">
             {/* Left Column - Betting Board */}
-            <div className="space-y-8">
-              <div className="glass-panel p-6 transform hover:scale-[1.01] transition-all duration-300 hover:shadow-glow">
+            <div className="space-y-6">
+              <div className="glass-panel transform hover:scale-[1.01] transition-all duration-300 hover:shadow-glow">
                 <BettingBoard
                   onBetSelect={handleBetSelect}
                   selectedBets={selectedBets}
@@ -2036,11 +2036,11 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
             </div>
 
             {/* Right Column - Stats & Compact History */}
-            <div className="space-y-8">
+            <div className="space-y-6">
               {/* Stats Cards */}
-              <div className="grid grid-cols-2 gap-6">
-                <div className="glass-panel p-6 transform hover:scale-105 transition-all duration-300">
-                  <div className="text-secondary-300 text-sm font-medium mb-2">
+              <div className="stats-grid">
+                <div className="glass-panel p-4 transform hover:scale-105 transition-all duration-300">
+                  <div className="text-secondary-300 text-sm font-medium mb-1">
                     Total Bets
                   </div>
                   <div className="text-white text-2xl font-bold animate-float flex items-baseline gap-2">
@@ -2050,8 +2050,8 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
                     </span>
                   </div>
                 </div>
-                <div className="glass-panel p-6 transform hover:scale-105 transition-all duration-300">
-                  <div className="text-secondary-300 text-sm font-medium mb-2">
+                <div className="glass-panel p-4 transform hover:scale-105 transition-all duration-300">
+                  <div className="text-secondary-300 text-sm font-medium mb-1">
                     Total Amount
                   </div>
                   <div className="text-white text-2xl font-bold animate-float flex items-baseline gap-2">
@@ -2064,8 +2064,8 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
               </div>
 
               {/* Compact History */}
-              <div className="glass-panel p-6 transform hover:scale-[1.01] transition-all duration-300">
-                <div className="mb-4">
+              <div className="glass-panel p-4 transform hover:scale-[1.01] transition-all duration-300">
+                <div className="mb-3">
                   <h3 className="text-lg font-semibold text-white/90 mb-1">
                     Recent Activity
                   </h3>
@@ -2081,8 +2081,8 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
           </div>
 
           {/* Bottom Section - Detailed History */}
-          <div className="glass-panel p-8 transform hover:scale-[1.01] transition-all duration-300">
-            <div className="mb-6">
+          <div className="glass-panel p-6 transform hover:scale-[1.01] transition-all duration-300">
+            <div className="mb-4">
               <h3 className="text-2xl font-semibold text-white/90 mb-2">
                 Betting History
               </h3>

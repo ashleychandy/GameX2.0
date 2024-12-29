@@ -75,13 +75,13 @@
   /* History Styles */
   .betting-history {
     @apply mt-8 p-6 backdrop-blur-xl rounded-2xl border border-secondary-700 
-    shadow-glass;
+    shadow-glass w-full;
   }
 
   .history-list {
     @apply space-y-4 overflow-y-auto pr-2 scrollbar-gaming;
-    max-height: calc(100vh - 400px);
-    min-height: 300px;
+    max-height: calc(100vh - 500px);
+    min-height: 200px;
   }
 
   .history-item {
@@ -187,4 +187,14 @@
   .stats-grid {
     @apply grid-cols-2;
   }
+}
+
+/* Stats Cards */
+.glass-panel {
+  @apply backdrop-blur-xl rounded-2xl border border-secondary-700/30 
+  shadow-glass w-full;
+}
+
+.stats-grid {
+  @apply grid grid-cols-2 gap-4 w-full;
 }
