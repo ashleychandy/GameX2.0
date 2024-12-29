@@ -1976,24 +1976,25 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
   }, [lastWinningNumber, account]);
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-8">
+    <div className="min-h-screen bg-white bg-mesh bg-fixed">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="space-y-12">
           {/* Header Section */}
-          <div className="text-center space-y-2">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-gaming-primary to-gaming-accent bg-clip-text text-transparent">
+          <div className="text-center space-y-4 animate-fade-in">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-gaming-primary to-gaming-accent bg-clip-text text-transparent drop-shadow-xl">
               Roulette
             </h1>
-            <p className="text-secondary-300">
-              Place your bets and test your luck!
+            <p className="text-secondary-400 text-lg max-w-2xl mx-auto">
+              Place your bets and test your luck on the ultimate gaming
+              experience!
             </p>
           </div>
 
           {/* Main Game Section */}
-          <div className="grid lg:grid-cols-[2fr_1fr] gap-8">
+          <div className="grid lg:grid-cols-[2fr_1fr] gap-12">
             {/* Left Column - Betting Board */}
-            <div className="space-y-6">
-              <div className="glass-panel p-4">
+            <div className="space-y-8">
+              <div className="glass-panel p-6 transform hover:scale-[1.01] transition-all duration-300 hover:shadow-glow">
                 <BettingBoard
                   onBetSelect={handleBetSelect}
                   selectedBets={selectedBets}
@@ -2006,7 +2007,7 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
                 />
               </div>
 
-              <div className="glass-panel p-4">
+              <div className="glass-panel p-6 transform hover:scale-[1.01] transition-all duration-300">
                 <BetControls
                   selectedChipValue={selectedChipValue}
                   onChipValueChange={handleChipValueChange}
@@ -2022,26 +2023,41 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
             </div>
 
             {/* Right Column - Stats & Compact History */}
-            <div className="space-y-6">
+            <div className="space-y-8">
               {/* Stats Cards */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="glass-panel p-4">
-                  <div className="text-secondary-300">Total Bets</div>
-                  <div className="text-white font-bold animate-float">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="glass-panel p-6 transform hover:scale-105 transition-all duration-300">
+                  <div className="text-secondary-300 text-sm font-medium mb-2">
+                    Total Bets
+                  </div>
+                  <div className="text-white text-2xl font-bold animate-float flex items-baseline gap-2">
                     {selectedBets.length}
+                    <span className="text-sm text-secondary-400 font-normal">
+                      positions
+                    </span>
                   </div>
                 </div>
-                <div className="glass-panel p-4">
-                  <div className="text-secondary-300">Total Amount</div>
-                  <div className="text-white font-bold animate-float">
-                    {parseFloat(ethers.formatEther(totalBetAmount)).toFixed(0)}{" "}
-                    GAMA
+                <div className="glass-panel p-6 transform hover:scale-105 transition-all duration-300">
+                  <div className="text-secondary-300 text-sm font-medium mb-2">
+                    Total Amount
+                  </div>
+                  <div className="text-white text-2xl font-bold animate-float flex items-baseline gap-2">
+                    {parseFloat(ethers.formatEther(totalBetAmount)).toFixed(0)}
+                    <span className="text-sm text-secondary-400 font-normal">
+                      GAMA
+                    </span>
                   </div>
                 </div>
               </div>
 
               {/* Compact History */}
-              <div className="glass-panel p-4">
+              <div className="glass-panel p-6 transform hover:scale-[1.01] transition-all duration-300">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-white/90 mb-1">
+                    Recent Activity
+                  </h3>
+                  <div className="h-0.5 w-16 bg-gradient-to-r from-gaming-primary to-gaming-accent"></div>
+                </div>
                 <CompactHistory
                   bets={userData}
                   account={account}
@@ -2052,7 +2068,13 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
           </div>
 
           {/* Bottom Section - Detailed History */}
-          <div className="glass-panel p-6">
+          <div className="glass-panel p-8 transform hover:scale-[1.01] transition-all duration-300">
+            <div className="mb-6">
+              <h3 className="text-2xl font-semibold text-white/90 mb-2">
+                Betting History
+              </h3>
+              <div className="h-0.5 w-24 bg-gradient-to-r from-gaming-primary to-gaming-accent"></div>
+            </div>
             <BettingHistory account={account} contracts={contracts} />
           </div>
         </div>
