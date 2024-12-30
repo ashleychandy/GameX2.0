@@ -1115,7 +1115,7 @@ const CompactHistory = ({ bets, account, contracts }) => {
   const sortedBets = (bets || []).sort((a, b) => b.timestamp - a.timestamp);
 
   return (
-    <div className="backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 p-3 space-y-3">
+    <div className="backdrop-blur-sm rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 p-3 space-y-3">
       <div className="flex items-center justify-between mb-1.5">
         <h2 className="text-xs font-medium text-secondary-300">Last Results</h2>
       </div>
