@@ -2648,7 +2648,7 @@ function AdminPage({
         return;
       }
 
-      // Get the contract instance that will receive the role
+      // Get the target contract address that will receive the role
       const targetAddress =
         getContractAddresses(selectedNetwork)[formInputs.selectedContract];
       if (!targetAddress) {
@@ -2671,7 +2671,7 @@ function AdminPage({
           throw new Error("Invalid role selection");
       }
 
-      // Execute the role management transaction
+      // Execute the role management transaction on the token contract
       const tx =
         action === "grant"
           ? await contracts.token.grantRole(roleHash, targetAddress)
@@ -3935,6 +3935,7 @@ function App() {
         contracts: {
           dice: currentNetwork.contracts.dice,
           token: currentNetwork.contracts.token,
+          roulette: currentNetwork.contracts.roulette,
         },
       });
 
