@@ -4181,6 +4181,7 @@ function App() {
           } catch (err) {
             console.error("Error checking token admin role:", err);
           }
+          
 
           try {
             isOwner = await contracts.dice.isOwner(newAccount);
