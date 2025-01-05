@@ -99,7 +99,12 @@ const validateBet = (bet) => {
 
   // Validate straight bets
   if (bet.type === BetTypes.STRAIGHT) {
-    if (!bet.numbers || bet.numbers.length !== 1 || bet.numbers[0] > 36) {
+    if (
+      !bet.numbers ||
+      bet.numbers.length !== 1 ||
+      bet.numbers[0] < 0 ||
+      bet.numbers[0] > 36
+    ) {
       throw new Error(`Invalid number for straight bet: ${bet.numbers?.[0]}`);
     }
   }
@@ -1293,7 +1298,11 @@ const BetHelpers = {
 
     // For straight bets, validate number
     if (bet.type === BetTypes.STRAIGHT) {
-      if (bet.numbers.length !== 1 || bet.numbers[0] > 36) {
+      if (
+        bet.numbers.length !== 1 ||
+        bet.numbers[0] < 0 ||
+        bet.numbers[0] > 36
+      ) {
         throw new Error("Invalid number for straight bet");
       }
     }
@@ -1689,7 +1698,9 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
           // For straight bets, validate number
           if (
             bet.type === BetTypes.STRAIGHT &&
-            (bet.numbers.length !== 1 || bet.numbers[0] > 36)
+            (bet.numbers.length !== 1 ||
+              bet.numbers[0] < 0 ||
+              bet.numbers[0] > 36)
           ) {
             throw new Error(
               `Invalid number for straight bet: ${bet.numbers[0]}`,
