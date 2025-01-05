@@ -198,6 +198,16 @@ const LastNumberDisplay = ({ number, getNumberBackgroundClass }) => {
   );
 };
 
+// Add BetChip component before BettingBoard
+const BetChip = ({ amount, className = "", style = {} }) => (
+  <div
+    className={`absolute w-8 h-8 rounded-full bg-gaming-primary border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg ${className}`}
+    style={style}
+  >
+    {amount}
+  </div>
+);
+
 const BettingBoard = ({
   onBetSelect,
   selectedBets,
@@ -218,6 +228,15 @@ const BettingBoard = ({
     },
     [hoveredNumbers],
   );
+
+  // Update hover handlers
+  const handleMouseEnter = useCallback((number) => {
+    setHoveredNumbers([number]);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredNumbers([]);
+  }, []);
 
   // Helper function to check if a bet type is currently hovered
   const isBetTypeHovered = useCallback(
@@ -271,7 +290,7 @@ const BettingBoard = ({
   ];
 
   return (
-    <div className="flex flex-col gap-3 p-8 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300">
+    <div className="flex flex-col gap-3 p-8 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 relative">
       {/* Main betting grid */}
       <div className="grid grid-cols-[auto_45px_1fr] gap-2">
         <div className="flex flex-col gap-2">
@@ -307,22 +326,23 @@ const BettingBoard = ({
         <div className="row-span-3 flex items-stretch">
           <button
             onClick={() => handleBet([0], BetTypes.STRAIGHT)}
-            onMouseEnter={() => setHoveredNumbers([0])}
-            onMouseLeave={() => setHoveredNumbers([])}
+            onMouseEnter={() => handleMouseEnter(0)}
+            onMouseLeave={handleMouseLeave}
             disabled={disabled}
-            className={`w-[45px] h-[147px] rounded-xl text-white/90 font-bold flex items-center justify-center transition-all duration-300 hover:scale-105 
+            className={`w-[45px] h-[147px] rounded-xl text-white/90 font-bold flex items-center justify-center transition-all duration-300 hover:scale-105 relative
               ${
-                getBetAmount([0], BetTypes.STRAIGHT) > 0 || isNumberHovered(0)
-                  ? "bg-gradient-to-br from-emerald-500 to-emerald-600 border-emerald-400 shadow-emerald-500/30"
+                isNumberHovered(0)
+                  ? "bg-gradient-to-br from-emerald-500 to-emerald-600 border-emerald-400 shadow-emerald-500/30 ring-2 ring-offset-2 ring-offset-secondary-900 scale-105 z-10"
                   : "bg-gradient-to-br from-emerald-500/80 to-emerald-600/80 border-emerald-400/50"
               } border hover:shadow-lg hover:from-emerald-500 hover:to-emerald-600`}
           >
             <div className="flex flex-col items-center gap-1">
               <span className="text-2xl">0</span>
               {getBetAmount([0], BetTypes.STRAIGHT) > 0 && (
-                <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
-                  {getBetAmount([0], BetTypes.STRAIGHT)}
-                </div>
+                <BetChip
+                  amount={getBetAmount([0], BetTypes.STRAIGHT)}
+                  className="absolute -top-3 -right-3 z-30"
+                />
               )}
             </div>
           </button>
@@ -339,25 +359,25 @@ const BettingBoard = ({
                 <button
                   key={number}
                   onClick={() => handleBet([number], BetTypes.STRAIGHT)}
-                  onMouseEnter={() => setHoveredNumbers([number])}
-                  onMouseLeave={() => setHoveredNumbers([])}
+                  onMouseEnter={() => handleMouseEnter(number)}
+                  onMouseLeave={handleMouseLeave}
                   disabled={disabled}
                   className={`relative rounded-xl text-xl font-bold transition-all duration-300 transform border border-white/10 hover:scale-105 hover:z-10 active:scale-95 cursor-pointer backdrop-blur-sm shadow-lg hover:shadow-2xl text-white ${
                     isRed(number)
                       ? "bg-gradient-to-br from-gaming-primary/90 to-gaming-accent/90 hover:from-gaming-primary hover:to-gaming-accent border-gaming-primary/20 hover:shadow-gaming-primary/30"
                       : "bg-gradient-to-br from-gray-800/90 to-gray-900/90 hover:from-gray-700 hover:to-gray-800 border-gray-700/20 hover:shadow-gray-500/30"
                   } ${
-                    getBetAmount([number], BetTypes.STRAIGHT) > 0 ||
                     isNumberHovered(number)
-                      ? "ring-2 ring-offset-2 ring-offset-secondary-900 scale-105 z-20 shadow-[0_0_20px_rgba(var(--gaming-primary),0.4)] border-gaming-primary/50"
+                      ? "ring-2 ring-offset-2 ring-offset-secondary-900 scale-105 z-10"
                       : ""
                   }`}
                 >
                   <span className="text-white/90 text-xl">{number}</span>
                   {getBetAmount([number], BetTypes.STRAIGHT) > 0 && (
-                    <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
-                      {getBetAmount([number], BetTypes.STRAIGHT)}
-                    </div>
+                    <BetChip
+                      amount={getBetAmount([number], BetTypes.STRAIGHT)}
+                      className="absolute -top-3 -right-3"
+                    />
                   )}
                 </button>
               ))}
@@ -383,7 +403,7 @@ const BettingBoard = ({
                   const numbers = BetTypes.getNumbers(columnType);
                   setHoveredNumbers(numbers);
                 }}
-                onMouseLeave={() => setHoveredNumbers([])}
+                onMouseLeave={handleMouseLeave}
                 disabled={disabled}
                 className={`h-[45px] rounded-xl relative text-white border border-white/10 shadow-lg hover:shadow-purple-500/30 transition-all duration-300 font-bold`}
               >
@@ -398,9 +418,10 @@ const BettingBoard = ({
                   const amount = getBetAmount([], columnType);
                   return (
                     amount > 0 && (
-                      <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
-                        {amount}
-                      </div>
+                      <BetChip
+                        amount={amount}
+                        className="absolute -top-3 -right-3"
+                      />
                     )
                   );
                 })()}
@@ -423,15 +444,16 @@ const BettingBoard = ({
               const numbers = BetTypes.getNumbers(option.type);
               setHoveredNumbers(numbers);
             }}
-            onMouseLeave={() => setHoveredNumbers([])}
+            onMouseLeave={handleMouseLeave}
             disabled={disabled}
             className={`h-[45px] rounded-xl relative text-white border border-white/10 shadow-lg hover:shadow-purple-500/30 transition-all duration-300 font-bold`}
           >
             {option.label}
             {getBetAmount([], option.type) > 0 && (
-              <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
-                {getBetAmount([], option.type)}
-              </div>
+              <BetChip
+                amount={getBetAmount([], option.type)}
+                className="absolute -top-3 -right-3"
+              />
             )}
           </button>
         ))}
@@ -450,7 +472,7 @@ const BettingBoard = ({
               const numbers = BetTypes.getNumbers(option.type);
               setHoveredNumbers(numbers);
             }}
-            onMouseLeave={() => setHoveredNumbers([])}
+            onMouseLeave={handleMouseLeave}
             disabled={disabled}
             className={`h-[45px] rounded-xl relative text-white border border-white/10 shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-105 ${
               option.isRed
@@ -467,9 +489,10 @@ const BettingBoard = ({
           >
             {option.label}
             {getBetAmount([], option.type) > 0 && (
-              <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold shadow-lg transform hover:scale-110 transition-all duration-200">
-                {getBetAmount([], option.type)}
-              </div>
+              <BetChip
+                amount={getBetAmount([], option.type)}
+                className="absolute -top-3 -right-3"
+              />
             )}
           </button>
         ))}
