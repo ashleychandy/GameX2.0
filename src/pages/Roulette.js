@@ -893,7 +893,7 @@ const BettingHistory = ({ account, contracts }) => {
   }
 
   return (
-    <div className="betting-history backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 p-6">
+    <div className="betting-history rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 p-6 bg-secondary-900/80">
       {/* History Header with Toggle */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
@@ -964,7 +964,7 @@ const BettingHistory = ({ account, contracts }) => {
                     damping: 30,
                     delay: index * 0.05,
                   }}
-                  className={`history-item p-4 rounded-xl border backdrop-blur-sm ${
+                  className={`history-item p-4 rounded-xl border ${
                     group.totalPayout > group.totalAmount
                       ? "bg-gaming-success/5 border-gaming-success/20"
                       : group.totalPayout < group.totalAmount
@@ -1115,7 +1115,7 @@ const CompactHistory = ({ bets, account, contracts }) => {
   const sortedBets = (bets || []).sort((a, b) => b.timestamp - a.timestamp);
 
   return (
-    <div className="backdrop-blur-sm rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 p-3 space-y-3">
+    <div className="rounded-2xl border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-300 p-3 space-y-3 bg-secondary-900/80">
       <div className="flex items-center justify-between mb-1.5">
         <h2 className="text-xs font-medium text-secondary-300">Last Results</h2>
       </div>

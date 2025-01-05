@@ -74,7 +74,7 @@
 
   /* History Styles */
   .betting-history {
-    @apply mt-8 p-6 backdrop-blur-sm rounded-2xl border border-secondary-700 
+    @apply mt-8 p-6 rounded-2xl border border-secondary-700 
     shadow-glass w-full;
   }
 
@@ -86,7 +86,7 @@
 
   .history-item {
     @apply relative p-4 rounded-2xl border border-secondary-700 
-    backdrop-blur-none bg-opacity-90
+    bg-opacity-90
     transform transition-all duration-300 hover:translate-y-[-2px] 
     hover:shadow-glass hover:border-gaming-primary/50;
   }
