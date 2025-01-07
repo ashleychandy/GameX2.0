@@ -1,8 +1,30 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ethers } from "ethers";
-import { Link } from "react-router-dom";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
+
+// Contract constants
+const CONTRACT_CONSTANTS = {
+  MAX_BETS_PER_SPIN: 15,
+  MAX_BET_AMOUNT: BigInt("100000000000000000000000"), // 100k tokens
+  MAX_TOTAL_BET_AMOUNT: BigInt("500000000000000000000000"), // 500k tokens
+  MAX_POSSIBLE_PAYOUT: BigInt("17500000000000000000000000"), // 17.5M tokens
+  MINTER_ROLE: ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE")),
+  BURNER_ROLE: ethers.keccak256(ethers.toUtf8Bytes("BURNER_ROLE")),
+};
+
+// Contract error messages
+const CONTRACT_ERRORS = {
+  InvalidBetParameters: "Invalid bet parameters. Please check your bets.",
+  InvalidBetType: "Invalid bet type selected.",
+  InsufficientUserBalance: "Insufficient balance to place bet.",
+  TransferFailed: "Token transfer failed.",
+  BurnFailed: "Token burn failed.",
+  MintFailed: "Token mint failed.",
+  MissingContractRole: "Contract is missing required roles.",
+  InsufficientAllowance: "Insufficient token allowance.",
+  MaxPayoutExceeded: "Maximum potential payout exceeded.",
+};
 
 // Updated BetTypes object to match contract constants exactly
 const BetTypes = {
@@ -76,86 +98,6 @@ const bottomBettingOptions = [
   { label: "19-36", type: BetTypes.HIGH },
 ];
 
-// Fix column betting in BettingBoard component
-const handleColumnBet = (rowIndex, onBetPlace) => {
-  // rowIndex is 0 for bottom row, 1 for middle, 2 for top
-  const columnType =
-    rowIndex === 0
-      ? BetTypes.COLUMN_FIRST // 1,4,7...
-      : rowIndex === 1
-        ? BetTypes.COLUMN_SECOND // 2,5,8...
-        : BetTypes.COLUMN_THIRD; // 3,6,9...
-
-  const numbers = BetTypes.getNumbers(columnType);
-  onBetPlace(numbers, columnType);
-};
-
-// Update bet validation in handlePlaceBets
-const validateBet = (bet) => {
-  // Validate bet type range
-  if (bet.type < 0 || bet.type > 12) {
-    throw new Error(`Invalid bet type: ${bet.type}`);
-  }
-
-  // Validate straight bets
-  if (bet.type === BetTypes.STRAIGHT) {
-    if (
-      !bet.numbers ||
-      bet.numbers.length !== 1 ||
-      bet.numbers[0] < 0 ||
-      bet.numbers[0] > 36
-    ) {
-      throw new Error(`Invalid number for straight bet: ${bet.numbers?.[0]}`);
-    }
-  }
-
-  // Validate column bets
-  if (
-    [
-      BetTypes.COLUMN_FIRST,
-      BetTypes.COLUMN_SECOND,
-      BetTypes.COLUMN_THIRD,
-    ].includes(bet.type)
-  ) {
-    const expectedNumbers = BetTypes.getNumbers(bet.type);
-    if (
-      !bet.numbers ||
-      !bet.numbers.every((num, idx) => num === expectedNumbers[idx])
-    ) {
-      throw new Error(`Invalid numbers for column bet type: ${bet.type}`);
-    }
-  }
-
-  return true;
-};
-
-// Update bet request formatting
-const formatBetRequest = (bet) => ({
-  betTypeId: bet.type,
-  number: bet.type === BetTypes.STRAIGHT ? bet.numbers[0] : 0,
-  amount: BigInt(bet.amount).toString(),
-});
-
-// Contract constants
-const CONTRACT_CONSTANTS = {
-  MAX_BETS_PER_SPIN: 15,
-  MAX_BET_AMOUNT: BigInt("100000000000000000000000"), // 100k tokens
-  MAX_TOTAL_BET_AMOUNT: BigInt("500000000000000000000000"), // 500k tokens
-  MAX_POSSIBLE_PAYOUT: BigInt("17500000000000000000000000"), // 17.5M tokens
-  MINTER_ROLE: ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE")),
-  BURNER_ROLE: ethers.keccak256(ethers.toUtf8Bytes("BURNER_ROLE")),
-};
-const CONTRACT_ERRORS = {
-  InvalidBetParameters: "Invalid bet parameters. Please check your bets.",
-  InvalidBetType: "Invalid bet type selected.",
-  InsufficientUserBalance: "Insufficient balance to place bet.",
-  TransferFailed: "Token transfer failed.",
-  BurnFailed: "Token burn failed.",
-  MintFailed: "Token mint failed.",
-  MissingContractRole: "Contract is missing required roles.",
-  InsufficientAllowance: "Insufficient token allowance.",
-  MaxPayoutExceeded: "Maximum potential payout exceeded.",
-};
 // Chip values for betting
 const CHIP_VALUES = [
   { value: "1000000000000000000", label: "1" },
@@ -658,21 +600,6 @@ const getBetTypeName = (betType, numbers) => {
       return "Unknown Bet";
   }
 };
-
-// Get all possible winning numbers for a bet type
-function getPossibleWinningNumbers(betTypeId, startNumber = 1) {
-  const type = Number(betTypeId);
-
-  if (type === BetTypes.STRAIGHT) {
-    const numbers = new Array(37);
-    for (let i = 0; i <= 36; i++) {
-      numbers[i] = i;
-    }
-    return numbers;
-  }
-
-  return BetTypes.getNumbers(type, startNumber);
-}
 
 // Add StatBadge component for history stats
 const StatBadge = ({ label, value, color = "primary" }) => (
@@ -2134,4 +2061,3 @@ const LoadingSpinner = ({ size = "default" }) => (
 );
 
 export default RoulettePage;
-
