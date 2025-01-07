@@ -191,7 +191,7 @@ const Navbar = ({
       <div className="flex justify-between items-center h-20">
         <div className="flex items-center space-x-8">
           <Link to="/" className="text-2xl font-bold text-gaming-primary">
-            GameX
+            GAMA
           </Link>
           <div className="hidden md:flex items-center space-x-6">
             <Link to="/" className="nav-link">
@@ -395,10 +395,10 @@ const BetInput = ({
       }
 
       if (weiValue < minValue) {
-        throw new Error(`Minimum bet is ${formatDisplayValue(minValue)} GameX`);
+        throw new Error(`Minimum bet is ${formatDisplayValue(minValue)} GAMA`);
       }
       if (weiValue > maxValue) {
-        throw new Error(`Maximum bet is ${formatDisplayValue(maxValue)} GameX`);
+        throw new Error(`Maximum bet is ${formatDisplayValue(maxValue)} GAMA`);
       }
 
       return weiValue;
@@ -554,7 +554,7 @@ const BetInput = ({
               className="absolute right-3 top-1/2 transform -translate-y-1/2 
                           text-sm text-secondary-400"
             >
-              GameX
+              GAMA
             </div>
           </div>
 
@@ -738,7 +738,7 @@ const BalancePanel = ({ userBalance, allowance, potentialWinnings }) => {
                   <p className="text-sm text-secondary-400">{item.label}</p>
                   <p className="font-medium text-white">
                     {formatValue(item.value)}{" "}
-                    <span className="text-sm text-secondary-400">GameX</span>
+                    <span className="text-sm text-secondary-400">GAMA</span>
                   </p>
                 </div>
               </div>
@@ -769,7 +769,7 @@ const BalancePanel = ({ userBalance, allowance, potentialWinnings }) => {
                           userBalance > allowance ? allowance : userBalance,
                         ),
                       )}{" "}
-                      GameX
+                      GAMA
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
@@ -782,7 +782,7 @@ const BalancePanel = ({ userBalance, allowance, potentialWinnings }) => {
                     </span>
                     <span className="text-gaming-primary">
                       {formatValue(ethers.formatEther(userBalance * BigInt(6)))}{" "}
-                      GameX
+                      GAMA
                     </span>
                   </div>
                 </div>
@@ -1464,7 +1464,7 @@ const GameHistoryItem = ({ game, index }) => (
     <div className="flex justify-between items-center">
       <div className="space-y-1">
         <div className="text-lg font-semibold">
-          {ethers.formatEther(game.amount)} GameX
+          {ethers.formatEther(game.amount)} GAMA
         </div>
         <div className="text-sm text-secondary-400">
           <span
@@ -1482,7 +1482,7 @@ const GameHistoryItem = ({ game, index }) => (
         </div>
         <div className="text-xs text-secondary-500 mt-1">
           {game.isWin
-            ? `Won ${ethers.formatEther(BigInt(game.amount) * 6n)} GameX`
+            ? `Won ${ethers.formatEther(BigInt(game.amount) * 6n)} GAMA`
             : "No Payout"}
         </div>
       </div>
@@ -1781,7 +1781,7 @@ const Home = () => {
 
       if (wasAdded) {
         addToast(
-          `GameX token was added to MetaMask on ${networkName} successfully!`,
+          `GAMA token was added to MetaMask on ${networkName} successfully!`,
           "success",
         );
       } else {
@@ -1805,7 +1805,7 @@ const Home = () => {
             className="text-center"
           >
             <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-              Welcome to <span className="text-gradient">GameX</span>
+              Welcome to <span className="text-gradient">GAMA</span>
             </h1>
             <p className="text-xl text-secondary-300 mb-8 max-w-2xl mx-auto">
               Experience the future of gaming with blockchain technology.
@@ -1819,7 +1819,7 @@ const Home = () => {
                 onClick={addTokenToMetaMask}
               >
                 <Icons.MetaMask className="w-5 h-5 mr-2 inline-block" />
-                Add GameX to MetaMask
+                Add GAMA to MetaMask
               </motion.button>
               <Link to="/dice">
                 <motion.button
@@ -1905,7 +1905,7 @@ const Home = () => {
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-white text-center mb-12">
-            Why Choose GameX?
+            Why Choose GAMA?
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
             {[
@@ -1999,8 +1999,8 @@ const steps = [
     description: "Connect your MetaMask or any Web3 wallet to get started",
   },
   {
-    title: "Get GameX",
-    description: "Purchase GameX tokens directly through our platform",
+    title: "Get GAMA",
+    description: "Purchase GAMA tokens directly through our platform",
   },
   {
     title: "Start Playing",
@@ -2075,13 +2075,13 @@ const GameStats = ({ diceContract, account }) => {
       <div className="stat-card">
         <h3 className="text-secondary-400">Total Winnings</h3>
         <p className="text-2xl font-bold text-gaming-primary">
-          {ethers.formatEther(stats?.totalWinnings || BigInt(0))} GameX
+          {ethers.formatEther(stats?.totalWinnings || BigInt(0))} GAMA
         </p>
       </div>
       <div className="stat-card">
         <h3 className="text-secondary-400">Biggest Win</h3>
         <p className="text-2xl font-bold text-gaming-accent">
-          {ethers.formatEther(stats?.biggestWin || BigInt(0))} GameX
+          {ethers.formatEther(stats?.biggestWin || BigInt(0))} GAMA
         </p>
       </div>
     </div>
@@ -2458,7 +2458,7 @@ const ApprovalButton = ({ onApprove, amount, isLoading }) => {
           <span>Approving...</span>
         </div>
       ) : (
-        `Approve ${amount} GameX tokens`
+        `Approve ${amount} GAMA tokens`
       )}
     </button>
   );
@@ -2963,7 +2963,7 @@ function AdminPage({
               value={formInputs.mintAmount}
               onChange={handleInputChange}
               className="input-gaming w-full"
-              placeholder="Enter amount in GameX"
+              placeholder="Enter amount in GAMA"
             />
           </div>
           <button
@@ -3286,7 +3286,7 @@ const DicePage = ({
         addToast(
           `Congratulations! You won ${ethers.formatEther(
             updatedGame.payout,
-          )} GameX!`,
+          )} GAMA!`,
           "success",
         );
       } else {
@@ -4181,7 +4181,6 @@ function App() {
           } catch (err) {
             console.error("Error checking token admin role:", err);
           }
-          
 
           try {
             isOwner = await contracts.dice.isOwner(newAccount);
