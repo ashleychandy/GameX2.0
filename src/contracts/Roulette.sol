@@ -77,6 +77,7 @@ contract Roulette is ReentrancyGuard {
     mapping(address => UserGameData) public userData;
     uint256 public totalGamesPlayed;
     uint256 public totalPayoutAmount;
+    uint256 public totalWageredAmount;
 
     // Errors
     error InvalidBetParameters(string reason);
@@ -179,6 +180,9 @@ contract Roulette is ReentrancyGuard {
         } catch {
             revert BurnFailed(msg.sender, totalAmount);
         }
+
+        // Update total wagered amount
+        totalWageredAmount += totalAmount;
 
         // Generate winning number once for all bets in this transaction
         uint8 currentWinningNumber = _generateRandomNumber();
