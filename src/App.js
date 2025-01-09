@@ -57,11 +57,11 @@ const NETWORKS = {
   MAINNET: {
     chainId: 50,
     name: "XDC Mainnet",
-    rpcUrl: process.env.REACT_APP_XDC_MAINNET_RPC_URL,
+    rpcUrl: process.env.REACT_APP_XDC_MAINNET_RPC,
     contracts: {
       dice: process.env.REACT_APP_DICE_GAME_ADDRESS,
       token: process.env.REACT_APP_TOKEN_ADDRESS,
-      roulette: process.env.REACT_APP_ROULETTE_ADDRESS, // Make sure this is set
+      roulette: process.env.REACT_APP_ROULETTE_ADDRESS,
     },
   },
   APOTHEM: {
@@ -3969,23 +3969,24 @@ function App() {
       // Explicitly check chain IDs
       if (chainId === NETWORKS.MAINNET.chainId) {
         networkType = "mainnet";
-        diceAddress = NETWORKS.MAINNET.contracts.dice;
-        tokenAddress = NETWORKS.MAINNET.contracts.token;
-        rouletteAddress = NETWORKS.MAINNET.contracts.roulette;
+        diceAddress = process.env.REACT_APP_DICE_GAME_ADDRESS;
+        tokenAddress = process.env.REACT_APP_TOKEN_ADDRESS;
+        rouletteAddress = process.env.REACT_APP_ROULETTE_ADDRESS;
       } else if (chainId === NETWORKS.APOTHEM.chainId) {
         networkType = "apothem";
-        diceAddress = NETWORKS.APOTHEM.contracts.dice;
-        tokenAddress = NETWORKS.APOTHEM.contracts.token;
-        rouletteAddress = NETWORKS.APOTHEM.contracts.roulette;
+        diceAddress = process.env.REACT_APP_APOTHEM_DICE_GAME_ADDRESS;
+        tokenAddress = process.env.REACT_APP_APOTHEM_TOKEN_ADDRESS;
+        rouletteAddress = process.env.REACT_APP_APOTHEM_ROULETTE_ADDRESS;
       } else if (chainId === NETWORKS.AMOY.chainId) {
         networkType = "amoy";
-        diceAddress = NETWORKS.AMOY.contracts.dice;
-        tokenAddress = NETWORKS.AMOY.contracts.token;
-        rouletteAddress = NETWORKS.AMOY.contracts.roulette;
+        diceAddress = process.env.REACT_APP_AMOY_DICE_GAME_ADDRESS;
+        tokenAddress = process.env.REACT_APP_AMOY_TOKEN_ADDRESS;
+        rouletteAddress = process.env.REACT_APP_AMOY_ROULETTE_ADDRESS;
       } else {
         throw new Error(`Unsupported chain ID: ${chainId}`);
       }
 
+      // Log the addresses for debugging
       console.log("Network Configuration:", {
         chainId,
         networkType,
