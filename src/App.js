@@ -48,7 +48,6 @@ ChartJS.register(
   Legend,
 );
 
-
 // Add network constants at the top of the file
 const NETWORKS = {
   MAINNET: {
@@ -992,7 +991,6 @@ const NumberSelector = ({ value, onChange, disabled }) => {
   );
 };
 
-
 // Loading Dots Component
 const LoadingDots = () => (
   <span
@@ -1028,7 +1026,6 @@ const LoadingSpinner = ({ size = "medium", light = false }) => {
     </div>
   );
 };
-
 
 const FilterButton = ({ children, active, onClick }) => (
   <button
@@ -1224,7 +1221,6 @@ const GameHistoryItem = ({ game, index }) => (
   </motion.div>
 );
 
-
 // Icons Component
 const Icons = {
   Dice: ({ className }) => (
@@ -1262,7 +1258,6 @@ const Icons = {
     </svg>
   ),
 };
-
 
 const Home = () => {
   const [toasts, setToasts] = useState([]);
@@ -1605,7 +1600,6 @@ const Home = () => {
     </div>
   );
 };
-
 
 const GameStats = ({ diceContract, account }) => {
   // Use React Query for fetching stats
