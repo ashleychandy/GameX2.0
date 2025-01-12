@@ -601,74 +601,6 @@ const getBetTypeName = (betType, numbers) => {
   }
 };
 
-// Add StatBadge component for history stats
-const StatBadge = ({ label, value, color = "primary" }) => (
-  <div
-    className={`
-      px-4 py-2 rounded-lg
-      backdrop-blur-sm
-      border
-      ${
-        color === "success"
-          ? "bg-gaming-success/10 border-gaming-success/20 shadow-gaming-success/10"
-          : color === "error"
-            ? "bg-gaming-error/10 border-gaming-error/20 shadow-gaming-error/10"
-            : "bg-gaming-primary/10 border-gaming-primary/20 shadow-gaming-primary/10"
-      }
-      flex items-center gap-3
-      transform hover:scale-105 transition-all duration-200 ease-out
-    `}
-  >
-    <span
-      className={`
-      text-sm font-medium
-      ${
-        color === "success"
-          ? "text-gaming-success/80"
-          : color === "error"
-            ? "text-gaming-error/80"
-            : "text-gaming-primary/80"
-      }
-    `}
-    >
-      {label}
-    </span>
-    <span
-      className={`
-      text-lg font-bold
-      ${
-        color === "success"
-          ? "text-gaming-success"
-          : color === "error"
-            ? "text-gaming-error"
-            : "text-gaming-primary"
-      }
-    `}
-    >
-      {value}
-    </span>
-  </div>
-);
-
-// Add FilterButton component for history filters
-const FilterButton = ({ children, active, onClick }) => (
-  <button
-    onClick={onClick}
-    className={`
-      px-4 py-2 rounded-lg font-medium text-sm
-      transition-all duration-200 ease-out
-      transform hover:scale-105
-      ${
-        active
-          ? "bg-gaming-primary text-white shadow-lg shadow-gaming-primary/20"
-          : "bg-secondary-700/50 text-secondary-300 hover:bg-secondary-600/50 hover:text-white"
-      }
-    `}
-  >
-    {children}
-  </button>
-);
-
 // Add BettingHistory component
 const BettingHistory = ({ account, contracts }) => {
   const [filter, setFilter] = useState("all");
@@ -683,7 +615,7 @@ const BettingHistory = ({ account, contracts }) => {
     queryFn: async () => {
       if (!contracts?.roulette || !account) return null;
       try {
-        const [bets, total] = await contracts.roulette.getUserBetHistory(
+        const [bets] = await contracts.roulette.getUserBetHistory(
           account,
           0,
           10,
@@ -772,39 +704,6 @@ const BettingHistory = ({ account, contracts }) => {
 
     return Object.values(grouped).sort((a, b) => b.timestamp - a.timestamp);
   }, [userData]);
-
-  // Calculate stats from betting history
-  const stats = useMemo(() => {
-    if (!groupedBets || groupedBets.length === 0)
-      return {
-        totalWins: 0,
-        totalLosses: 0,
-        totalProfit: BigInt(0),
-        winRate: 0,
-      };
-
-    return groupedBets.reduce(
-      (acc, group) => {
-        const isWin = group.totalPayout > group.totalAmount;
-        const isLoss = group.totalPayout < group.totalAmount;
-        const profit = group.totalPayout - group.totalAmount;
-
-        return {
-          totalWins: acc.totalWins + (isWin ? 1 : 0),
-          totalLosses: acc.totalLosses + (isLoss ? 1 : 0),
-          totalProfit: acc.totalProfit + profit,
-          winRate:
-            groupedBets.length > 0
-              ? (
-                  ((acc.totalWins + (isWin ? 1 : 0)) / groupedBets.length) *
-                  100
-                ).toFixed(1)
-              : 0,
-        };
-      },
-      { totalWins: 0, totalLosses: 0, totalProfit: BigInt(0), winRate: 0 },
-    );
-  }, [groupedBets]);
 
   // Filter bets based on selected filter
   const filteredBets = useMemo(() => {
@@ -1295,7 +1194,7 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
     queryFn: async () => {
       if (!contracts?.roulette || !account) return null;
       try {
-        const [bets, total] = await contracts.roulette.getUserBetHistory(
+        const [bets] = await contracts.roulette.getUserBetHistory(
           account,
           0,
           10,
@@ -1871,7 +1770,7 @@ const RoulettePage = ({ contracts, account, onError, addToast }) => {
       }
       try {
         // Get all recent bets to ensure we get the latest one
-        const [bets, total] = await contracts.roulette.getUserBetHistory(
+        const [bets] = await contracts.roulette.getUserBetHistory(
           account,
           0,
           10, // Get more bets to ensure we have the latest

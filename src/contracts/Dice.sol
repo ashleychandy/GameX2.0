@@ -39,7 +39,6 @@ struct BetHistory {
 struct UserData {
     BetHistory[] recentBets;     // Recent bets history
     uint256 maxHistorySize;      // Maximum size of history to keep
-    uint256 totalBets;           // Total amount bet by user
     uint256 totalWinnings;       // Total amount won by user
     uint256 gamesPlayed;         // Number of games played
 }
@@ -126,7 +125,7 @@ contract Dice is ReentrancyGuard {
         // 8. Update user stats and history
         UserData storage user = userData[msg.sender];
         _updateUserHistory(user, chosenNumber, result, amount, payout);
-        _updateGameStats(user, amount, payout);
+        _updateGameStats(user, payout);
 
         return (result, payout);
     }
@@ -135,13 +134,11 @@ contract Dice is ReentrancyGuard {
      * @notice Get user's game data
      * @param player Address of the player
      * @return totalGames Total games played
-     * @return totalBets Total amount bet
      * @return totalWinnings Total amount won
      * @return lastPlayed Last played timestamp
      */
     function getUserData(address player) external view returns (
         uint256 totalGames,
-        uint256 totalBets,
         uint256 totalWinnings,
         uint256 lastPlayed
     ) {
@@ -151,7 +148,6 @@ contract Dice is ReentrancyGuard {
             user.recentBets[user.recentBets.length - 1].timestamp : 0;
         return (
             user.gamesPlayed,
-            user.totalBets,
             user.totalWinnings,
             lastPlayedTime
         );
@@ -192,12 +188,12 @@ contract Dice is ReentrancyGuard {
      * @dev Generate a pseudo-random number between 1 and 6
      */
     function _generateRandomNumber() private view returns (uint8) {
-        return uint8(uint256(keccak256(abi.encodePacked(
+        return uint8((uint256(keccak256(abi.encodePacked(
             block.timestamp,
             block.prevrandao,
             msg.sender,
             totalGamesPlayed
-        ))) % (MAX_NUMBER + 1));
+        ))) % MAX_NUMBER) + 1);
     }
 
     /**
@@ -240,10 +236,8 @@ contract Dice is ReentrancyGuard {
      */
     function _updateGameStats(
         UserData storage user,
-        uint256 amount,
         uint256 payout
     ) private {
-        user.totalBets += amount;
         if (payout > 0) {
             user.totalWinnings += payout;
         }
