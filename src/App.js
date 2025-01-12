@@ -344,10 +344,21 @@ const BetInput = ({
   min = "1",
   userBalance = "0",
   disabled,
+  diceContract,
 }) => {
   const [error, setError] = useState("");
   const [localValue, setLocalValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+
+  // Fetch max bet from contract
+  const { data: maxBet = "1000000000000000000000" } = useQuery({
+    queryKey: ["maxBet", diceContract?.target],
+    queryFn: async () => {
+      if (!diceContract) return "1000000000000000000000"; // Default to 1000 GAMA if no contract
+      return await diceContract.MAX_BET_AMOUNT();
+    },
+    enabled: !!diceContract,
+  });
 
   useEffect(() => {
     if (value) {
@@ -383,7 +394,10 @@ const BetInput = ({
       // Convert to wei (multiply by 10^18)
       const weiValue = BigInt(amount) * BigInt("1000000000000000000");
       const minValue = BigInt(min);
-      const maxValue = BigInt(userBalance);
+      const maxValue = BigInt(maxBet);
+      const balanceValue = BigInt(userBalance);
+      const effectiveMaxValue =
+        maxValue < balanceValue ? maxValue : balanceValue;
 
       // Check if potential win (6x bet) would overflow uint256
       const MAX_UINT256 = BigInt(
@@ -397,8 +411,10 @@ const BetInput = ({
       if (weiValue < minValue) {
         throw new Error(`Minimum bet is ${formatDisplayValue(minValue)} GAMA`);
       }
-      if (weiValue > maxValue) {
-        throw new Error(`Maximum bet is ${formatDisplayValue(maxValue)} GAMA`);
+      if (weiValue > effectiveMaxValue) {
+        throw new Error(
+          `Maximum bet is ${formatDisplayValue(effectiveMaxValue)} GAMA`,
+        );
       }
 
       return weiValue;
@@ -421,10 +437,15 @@ const BetInput = ({
         }
 
         const weiValue = parseTokenAmount(inputValue);
+        const maxValue = BigInt(maxBet);
+        const balanceValue = BigInt(userBalance);
+        const effectiveMaxValue =
+          maxValue < balanceValue ? maxValue : balanceValue;
+
         // If the value is too high, use the maximum allowed value instead
-        if (weiValue > BigInt(userBalance)) {
-          setLocalValue(formatDisplayValue(BigInt(userBalance)));
-          onChange(BigInt(userBalance));
+        if (weiValue > effectiveMaxValue) {
+          setLocalValue(formatDisplayValue(effectiveMaxValue));
+          onChange(effectiveMaxValue);
         } else {
           onChange(weiValue);
         }
@@ -432,8 +453,12 @@ const BetInput = ({
         setError(error.message);
         // Don't reset to min value, keep the current value
         if (error.message.includes("too large")) {
-          setLocalValue(formatDisplayValue(BigInt(userBalance)));
-          onChange(BigInt(userBalance));
+          const maxValue = BigInt(maxBet);
+          const balanceValue = BigInt(userBalance);
+          const effectiveMaxValue =
+            maxValue < balanceValue ? maxValue : balanceValue;
+          setLocalValue(formatDisplayValue(effectiveMaxValue));
+          onChange(effectiveMaxValue);
         } else {
           onChange(BigInt(min));
         }
@@ -443,8 +468,11 @@ const BetInput = ({
 
   const handleQuickAmount = (percentage) => {
     try {
-      const balance = BigInt(userBalance);
-      const amount = (balance * BigInt(percentage)) / BigInt(100);
+      const maxValue = BigInt(maxBet);
+      const balanceValue = BigInt(userBalance);
+      const effectiveMaxValue =
+        maxValue < balanceValue ? maxValue : balanceValue;
+      const amount = (effectiveMaxValue * BigInt(percentage)) / BigInt(100);
       const minValue = BigInt(min);
 
       // Check if potential win (6x bet) would overflow uint256
@@ -479,8 +507,11 @@ const BetInput = ({
   const handleAdjustAmount = (increment) => {
     try {
       const currentValue = BigInt(value);
-      const balance = BigInt(userBalance);
-      const step = balance / BigInt(100); // 1% step
+      const maxValue = BigInt(maxBet);
+      const balanceValue = BigInt(userBalance);
+      const effectiveMaxValue =
+        maxValue < balanceValue ? maxValue : balanceValue;
+      const step = effectiveMaxValue / BigInt(100); // 1% step
       const minValue = BigInt(min);
       const MAX_UINT256 = BigInt(
         "115792089237316195423570985008687907853269984665640564039457584007913129639935",
@@ -489,7 +520,7 @@ const BetInput = ({
       let newValue;
       if (increment) {
         newValue = currentValue + step;
-        if (newValue > balance) newValue = balance;
+        if (newValue > effectiveMaxValue) newValue = effectiveMaxValue;
 
         // Check for potential win overflow
         const potentialWin = newValue * BigInt(6);
@@ -560,7 +591,11 @@ const BetInput = ({
 
           <button
             onClick={() => handleAdjustAmount(true)}
-            disabled={disabled || BigInt(value) >= BigInt(userBalance)}
+            disabled={
+              disabled ||
+              BigInt(value) >= BigInt(maxBet) ||
+              BigInt(value) >= BigInt(userBalance)
+            }
             className="w-10 h-10 rounded-lg bg-secondary-700/50 hover:bg-secondary-600/50 
                      flex items-center justify-center text-secondary-300
                      disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1250,157 +1285,6 @@ function RequestMonitor({ diceContract, account }) {
   );
 }
 
-const GameHistory = ({ diceContract, account, onError }) => {
-  const [filter, setFilter] = useState("all");
-
-  // Use React Query for fetching and caching game history
-  const { data: gameData, isLoading } = useQuery({
-    queryKey: ["gameHistory", account],
-    queryFn: async () => {
-      if (!diceContract || !account)
-        return { games: [], stats: { totalGamesWon: 0, totalGamesLost: 0 } };
-
-      try {
-        // Fetch bets
-        const bets = await diceContract.getPreviousBets(account);
-
-        // Process bets and calculate stats
-        const processedGames = bets
-          .map((bet) => ({
-            chosenNumber: Number(bet.chosenNumber),
-            rolledNumber: Number(bet.rolledNumber),
-            amount: bet.amount.toString(),
-            timestamp: Number(bet.timestamp),
-            isWin: Number(bet.chosenNumber) === Number(bet.rolledNumber),
-            payout:
-              Number(bet.chosenNumber) === Number(bet.rolledNumber)
-                ? BigInt(bet.amount) * BigInt(6)
-                : BigInt(0),
-          }))
-          .reverse();
-
-        // Calculate stats
-        const stats = processedGames.reduce(
-          (acc, game) => ({
-            totalGamesWon: acc.totalGamesWon + (game.isWin ? 1 : 0),
-            totalGamesLost: acc.totalGamesLost + (game.isWin ? 0 : 1),
-            totalWinAmount: acc.totalWinAmount + game.payout,
-            totalBetAmount: acc.totalBetAmount + BigInt(game.amount),
-          }),
-          {
-            totalGamesWon: 0,
-            totalGamesLost: 0,
-            totalWinAmount: BigInt(0),
-            totalBetAmount: BigInt(0),
-          },
-        );
-
-        return { games: processedGames, stats };
-      } catch (error) {
-        console.error("Error fetching game history:", error);
-        onError(error);
-        return { games: [], stats: { totalGamesWon: 0, totalGamesLost: 0 } };
-      }
-    },
-    refetchInterval: 10000, // Refetch every 10 seconds
-    enabled: !!diceContract && !!account,
-  });
-
-  // Filter games based on selected filter
-  const filteredGames = useMemo(() => {
-    if (!gameData?.games) return [];
-    if (filter === "all") return gameData.games;
-    if (filter === "wins") return gameData.games.filter((game) => game.isWin);
-    if (filter === "losses")
-      return gameData.games.filter((game) => !game.isWin);
-    return gameData.games;
-  }, [gameData?.games, filter]);
-
-  return (
-    <div className="glass-panel p-6 rounded-2xl space-y-6">
-      {/* Header with Stats */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-2xl font-bold text-white/90">Game History</h2>
-        <div className="flex flex-wrap items-center gap-4">
-          <StatBadge
-            label="Wins"
-            value={gameData?.stats.totalGamesWon || 0}
-            color="success"
-          />
-          <StatBadge
-            label="Losses"
-            value={gameData?.stats.totalGamesLost || 0}
-            color="error"
-          />
-          <StatBadge
-            label="Win Rate"
-            value={`${
-              gameData?.stats.totalGamesWon + gameData?.stats.totalGamesLost > 0
-                ? (
-                    (gameData.stats.totalGamesWon /
-                      (gameData.stats.totalGamesWon +
-                        gameData.stats.totalGamesLost)) *
-                    100
-                  ).toFixed(1)
-                : 0
-            }%`}
-            color="primary"
-          />
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <FilterButton
-          active={filter === "all"}
-          onClick={() => setFilter("all")}
-        >
-          All Games
-        </FilterButton>
-        <FilterButton
-          active={filter === "wins"}
-          onClick={() => setFilter("wins")}
-        >
-          Wins
-        </FilterButton>
-        <FilterButton
-          active={filter === "losses"}
-          onClick={() => setFilter("losses")}
-        >
-          Losses
-        </FilterButton>
-      </div>
-
-      {/* Game List */}
-      {isLoading ? (
-        <GameHistoryLoader />
-      ) : filteredGames.length === 0 ? (
-        <EmptyState />
-      ) : (
-        <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar">
-          <AnimatePresence>
-            {filteredGames.map((game, index) => (
-              <GameHistoryItem
-                key={`${game.timestamp}-${index}`}
-                game={game}
-                index={index}
-              />
-            ))}
-          </AnimatePresence>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Helper Components
-const StatBadge = ({ label, value, color }) => (
-  <div className={`px-3 py-1 rounded-lg bg-${color}/10 text-${color}`}>
-    <span className="text-sm font-medium">{label}: </span>
-    <span className="font-bold">{value}</span>
-  </div>
-);
-
 const FilterButton = ({ children, active, onClick }) => (
   <button
     onClick={onClick}
@@ -1445,6 +1329,111 @@ const EmptyState = () => (
   </div>
 );
 
+const GameHistory = ({ diceContract, account, onError }) => {
+  const [filter, setFilter] = useState("all");
+
+  const { data: gameData, isLoading } = useQuery({
+    queryKey: ["gameHistory", account],
+    queryFn: async () => {
+      if (!diceContract || !account)
+        return { games: [], stats: { totalGamesWon: 0, totalGamesLost: 0 } };
+
+      try {
+        // Fetch bets using the new getBetHistory function
+        const bets = await diceContract.getBetHistory(account);
+
+        // Process bets and calculate stats
+        const processedGames = bets
+          .map((bet) => ({
+            chosenNumber: Number(bet.chosenNumber),
+            rolledNumber: Number(bet.rolledNumber),
+            amount: bet.amount.toString(),
+            timestamp: Number(bet.timestamp),
+            isWin: Number(bet.chosenNumber) === Number(bet.rolledNumber),
+            payout: bet.payout.toString(),
+          }))
+          .reverse();
+
+        // Calculate stats
+        const stats = processedGames.reduce(
+          (acc, game) => ({
+            totalGamesWon: acc.totalGamesWon + (game.isWin ? 1 : 0),
+            totalGamesLost: acc.totalGamesLost + (game.isWin ? 0 : 1),
+          }),
+          {
+            totalGamesWon: 0,
+            totalGamesLost: 0,
+          },
+        );
+
+        return { games: processedGames, stats };
+      } catch (error) {
+        console.error("Error fetching game history:", error);
+        onError(error);
+        return { games: [], stats: { totalGamesWon: 0, totalGamesLost: 0 } };
+      }
+    },
+    refetchInterval: 10000,
+    enabled: !!diceContract && !!account,
+  });
+
+  // Filter games based on selected filter
+  const filteredGames = useMemo(() => {
+    if (!gameData?.games) return [];
+    if (filter === "all") return gameData.games;
+    if (filter === "wins") return gameData.games.filter((game) => game.isWin);
+    if (filter === "losses")
+      return gameData.games.filter((game) => !game.isWin);
+    return gameData.games;
+  }, [gameData?.games, filter]);
+
+  return (
+    <div className="glass-panel p-6 rounded-2xl space-y-6">
+      {/* Header with Stats */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h2 className="text-2xl font-bold text-white/90">Game History</h2>
+      </div>
+
+      {/* Filter Buttons */}
+      <div className="flex gap-2">
+        <FilterButton
+          active={filter === "all"}
+          onClick={() => setFilter("all")}
+        >
+          All Games
+        </FilterButton>
+        <FilterButton
+          active={filter === "wins"}
+          onClick={() => setFilter("wins")}
+        >
+          Wins
+        </FilterButton>
+        <FilterButton
+          active={filter === "losses"}
+          onClick={() => setFilter("losses")}
+        >
+          Losses
+        </FilterButton>
+      </div>
+
+      {/* Game List */}
+      <div className="space-y-4">
+        {isLoading ? (
+          <GameHistoryLoader />
+        ) : filteredGames.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <AnimatePresence>
+            {filteredGames.map((game, index) => (
+              <GameHistoryItem key={game.timestamp} game={game} index={index} />
+            ))}
+          </AnimatePresence>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const GameHistoryItem = ({ game, index }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
@@ -1482,7 +1471,7 @@ const GameHistoryItem = ({ game, index }) => (
         </div>
         <div className="text-xs text-secondary-500 mt-1">
           {game.isWin
-            ? `Won ${ethers.formatEther(BigInt(game.amount) * 6n)} GAMA`
+            ? `Won ${ethers.formatEther(game.payout)} GAMA`
             : "No Payout"}
         </div>
       </div>
@@ -2015,42 +2004,28 @@ const GameStats = ({ diceContract, account }) => {
     queryFn: async () => {
       if (!diceContract || !account) {
         return {
-          gamesWon: 0,
+          gamesPlayed: 0,
+          totalBets: BigInt(0),
           totalWinnings: BigInt(0),
-          biggestWin: BigInt(0),
         };
       }
 
       try {
-        const bets = await diceContract.getPreviousBets(account);
+        // Get user data directly from contract
+        const [gamesPlayed, totalBets, totalWinnings, lastPlayed] =
+          await diceContract.getUserData(account);
 
-        // Process bets and calculate stats
-        return bets.reduce(
-          (acc, bet) => {
-            const isWin = Number(bet.chosenNumber) === Number(bet.rolledNumber);
-            if (isWin) {
-              const winAmount = BigInt(bet.amount) * BigInt(6);
-              return {
-                gamesWon: acc.gamesWon + 1,
-                totalWinnings: acc.totalWinnings + winAmount,
-                biggestWin:
-                  winAmount > acc.biggestWin ? winAmount : acc.biggestWin,
-              };
-            }
-            return acc;
-          },
-          {
-            gamesWon: 0,
-            totalWinnings: BigInt(0),
-            biggestWin: BigInt(0),
-          },
-        );
+        return {
+          gamesPlayed: Number(gamesPlayed),
+          totalBets: BigInt(totalBets),
+          totalWinnings: BigInt(totalWinnings),
+        };
       } catch (error) {
         console.error("Error fetching game stats:", error);
         throw error;
       }
     },
-    refetchInterval: 10000, // Refetch every 10 seconds
+    refetchInterval: 10000,
     enabled: !!diceContract && !!account,
   });
 
@@ -2067,21 +2042,21 @@ const GameStats = ({ diceContract, account }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div className="stat-card">
-        <h3 className="text-secondary-400">Games Won</h3>
-        <p className="text-2xl font-bold text-gaming-success">
-          {stats?.gamesWon || 0}
+        <h3 className="text-secondary-400">Games Played</h3>
+        <p className="text-2xl font-bold text-gaming-primary">
+          {stats?.gamesPlayed || 0}
+        </p>
+      </div>
+      <div className="stat-card">
+        <h3 className="text-secondary-400">Total Bets</h3>
+        <p className="text-2xl font-bold text-gaming-accent">
+          {ethers.formatEther(stats?.totalBets || BigInt(0))} GAMA
         </p>
       </div>
       <div className="stat-card">
         <h3 className="text-secondary-400">Total Winnings</h3>
         <p className="text-2xl font-bold text-gaming-primary">
           {ethers.formatEther(stats?.totalWinnings || BigInt(0))} GAMA
-        </p>
-      </div>
-      <div className="stat-card">
-        <h3 className="text-secondary-400">Biggest Win</h3>
-        <p className="text-2xl font-bold text-gaming-accent">
-          {ethers.formatEther(stats?.biggestWin || BigInt(0))} GAMA
         </p>
       </div>
     </div>
@@ -3041,11 +3016,11 @@ function AdminPage({
 }
 
 const DicePage = ({
-  contracts, // Add this prop
+  contracts,
   account,
   onError,
   addToast,
-  setLoadingStates, // Add this prop
+  setLoadingStates,
   setLoadingMessage,
 }) => {
   const queryClient = useQueryClient();
@@ -3055,166 +3030,9 @@ const DicePage = ({
   const [showWinAnimation, setShowWinAnimation] = useState(false);
   const [showLoseAnimation, setShowLoseAnimation] = useState(false);
   const [gameState, setGameState] = useState({
-    isActive: false,
-    chosenNumber: null,
-    result: null,
-    amount: BigInt(0),
-    timestamp: 0,
-    payout: BigInt(0),
-    randomWord: BigInt(0),
-    status: "PENDING",
-    needsResolution: false,
-    canPlay: true,
     isProcessing: false,
     isRolling: false,
-    currentGameData: null,
-  });
-
-  // Add new state for recovery timer
-  const [recoveryTime, setRecoveryTime] = useState(null);
-  const [canRecover, setCanRecover] = useState(false);
-
-  // Add function to handle recovery
-  const handleRecoverGame = async () => {
-    if (!contracts.dice || !account) return;
-
-    try {
-      setGameState((prev) => ({ ...prev, isProcessing: true }));
-      const tx = await contracts.dice.recoverOwnStuckGame();
-      await tx.wait();
-
-      // Invalidate queries to refresh state
-      queryClient.invalidateQueries(["gameState", account]);
-      queryClient.invalidateQueries(["balance", account]);
-
-      addToast("Game recovered successfully!", "success");
-    } catch (error) {
-      console.error("Recovery error:", error);
-      handleContractError(error, onError);
-    } finally {
-      setGameState((prev) => ({ ...prev, isProcessing: false }));
-    }
-  };
-
-  // Add effect to check recovery timer
-  useEffect(() => {
-    if (!gameState.currentGameData?.timestamp || !gameState.isActive) {
-      setRecoveryTime(null);
-      setCanRecover(false);
-      return;
-    }
-
-    const gameTimestamp = Number(gameState.currentGameData.timestamp) * 1000; // Convert to milliseconds
-    const timeoutDuration = 60 * 60 * 1000; // 1 hour in milliseconds
-
-    const checkRecovery = () => {
-      const now = Date.now();
-      const timeLeft = gameTimestamp + timeoutDuration - now;
-
-      if (timeLeft <= 0) {
-        setCanRecover(true);
-        setRecoveryTime(0);
-      } else {
-        setCanRecover(false);
-        setRecoveryTime(timeLeft);
-      }
-    };
-
-    // Initial check
-    checkRecovery();
-
-    // Set up interval
-    const interval = setInterval(checkRecovery, 1000);
-
-    return () => clearInterval(interval);
-  }, [gameState.currentGameData?.timestamp, gameState.isActive]);
-
-  // Add helper function to format time
-  const formatTime = (ms) => {
-    if (!ms) return "";
-    const minutes = Math.floor(ms / 60000);
-    const seconds = Math.floor((ms % 60000) / 1000);
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  };
-
-  // Add this near your other UI elements, perhaps after the bet button
-  const recoveryButton = (
-    <>
-      {gameState.isActive && (
-        <div className="glass-panel p-4 mt-4">
-          {canRecover ? (
-            <button
-              onClick={handleRecoverGame}
-              disabled={gameState.isProcessing}
-              className="btn-gaming h-10 w-full"
-            >
-              {gameState.isProcessing ? (
-                <span className="flex items-center justify-center">
-                  <LoadingSpinner size="small" />
-                  <span className="ml-2">Recovering...</span>
-                </span>
-              ) : (
-                "Recover Stuck Game"
-              )}
-            </button>
-          ) : recoveryTime ? (
-            <div className="text-center">
-              <p className="text-secondary-400 text-sm">
-                Recovery available in
-              </p>
-              <p className="text-white font-mono text-lg">
-                {formatTime(recoveryTime)}
-              </p>
-            </div>
-          ) : null}
-        </div>
-      )}
-    </>
-  );
-
-  const monitorIntervalRef = useRef(null);
-  const isMounted = useRef(true);
-
-  const GameStatus = {
-    PENDING: 0,
-    STARTED: 1,
-    COMPLETED_WIN: 2,
-    COMPLETED_LOSS: 3,
-    CANCELLED: 4,
-  };
-
-  // Game State Query
-  const { data: gameStateData, isLoading: gameStateLoading } = useQuery({
-    queryKey: ["gameState", account, contracts.dice?.target],
-    queryFn: async () => {
-      if (!contracts.dice || !account) return null;
-
-      try {
-        const [currentGame, requestDetails, canPlay] = await Promise.all([
-          contracts.dice.getCurrentGame(account),
-          contracts.dice.getCurrentRequestDetails(account),
-          contracts.dice.canStartNewGame(account),
-        ]);
-
-        // Get request details
-        const [requestId, requestFulfilled, requestActive] = requestDetails;
-
-        return {
-          currentGame,
-          requestDetails: {
-            requestId: Number(requestId),
-            requestFulfilled,
-            requestActive,
-          },
-          canPlay,
-        };
-      } catch (error) {
-        console.error("Error fetching game state:", error);
-        return null;
-      }
-    },
-    enabled: !!contracts.dice && !!account,
-    refetchInterval: 5000,
+    lastResult: null,
   });
 
   // Balance Query
@@ -3237,84 +3055,12 @@ const DicePage = ({
     refetchInterval: 5000,
   });
 
-  // Update game state based on query results
-  useEffect(() => {
-    if (gameStateData) {
-      const { currentGame, requestDetails } = gameStateData;
-
-      setGameState((prev) => ({
-        ...prev,
-        isActive: currentGame.isActive,
-        status: Object.keys(GameStatus)[currentGame.status],
-        result: currentGame.result > 0 ? currentGame.result : null,
-        amount: currentGame.amount,
-        timestamp: currentGame.timestamp,
-        payout: currentGame.payout,
-        randomWord: currentGame.randomWord,
-        needsResolution:
-          currentGame.isActive && requestDetails.requestFulfilled,
-        canPlay: !currentGame.isActive && !requestDetails.requestActive,
-        currentGameData: currentGame,
-      }));
-    }
-  }, [gameStateData]);
-
-  const handleGameResolution = async () => {
-    if (!gameState.needsResolution || !contracts.dice || !account) return;
-    if (gameState.isProcessing) return;
-
-    try {
-      setGameState((prev) => ({
-        ...prev,
-        isProcessing: true,
-        isRolling: true,
-      }));
-
-      const tx = await contracts.dice.resolveGame();
-      await tx.wait();
-
-      // Invalidate queries
-      queryClient.invalidateQueries(["gameState", account]);
-      queryClient.invalidateQueries(["balance", account]);
-
-      // Show appropriate animation after resolution
-      const updatedGame = await contracts.dice.getCurrentGame(account);
-      const isWin = updatedGame.status === GameStatus.COMPLETED_WIN;
-
-      if (isWin) {
-        setShowWinAnimation(true);
-        addToast(
-          `Congratulations! You won ${ethers.formatEther(
-            updatedGame.payout,
-          )} GAMA!`,
-          "success",
-        );
-      } else {
-        setShowLoseAnimation(true);
-        addToast("Better luck next time!", "warning");
-      }
-    } catch (error) {
-      console.error("Game resolution error:", error);
-      handleContractError(error, onError);
-    } finally {
-      setGameState((prev) => ({
-        ...prev,
-        isProcessing: false,
-        isRolling: false,
-      }));
-    }
-  };
-
-  // Add new error handling function
   const handleContractError = (error, onError) => {
     if (error.code === "CALL_EXCEPTION") {
       const errorName = error.errorName;
       switch (errorName) {
         case "InvalidBetParameters":
           addToast("Invalid bet parameters", "error");
-          break;
-        case "InsufficientContractBalance":
-          addToast("Insufficient contract balance", "error");
           break;
         case "InsufficientUserBalance":
           addToast("Insufficient balance", "error");
@@ -3341,7 +3087,6 @@ const DicePage = ({
     try {
       setGameState((prev) => ({ ...prev, isProcessing: true }));
 
-      // Get current allowance using updated function name
       const currentAllowance = await contracts.token.allowance(
         account,
         contracts.dice.target,
@@ -3359,7 +3104,6 @@ const DicePage = ({
           throw new Error("Token approval transaction failed");
         }
 
-        // Verify new allowance using updated function name
         const newAllowance = await contracts.token.allowance(
           account,
           contracts.dice.target,
@@ -3382,149 +3126,84 @@ const DicePage = ({
     }
   };
 
-  const checkApprovals = async () => {
-    const allowance = await contracts.token.allowance(
-      account,
-      contracts.dice.target,
-    );
-    const balance = await contracts.token.balanceOf(account);
-    console.log({
-      allowance: allowance.toString(),
-      balance: balance.toString(),
-      betAmount: betAmount.toString(),
-    });
-  };
-
-  console.log({
-    canPlay: gameState.canPlay,
-    isProcessing: gameState.isProcessing,
-    chosenNumber,
-    betAmount: betAmount.toString(),
-    userBalance: balanceData?.balance?.toString() || "0", // Fixed reference to userBalance
-  });
-
-  const debouncedPlaceBet = useCallback(
-    debounce(async () => {
-      if (
-        !contracts.dice ||
-        !account ||
-        !chosenNumber ||
-        betAmount <= BigInt(0)
-      )
-        return;
-      if (gameState.isProcessing) return;
-
-      try {
-        setGameState((prev) => ({ ...prev, isProcessing: true }));
-
-        const tx = await contracts.dice.playDice(chosenNumber, betAmount);
-        await tx.wait();
-
-        queryClient.invalidateQueries(["gameState", account]);
-        queryClient.invalidateQueries(["balance", account]);
-
-        setGameState((prev) => ({
-          ...prev,
-          isActive: true,
-          isRolling: true,
-          status: "STARTED",
-        }));
-
-        addToast("Bet placed successfully!", "success");
-      } catch (error) {
-        console.error("Bet placement error:", error);
-
-        let errorMessage = "Failed to place bet";
-
-        // Handle specific error codes
-        if (error.code === "CALL_EXCEPTION") {
-          if (error.action === "estimateGas") {
-            // This usually means there's a revert at the contract level
-            errorMessage =
-              "Transaction would fail - please check your balance and permissions";
-
-            // Try to get more specific error info if available
-            if (error.info?.error?.data) {
-              const errorData = error.info.error.data;
-              // Add specific contract error handling here if needed
-            }
-          }
-        } else if (error.code === "ACTION_REJECTED") {
-          errorMessage = "Transaction rejected by user";
-        }
-
-        onError({ ...error, message: errorMessage });
-      } finally {
-        setGameState((prev) => ({ ...prev, isProcessing: false }));
-      }
-    }, 500),
-    [contracts.dice, account, chosenNumber, betAmount, gameState.isProcessing],
-  );
-
-  // Cleanup effect
-  useEffect(() => {
-    return () => {
-      isMounted.current = false;
-      if (monitorIntervalRef.current) {
-        clearInterval(monitorIntervalRef.current);
-        monitorIntervalRef.current = null;
-      }
-    };
-  }, []);
-
   const handlePlaceBet = async () => {
+    if (!contracts.dice || !account || !chosenNumber || betAmount <= BigInt(0))
+      return;
+    if (gameState.isProcessing) return;
+
     try {
-      console.log("Starting bet placement...");
+      setGameState((prev) => ({
+        ...prev,
+        isProcessing: true,
+        isRolling: true,
+      }));
 
-      // Check if user has an active game
-      const gameStatus = await contracts.dice.getCurrentGame(account);
-      console.log("Current game status:", gameStatus);
-
-      // Check token approvals
-      const allowance = await contracts.token.allowance(
+      // First check and handle token approval
+      const currentAllowance = await contracts.token.allowance(
         account,
         contracts.dice.target,
       );
-      const balance = await contracts.token.balanceOf(account);
-      console.log("Token status:", {
-        allowance: allowance.toString(),
-        balance: balance.toString(),
-        betAmount: betAmount.toString(),
-      });
-
-      // Attempt to place bet
-      const tx = await contracts.dice.playDice(chosenNumber, betAmount);
-      console.log("Transaction sent:", tx.hash);
-
-      await tx.wait();
-      console.log("Transaction confirmed");
-    } catch (error) {
-      console.error("Bet placement failed:", error);
-      // Check for specific error types
-      if (error.code === "CALL_EXCEPTION") {
-        const errorName = error.errorName;
-        switch (errorName) {
-          case "InvalidBetParameters":
-            addToast(
-              "Invalid bet parameters. Check your bet amount and chosen number.",
-              "error",
-            );
-            break;
-          case "InsufficientUserBalance":
-            addToast("Insufficient balance to place bet.", "error");
-            break;
-          case "GameError":
-            addToast(
-              "You have an active game. Please resolve it first.",
-              "error",
-            );
-            break;
-          default:
-            onError(error);
-        }
-      } else {
-        onError(error);
+      if (currentAllowance < betAmount) {
+        const approveTx = await contracts.token.approve(
+          contracts.dice.target,
+          ethers.MaxUint256,
+        );
+        await approveTx.wait();
+        addToast("Token approval successful", "success");
       }
+
+      // Place the bet
+      const tx = await contracts.dice.playDice(chosenNumber, betAmount);
+      const receipt = await tx.wait();
+
+      // Get the result from the transaction events
+      const event = receipt.logs
+        .map((log) => {
+          try {
+            return contracts.dice.interface.parseLog({
+              topics: log.topics,
+              data: log.data,
+            });
+          } catch (e) {
+            return null;
+          }
+        })
+        .find((event) => event && event.name === "GameResult");
+
+      if (event) {
+        const [player, chosenNum, rolledNum, betAmt, payout] = event.args;
+        const isWin = payout > 0;
+
+        // Update game state with result
+        setGameState((prev) => ({
+          ...prev,
+          lastResult: Number(rolledNum),
+        }));
+
+        // Show appropriate animation
+        if (isWin) {
+          setShowWinAnimation(true);
+          addToast(
+            `Congratulations! You won ${ethers.formatEther(payout)} GAMA!`,
+            "success",
+          );
+        } else {
+          setShowLoseAnimation(true);
+          addToast("Better luck next time!", "warning");
+        }
+      }
+
+      // Refresh balances and game state
+      queryClient.invalidateQueries(["balance", account]);
+    } catch (error) {
+      console.error("Bet placement error:", error);
+      handleContractError(error, onError);
+    } finally {
+      setGameState((prev) => ({
+        ...prev,
+        isProcessing: false,
+        isRolling: false,
+      }));
     }
   };
 
@@ -3543,25 +3222,14 @@ const DicePage = ({
           </p>
         </div>
 
-        {(gameStateLoading || balanceLoading) && (
+        {balanceLoading && (
           <div className="glass-panel p-4">
             <div className="flex items-center justify-center space-x-2">
               <LoadingSpinner size="small" />
-              <span className="text-secondary-400">
-                {gameStateLoading
-                  ? "Updating game state..."
-                  : "Updating balance..."}
-              </span>
+              <span className="text-secondary-400">Updating balance...</span>
             </div>
           </div>
         )}
-
-        <div className="glass-panel p-6">
-          <StatusIndicator
-            status={gameState.status}
-            isActive={gameState.isActive}
-          />
-        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-8">
@@ -3574,7 +3242,7 @@ const DicePage = ({
                 <NumberSelector
                   value={chosenNumber}
                   onChange={setChosenNumber}
-                  disabled={!gameState.canPlay || gameState.isProcessing}
+                  disabled={gameState.isProcessing}
                 />
               </div>
 
@@ -3583,9 +3251,8 @@ const DicePage = ({
                   value={betAmount}
                   onChange={setBetAmount}
                   userBalance={balanceData?.balance.toString() || "0"}
-                  disabled={
-                    !gameState.canPlay || gameState.isProcessing || hasNoTokens
-                  }
+                  disabled={gameState.isProcessing || hasNoTokens}
+                  diceContract={contracts.dice}
                 />
                 {hasNoTokens && (
                   <p className="text-red-500 mt-2 text-sm">
@@ -3617,12 +3284,11 @@ const DicePage = ({
                 <button
                   onClick={handlePlaceBet}
                   disabled={
-                    !gameState.canPlay ||
                     !chosenNumber ||
                     betAmount <= BigInt(0) ||
                     (balanceData?.allowance || BigInt(0)) < betAmount ||
                     (balanceData?.balance || BigInt(0)) < betAmount ||
-                    hasNoTokens || // Add this condition
+                    hasNoTokens ||
                     gameState.isProcessing ||
                     !account ||
                     !contracts.dice
@@ -3632,39 +3298,14 @@ const DicePage = ({
                   {gameState.isProcessing ? (
                     <span className="flex items-center justify-center">
                       <LoadingSpinner size="small" />
-                      <span className="ml-2">Processing...</span>
+                      <span className="ml-2">Rolling...</span>
                     </span>
-                  ) : hasNoTokens ? ( // Add this condition
+                  ) : hasNoTokens ? (
                     "No Tokens Available"
                   ) : (
                     "Place Bet"
                   )}
                 </button>
-
-                {gameState.isActive && (
-                  <>
-                    {gameState.needsResolution ? (
-                      <button
-                        onClick={handleGameResolution}
-                        disabled={gameState.isProcessing}
-                        className="btn-gaming h-14 w-full"
-                      >
-                        {gameState.isProcessing ? (
-                          <span className="flex items-center justify-center">
-                            <LoadingSpinner size="small" />
-                            <span className="ml-2">Revealing...</span>
-                          </span>
-                        ) : (
-                          "Reveal Result"
-                        )}
-                      </button>
-                    ) : (
-                      <div className="text-center text-gaming-accent">
-                        Waiting for random number...
-                      </div>
-                    )}
-                  </>
-                )}
               </div>
             </div>
 
@@ -3673,7 +3314,6 @@ const DicePage = ({
               allowance={balanceData?.allowance || BigInt(0)}
               potentialWinnings={betAmount * BigInt(6)}
             />
-            {recoveryButton}
           </div>
 
           <div className="space-y-8">
